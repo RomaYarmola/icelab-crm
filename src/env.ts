@@ -41,9 +41,19 @@ export function parseEnv(raw: Record<string, string | undefined>): Env {
   return result.data;
 }
 
-let cached: Env | undefined;
+const keys = Object.keys(schema.shape);
 
+let cache: { fingerprint: string; env: Env } | undefined;
+
+/**
+ * Повертає перевірені змінні. Результат кешується, але кеш прив'язаний до значень змінних:
+ * якщо вони змінилися (у dev після правки .env.local Next.js оновлює process.env),
+ * вони перевіряються знову, тож перезапуск сервера не потрібен.
+ */
 export function getEnv(): Env {
-  cached ??= parseEnv(process.env);
-  return cached;
+  const fingerprint = JSON.stringify(keys.map((key) => process.env[key]));
+  if (cache?.fingerprint !== fingerprint) {
+    cache = { fingerprint, env: parseEnv(process.env) };
+  }
+  return cache.env;
 }

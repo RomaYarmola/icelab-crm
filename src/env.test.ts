@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { EnvError, parseEnv } from "@/env";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { EnvError, getEnv, parseEnv } from "@/env";
 
 const validUrl = "postgresql://user:secret-password@host.example.com:5432/postgres";
+const otherUrl = "postgresql://user:other-password@other.example.com:5432/postgres";
 
 describe("parseEnv", () => {
   it("приймає мінімальний набір і ставить APP_ENV=dev за замовчуванням", () => {
@@ -39,5 +40,32 @@ describe("parseEnv", () => {
     expect(() =>
       parseEnv({ DATABASE_URL: validUrl, NEXT_PUBLIC_SUPABASE_URL: "не-url" }),
     ).toThrowError(/NEXT_PUBLIC_SUPABASE_URL/);
+  });
+});
+
+describe("getEnv", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("повертає той самий об'єкт, поки змінні не змінилися", () => {
+    vi.stubEnv("DATABASE_URL", validUrl);
+    expect(getEnv()).toBe(getEnv());
+  });
+
+  it("підхоплює зміну змінних без перезапуску", () => {
+    vi.stubEnv("DATABASE_URL", validUrl);
+    expect(getEnv().DATABASE_URL).toBe(validUrl);
+
+    vi.stubEnv("DATABASE_URL", otherUrl);
+    expect(getEnv().DATABASE_URL).toBe(otherUrl);
+  });
+
+  it("після помилки перевіряє змінні знову й одужує, коли їх виправлено", () => {
+    vi.stubEnv("DATABASE_URL", "це не url");
+    expect(() => getEnv()).toThrowError(EnvError);
+
+    vi.stubEnv("DATABASE_URL", validUrl);
+    expect(getEnv().DATABASE_URL).toBe(validUrl);
   });
 });
