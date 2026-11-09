@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import * as schema from "@/db/schema";
 import { getEnv } from "@/env";
 
 type Sql = ReturnType<typeof postgres>;
@@ -40,5 +41,5 @@ export async function closeSql(): Promise<void> {
 }
 
 export function getDb() {
-  return drizzle({ client: getSql() });
+  return drizzle({ client: getSql(), schema });
 }

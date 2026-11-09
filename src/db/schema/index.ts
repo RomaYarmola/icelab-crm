@@ -1,2 +1,5 @@
-// Схему таблиць додаємо в блоці B1. Поки що порожньо, щоб drizzle-kit мав точку входу.
-export {};
+export * from "./audit";
+export * from "./clients";
+export * from "./enums";
+export * from "./orders";
+export * from "./reference";
