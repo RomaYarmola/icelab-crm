@@ -15,7 +15,8 @@ import { getEnv } from "@/env";
 // Перевіряє структуру і тригери на справжній базі (dev або staging).
 // Усі записи виконуються в транзакції, яку наприкінці скасовують, тож у базі нічого не лишається.
 
-const EXPECTED_TABLES = 17;
+// 17 таблиць B1 і login_failures (B2)
+const EXPECTED_TABLES = 18;
 // 15 (updated_at) + 6 (created_by) + 1 (сума) + 1 (історія статусів) + 6 (журнал змін)
 const EXPECTED_TRIGGERS = 29;
 const TEST_CODE = "ЯЯ9999"; // «ЯЯ9999» кирилицею
@@ -38,12 +39,45 @@ async function main() {
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
      where n.nspname = 'public' and c.relkind = 'r'`;
   check(
-    "17 таблиць у схемі public",
+    "18 таблиць у схемі public",
     tables.length === EXPECTED_TABLES,
     `знайдено ${tables.length}`,
   );
   const noRls = tables.filter((t) => !t.rls).map((t) => t.name);
   check("RLS увімкнено на кожній таблиці", noRls.length === 0, noRls.join(", "));
+
+  // Рішення D19: браузер не ходить у таблиці напряму. Ролі Supabase `anon` (не увійшов) і
+  // `authenticated` (увійшов) не мають жодних прав на наші таблиці, послідовності й функції.
+  const browserRoles = await raw`
+    select rolname from pg_roles where rolname in ('anon', 'authenticated')`;
+  if (browserRoles.length === 0) {
+    check("ролі anon і authenticated існують (Supabase)", false, "не знайдено: це не Supabase?");
+  } else {
+    const exposed = await raw`
+      select c.relname || ' (' || r.rolname || ')' as item
+        from pg_class c cross join pg_roles r
+       where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p')
+         and r.rolname in ('anon', 'authenticated')
+         and has_table_privilege(r.rolname, c.oid, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')
+      union all
+      select c.relname || ' (' || r.rolname || ', послідовність)'
+        from pg_class c cross join pg_roles r
+       where c.relnamespace = 'public'::regnamespace and c.relkind = 'S'
+         and r.rolname in ('anon', 'authenticated')
+         and has_sequence_privilege(r.rolname, c.oid, 'USAGE,SELECT,UPDATE')
+      union all
+      select p.oid::regprocedure::text || ' (' || r.rolname || ', функція)'
+        from pg_proc p cross join pg_roles r
+       where p.pronamespace = 'public'::regnamespace
+         and r.rolname in ('anon', 'authenticated')
+         and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
+         and has_function_privilege(r.rolname, p.oid, 'EXECUTE')`;
+    check(
+      "ролі anon і authenticated не мають прав на таблиці, послідовності й функції",
+      exposed.length === 0,
+      exposed.map((row) => row.item).join(", "),
+    );
+  }
 
   const [triggers] = await raw`
     select count(*)::int as n from pg_trigger t
@@ -78,10 +112,25 @@ async function main() {
         .where(eq(locations.code, "kyiv"));
       if (!location) throw new Error("Немає локації kyiv: спершу запустіть npm run db:seed.");
 
+      // Профіль 1 до 1 з акаунтом Supabase: спершу акаунт (у транзакції, яку скасуємо).
+      const actorId = crypto.randomUUID();
+      await tx.execute(sql`insert into auth.users (id) values (${actorId})`);
       const [actor] = await tx
         .insert(profiles)
-        .values({ id: crypto.randomUUID(), fullName: "Перевірка", role: "manager" })
+        .values({ id: actorId, fullName: "Перевірка", role: "manager" })
         .returning();
+
+      let orphanRejected = false;
+      try {
+        await tx.transaction(async (inner) => {
+          await inner
+            .insert(profiles)
+            .values({ id: crypto.randomUUID(), fullName: "Без акаунта", role: "manager" });
+        });
+      } catch {
+        orphanRejected = true;
+      }
+      check("профіль без акаунта Supabase відхиляється", orphanRejected);
       await tx.execute(
         sql`select set_config('app.actor_id', ${actor!.id}, true), set_config('app.change_note', 'перевірка', true)`,
       );

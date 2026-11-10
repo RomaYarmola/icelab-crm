@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { EnvError, getEnv, parseEnv } from "@/env";
+import {
+  EnvError,
+  getEnv,
+  getSupabaseAdminEnv,
+  getSupabaseEnv,
+  parseEnv,
+  parseSupabaseAdminEnv,
+  parseSupabaseEnv,
+} from "@/env";
 
 const validUrl = "postgresql://user:secret-password@host.example.com:5432/postgres";
 const otherUrl = "postgresql://user:other-password@other.example.com:5432/postgres";
@@ -43,9 +51,99 @@ describe("parseEnv", () => {
   });
 });
 
+const supabaseUrl = "https://project-ref.supabase.co";
+
+describe("змінні Supabase для входу", () => {
+  it("вимагає адресу проєкту і публічний ключ та називає відсутні змінні", () => {
+    expect(() => parseSupabaseEnv({})).toThrowError(EnvError);
+    expect(() => parseSupabaseEnv({ NEXT_PUBLIC_SUPABASE_URL: supabaseUrl })).toThrowError(
+      /NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/,
+    );
+  });
+
+  it("приймає повний набір і не вимагає секретного ключа", () => {
+    const env = parseSupabaseEnv({
+      NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
+    });
+    expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe(supabaseUrl);
+  });
+
+  it("не приймає секретний ключ у публічній змінній і публічний у секретній (їх легко переплутати)", () => {
+    const jwt = (role: string) =>
+      `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({ role })).toString("base64url")}.signature`;
+    const url = { NEXT_PUBLIC_SUPABASE_URL: supabaseUrl };
+
+    // Публічна змінна потрапляє в браузер: секретний ключ там неприпустимий.
+    expect(() =>
+      parseSupabaseEnv({ ...url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_secret_abc" }),
+    ).toThrowError(/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/);
+    expect(() =>
+      parseSupabaseEnv({ ...url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: jwt("service_role") }),
+    ).toThrowError(/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/);
+    // Старий публічний ключ (anon) у публічній змінній допустимий.
+    expect(
+      parseSupabaseEnv({ ...url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: jwt("anon") }),
+    ).toBeDefined();
+    // Загальна схема теж не пропускає секретний ключ у публічну змінну.
+    expect(() =>
+      parseEnv({
+        DATABASE_URL: validUrl,
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_secret_abc",
+      }),
+    ).toThrowError(/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY/);
+
+    // Секретна змінна: публічний ключ неприпустимий.
+    const base = { ...url, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test" };
+    expect(() =>
+      parseSupabaseAdminEnv({ ...base, SUPABASE_SECRET_KEY: "sb_publishable_test" }),
+    ).toThrowError(/SUPABASE_SECRET_KEY/);
+    expect(() => parseSupabaseAdminEnv({ ...base, SUPABASE_SECRET_KEY: jwt("anon") })).toThrowError(
+      /SUPABASE_SECRET_KEY/,
+    );
+    expect(
+      parseSupabaseAdminEnv({ ...base, SUPABASE_SECRET_KEY: jwt("service_role") }),
+    ).toBeDefined();
+  });
+
+  it("для керування користувачами вимагає ще й секретний ключ, не розкриваючи його значення", () => {
+    const base = {
+      NEXT_PUBLIC_SUPABASE_URL: supabaseUrl,
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_test",
+    };
+    expect(() => parseSupabaseAdminEnv(base)).toThrowError(/SUPABASE_SECRET_KEY/);
+    expect(parseSupabaseAdminEnv({ ...base, SUPABASE_SECRET_KEY: "sb_secret_test" })).toMatchObject(
+      { SUPABASE_SECRET_KEY: "sb_secret_test" },
+    );
+
+    let message = "";
+    try {
+      parseSupabaseAdminEnv({ ...base, NEXT_PUBLIC_SUPABASE_URL: "не-url sb_secret_leak" });
+    } catch (error) {
+      message = error instanceof Error ? error.message : "";
+    }
+    expect(message).toContain("NEXT_PUBLIC_SUPABASE_URL");
+    expect(message).not.toContain("sb_secret_leak");
+  });
+});
+
 describe("getEnv", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+  });
+
+  it("getSupabaseEnv і getSupabaseAdminEnv підхоплюють зміну змінних без перезапуску", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", supabaseUrl);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "");
+    expect(() => getSupabaseEnv()).toThrowError(EnvError);
+
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    expect(getSupabaseEnv().NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY).toBe("sb_publishable_test");
+    expect(() => getSupabaseAdminEnv()).toThrowError(/SUPABASE_SECRET_KEY/);
+
+    vi.stubEnv("SUPABASE_SECRET_KEY", "sb_secret_test");
+    expect(getSupabaseAdminEnv().SUPABASE_SECRET_KEY).toBe("sb_secret_test");
   });
 
   it("повертає той самий об'єкт, поки змінні не змінилися", () => {

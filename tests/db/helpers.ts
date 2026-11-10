@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { sql } from "drizzle-orm";
 import { clients, locations, orders, profiles } from "@/db/schema";
 import type { TestDb } from "./harness";
 
@@ -25,13 +26,22 @@ export async function makeLocation(db: TestDb, code = `loc${next()}`) {
   return row!;
 }
 
+/** Акаунт у (тестовій) таблиці `auth.users`: профіль не може існувати без нього. */
+export async function makeAuthUser(db: TestDb, id: string = randomUUID(), email?: string) {
+  await db.execute(
+    sql`insert into auth.users (id, email) values (${id}, ${email ?? `${id}@test.local`}) on conflict (id) do nothing`,
+  );
+  return id;
+}
+
 export async function makeProfile(
   db: TestDb,
   overrides: Partial<typeof profiles.$inferInsert> = {},
 ) {
+  const id = await makeAuthUser(db, overrides.id);
   const [row] = await db
     .insert(profiles)
-    .values({ id: randomUUID(), fullName: "Тест", role: "manager", ...overrides })
+    .values({ fullName: "Тест", role: "manager", ...overrides, id })
     .returning();
   return row!;
 }
