@@ -17,9 +17,15 @@
     "db:studio": "drizzle-kit studio",
     "db:seed": "tsx scripts/db-seed.ts",
     "db:reset": "tsx scripts/db-reset.ts",
-    "db:smoke": "tsx scripts/db-smoke.ts"
+    "db:smoke": "tsx scripts/db-smoke.ts",
+    "user:create": "tsx scripts/user-create.ts",
+    "user:seed-dev": "tsx scripts/user-seed-dev.ts",
+    "check:bundle": "tsx scripts/check-bundle.ts",
+    "env:check": "tsx scripts/env-check.ts"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
     "drizzle-orm": "^0.45.4",
     "next": "^16.4.5",
     "postgres": "^4.1.0",

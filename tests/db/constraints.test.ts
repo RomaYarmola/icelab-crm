@@ -19,11 +19,13 @@ import {
   makeClient,
   makeLocation,
   makeOrder,
+  makeProfile,
   pgErrorCode,
 } from "./helpers";
 
 const CHECK_VIOLATION = "23514";
 const UNIQUE_VIOLATION = "23505";
+const FOREIGN_KEY_VIOLATION = "23503";
 // ON DELETE RESTRICT у Postgres повертає restrict_violation (23001), а не foreign_key_violation (23503).
 const RESTRICT_VIOLATION = "23001";
 
@@ -205,15 +207,23 @@ describe("обмеження цілісності", () => {
         );
         expect(code, role).toBe(CHECK_VIOLATION);
       }
-      await db.insert(profiles).values({
-        id: crypto.randomUUID(),
-        fullName: "З локацією",
-        role: "production",
-        locationId,
-      });
-      await db
-        .insert(profiles)
-        .values({ id: crypto.randomUUID(), fullName: "Власник", role: "owner" });
+      await makeProfile(db, { fullName: "З локацією", role: "production", locationId });
+      await makeProfile(db, { fullName: "Власник", role: "owner" });
+    });
+
+    it("не існують без акаунта в auth.users, а акаунт з профілем видалити не можна", async () => {
+      expect(
+        await pgErrorCode(
+          db
+            .insert(profiles)
+            .values({ id: crypto.randomUUID(), fullName: "Без акаунта", role: "owner" }),
+        ),
+      ).toBe(FOREIGN_KEY_VIOLATION);
+
+      const profile = await makeProfile(db, { fullName: "З акаунтом", role: "owner" });
+      expect(
+        await pgErrorCode(db.execute(sql`delete from auth.users where id = ${profile.id}`)),
+      ).toBe(RESTRICT_VIOLATION);
     });
   });
 

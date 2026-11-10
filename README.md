@@ -48,8 +48,21 @@ npm run dev
 | `npm run db:generate` | Згенерувати міграцію зі схеми Drizzle |
 | `npm run db:migrate` | Застосувати міграції до бази з `DATABASE_URL` |
 | `npm run db:studio` | Drizzle Studio |
+| `npm run db:seed` | Додати початкові довідники (нічого не перезаписує) |
+| `npm run db:smoke` | Перевірка структури, тригерів і закритих прав на справжній базі (у транзакції з відкатом) |
+| `npm run db:reset -- --yes` | Скинути dev-базу (лише `APP_ENV=dev`) |
+| `npm run user:create -- --email=... --name=... --role=...` | Створити користувача (перший власник); пароль записується у файл `.dev-users.local` |
+| `npm run user:seed-dev -- --email-template="a+{role}@gmail.com"` | Створити в dev по одному тестовому користувачу на кожну роль |
+| `npm run check:bundle` | Після `npm run build`: перевірити, що серверних секретів немає у файлах для браузера |
+| `npm run env:check` | Перевірити змінні в `.env.local`: для кожної лише «задано чи ні» і вид ключа, значень не виводить |
 
-CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:check, тести і збірку.
+CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:check, тести, збірку і `check:bundle`.
+
+## Вхід і користувачі
+
+Два способи входу (Supabase Auth): e-mail і пароль та Google (Gmail). Самостійної реєстрації немає: користувачів створює власник, листів система не надсилає, пароль задає і скидає власник. Вхід за паролем має обмеження спроб (5 невдалих на e-mail за 15 хвилин, 20 з однієї адреси клієнта). Через Google входить лише той, кого власник додав у систему за його адресою Gmail (`npm run user:create -- ... --no-password`); сторонній Gmail не потрапить. Роль і локацію користувача беремо з таблиці `profiles` на кожен запит. Браузер не ходить у таблиці бази напряму: ролям Supabase `anon` і `authenticated` права на таблиці прибрано, усі дані йдуть через сервер.
+
+Налаштування Supabase для нового проєкту: Authentication, вимкнути самостійну реєстрацію; ліміти в Rate Limits не змінювати (див. D20 у `docs/decisions.md`); увімкнути провайдера Google (Client ID і Client Secret з Google Cloud, адреса повернення Supabase `https://<project-ref>.supabase.co/auth/v1/callback`); у URL Configuration додати адреси застосунку в Redirect URLs (`http://localhost:3000/**`, прев'ю Vercel, бойовий домен). Перший власник: `npm run user:create` (див. таблицю вище). Докладно: [docs/blocks/B2-auth.md](docs/blocks/B2-auth.md).
 
 ## Середовища
 

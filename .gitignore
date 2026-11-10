@@ -40,3 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# паролі користувачів, створених скриптами user:create і user:seed-dev
+.dev-users.local
