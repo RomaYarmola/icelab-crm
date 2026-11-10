@@ -33,7 +33,7 @@ npm run dev
 
 Усі змінні описані в [.env.example](.env.example) із поясненням, у якому блоці кожна потрібна. Застосунок перевіряє їх під час першого звернення (`src/env.ts`) і повідомляє імена некоректних змінних, але не їхні значення.
 
-Секрети лежать тільки у Vercel (staging і production) та в локальному `.env.local`. У репозиторії їх немає.
+Секрети лежать тільки у Vercel (змінні для Production і Preview) та в локальному `.env.local`. У репозиторії їх немає.
 
 ## Скрипти
 
@@ -62,17 +62,28 @@ CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:
 
 Два способи входу (Supabase Auth): e-mail і пароль та Google (Gmail). Самостійної реєстрації немає: користувачів створює власник, листів система не надсилає, пароль задає і скидає власник. Вхід за паролем має обмеження спроб (5 невдалих на e-mail за 15 хвилин, 20 з однієї адреси клієнта). Через Google входить лише той, кого власник додав у систему за його адресою Gmail (`npm run user:create -- ... --no-password`); сторонній Gmail не потрапить. Роль і локацію користувача беремо з таблиці `profiles` на кожен запит. Браузер не ходить у таблиці бази напряму: ролям Supabase `anon` і `authenticated` права на таблиці прибрано, усі дані йдуть через сервер.
 
-Налаштування Supabase для нового проєкту: Authentication, вимкнути самостійну реєстрацію; ліміти в Rate Limits не змінювати (див. D20 у `docs/decisions.md`); увімкнути провайдера Google (Client ID і Client Secret з Google Cloud, адреса повернення Supabase `https://<project-ref>.supabase.co/auth/v1/callback`); у URL Configuration додати адреси застосунку в Redirect URLs (`http://localhost:3000/**`, прев'ю Vercel, бойовий домен). Перший власник: `npm run user:create` (див. таблицю вище). Докладно: [docs/blocks/B2-auth.md](docs/blocks/B2-auth.md).
+Налаштування Supabase для нового проєкту: Authentication, вимкнути самостійну реєстрацію; ліміти в Rate Limits не змінювати (див. D20 у `docs/decisions.md`); увімкнути провайдера Google (Client ID і Client Secret з Google Cloud, адреса повернення Supabase `https://<project-ref>.supabase.co/auth/v1/callback`); у URL Configuration додати адреси застосунку в Redirect URLs: `http://localhost:3000/**`, `https://icelab-crm.vercel.app/**` (Production), `https://*-romayarmolas-projects.vercel.app/**` (прев'ю PR), пізніше бойовий домен `https://crm.icelab.com.ua/**`. Якщо адреси якогось середовища немає в списку, Supabase після Google веде не на `/auth/callback`, і сторінка входу відкривається знову без жодного повідомлення. Перший власник: `npm run user:create` (див. таблицю вище). Докладно: [docs/blocks/B2-auth.md](docs/blocks/B2-auth.md).
 
 ## Середовища
 
-| Середовище | Код | База | Де змінні |
-|---|---|---|---|
-| dev | `APP_ENV=dev` | Supabase `icelab-dev` (безкоштовний проєкт) | `.env.local` |
-| staging | `APP_ENV=staging` | Supabase `icelab-staging` (безкоштовний проєкт) | Vercel, Preview |
-| prod | `APP_ENV=prod` | Supabase `icelab-prod` (Pro) | Vercel, Production |
+Окремих баз `icelab-staging` і `icelab-prod` поки немає, тому всі три середовища тимчасово працюють з однією базою `icelab-dev` (рішення D22 у [docs/decisions.md](docs/decisions.md)).
 
-Кожен PR автоматично розгортається на Vercel як preview і працює зі staging-базою. Гілка `main` розгортається в production. Регіон функцій Vercel: `fra1` (Франкфурт), база Supabase теж у Франкфурті.
+| Середовище | Де працює | База | Де змінні |
+|---|---|---|---|
+| Локально | `http://localhost:3000` | Supabase `icelab-dev` | `.env.local` |
+| Preview | прев'ю кожного PR на Vercel | Supabase `icelab-dev` (тимчасово) | Vercel, Preview |
+| Production | `https://icelab-crm.vercel.app`, гілка `main` | Supabase `icelab-dev` (тимчасово) | Vercel, Production |
+
+Кожен PR автоматично розгортається на Vercel як preview. Гілка `main` розгортається в Production. Регіон функцій Vercel: `fra1` (Франкфурт), база Supabase теж у Франкфурті.
+
+Змінна `APP_ENV` (`dev`, `staging` або `prod`) потрібна захисним скриптам: `db:reset` і `user:seed-dev` працюють лише при `APP_ENV=dev`, а `user:create` в інших середовищах вимагає `--yes`.
+
+**Поки Production і Preview на `icelab-dev`:**
+
+- Справжніх даних клієнтів у систему не вносимо: `npm run db:reset` стирає dev-базу повністю.
+- Vercel міграції не запускає (`build` це лише `next build`). Міграції з PR застосовуємо до `icelab-dev` вручну командою `npm run db:migrate`, до злиття PR.
+- Коли з'явиться `icelab-prod` (Supabase Pro): замінити у Vercel для Production значення чотирьох змінних (`DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`), створити там власника (`npm run user:create -- ... --yes`), налаштувати Supabase (самореєстрація вимкнена, Google, Redirect URLs) і створити окремий OAuth-клієнт Google для бойової адреси.
+- `icelab-staging` (безкоштовний проєкт, у тій самій організації, що й `icelab-dev`) для Preview створимо до того, як у системі з'являться справжні дані.
 
 ## Структура
 
