@@ -1,0 +1,876 @@
+<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="utf-8" />
+    <title>IceLab CRM: варіанти оформлення</title>
+    <style>
+      @page {
+        size: 1500px 1180px;
+        margin: 0;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        background: #fff;
+        color: #001731;
+      }
+
+      /* ---------- Аркуш ---------- */
+      .sheet {
+        width: 1500px;
+        height: 1180px;
+        padding: 52px 105px;
+        position: relative;
+        overflow: hidden;
+        page-break-after: always;
+        break-after: page;
+        background: #fff;
+      }
+      .sheet:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      .sheet-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 40px;
+        margin-bottom: 28px;
+      }
+      .sheet-head h1 {
+        margin: 0 0 8px;
+        font-size: 38px;
+        line-height: 1.15;
+        letter-spacing: -0.01em;
+      }
+      .sheet-head p {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.45;
+        color: #3e5572;
+        max-width: 880px;
+      }
+      .tag {
+        font-size: 15px;
+        color: #3e5572;
+        text-align: right;
+        line-height: 1.5;
+        white-space: nowrap;
+      }
+      .tag img {
+        height: 54px;
+        display: block;
+        margin: 0 0 6px auto;
+      }
+
+      .swatches {
+        display: grid;
+        grid-template-columns: repeat(8, 1fr);
+        gap: 14px;
+        margin-bottom: 30px;
+      }
+      .sw .box {
+        height: 52px;
+        border-radius: 10px;
+        border: 1px solid rgba(0, 23, 49, 0.18);
+      }
+      .sw .nm {
+        font-size: 14px;
+        margin-top: 6px;
+        color: #001731;
+        line-height: 1.25;
+      }
+      .sw .hx {
+        font-size: 14px;
+        color: #3e5572;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .phones {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .phone-wrap {
+        width: 390px;
+      }
+      .cap {
+        font-size: 17px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #001731;
+      }
+      .cap small {
+        display: block;
+        font-weight: 400;
+        font-size: 15px;
+        color: #3e5572;
+        margin-top: 2px;
+      }
+
+      /* ---------- Телефон і теми ---------- */
+      .phone {
+        width: 390px;
+        height: 735px;
+        border-radius: 34px;
+        border: 1px solid #b4c0cf;
+        overflow: hidden;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+        box-shadow: 0 10px 34px rgba(0, 23, 49, 0.16);
+      }
+      .hdr {
+        background: var(--header);
+        color: var(--header-text);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 0 16px;
+        height: 64px;
+        flex: none;
+        border-bottom: 1px solid var(--border);
+      }
+      .hdr .ttl {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 21px;
+        font-weight: 700;
+      }
+      .mk {
+        height: 34px;
+        width: 34px;
+        flex: none;
+        display: block;
+      }
+      .loc {
+        border: 1.5px solid var(--loc-border, currentColor);
+        border-radius: 999px;
+        padding: 0 14px;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        font-size: 16px;
+        font-weight: 600;
+        background: transparent;
+        color: inherit;
+      }
+
+      .body {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+        padding: 12px 16px 0;
+      }
+      .body::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 92px;
+        background: linear-gradient(to top, var(--bg) 60%, transparent);
+        pointer-events: none;
+      }
+      .filters {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .fchip {
+        min-height: 44px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1.5px solid var(--input-border);
+        background: var(--surface);
+        color: var(--text);
+        font-size: 16px;
+        display: inline-flex;
+        align-items: center;
+      }
+      .fchip.on {
+        background: var(--primary);
+        color: var(--on-primary);
+        border-color: var(--primary);
+        font-weight: 600;
+      }
+      .search {
+        min-height: 48px;
+        border: 1.5px solid var(--input-border);
+        border-radius: var(--radius);
+        background: var(--input-bg);
+        color: var(--muted);
+        font-size: 16px;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) + 2px);
+        padding: 12px 14px;
+        margin-bottom: 10px;
+      }
+      .card .nm {
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+      .card .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .card .sub {
+        font-size: 16px;
+        color: var(--muted);
+      }
+      .card .amt {
+        font-size: 18px;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .card .meta {
+        font-size: 16px;
+        color: var(--text);
+      }
+
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 0 11px;
+        border-radius: var(--chip-r);
+        font-size: 16px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .c-confirmed {
+        background: var(--cc-bg);
+        color: var(--cc-fg);
+      }
+      .c-inprod {
+        background: var(--ci-bg);
+        color: var(--ci-fg);
+      }
+      .c-packed {
+        background: var(--cp-bg);
+        color: var(--cp-fg);
+      }
+      .c-paid {
+        background: var(--cd-bg);
+        color: var(--cd-fg);
+      }
+      .c-draft {
+        background: var(--cr-bg);
+        color: var(--cr-fg);
+      }
+      .c-cancelled {
+        background: var(--cx-bg);
+        color: var(--cx-fg);
+        text-decoration: line-through;
+      }
+
+      .btn {
+        min-height: 52px;
+        border-radius: var(--radius);
+        font-size: 18px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        width: 100%;
+        border: 1.5px solid transparent;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: var(--on-primary);
+      }
+      .btn-secondary {
+        background: var(--surface);
+        color: var(--text);
+        border-color: var(--input-border);
+      }
+      .fab {
+        z-index: 1;
+        position: absolute;
+        left: 16px;
+        right: 16px;
+        bottom: 12px;
+        width: auto;
+        box-shadow: 0 6px 18px rgba(0, 23, 49, 0.3);
+      }
+
+      .nav {
+        display: flex;
+        background: var(--nav-bg);
+        border-top: 1px solid var(--border);
+        height: 66px;
+        flex: none;
+        padding: 0 12px;
+        position: relative;
+        z-index: 2;
+      }
+      .nav .it {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        color: var(--muted);
+        font-size: 12px;
+        position: relative;
+      }
+      .nav .it.on {
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .nav .it.on::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 20%;
+        right: 20%;
+        height: 3px;
+        background: var(--accent);
+        border-radius: 0 0 3px 3px;
+      }
+      .ic {
+        width: 25px;
+        height: 25px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      /* ---------- Вхід ---------- */
+      .login-top {
+        background: var(--login-bg);
+        color: var(--login-fg);
+        padding: 52px 24px 30px;
+      }
+      .login-top img {
+        height: 104px;
+        display: block;
+      }
+      .login-top .sb {
+        font-size: 17px;
+        margin-top: 12px;
+        opacity: 0.9;
+      }
+      .form {
+        padding: 24px 24px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .field label {
+        display: block;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 6px;
+      }
+      .input {
+        min-height: 50px;
+        border: 1.5px solid var(--input-border);
+        border-radius: var(--radius);
+        background: var(--input-bg);
+        color: var(--muted);
+        font-size: 17px;
+        padding: 0 14px;
+        display: flex;
+        align-items: center;
+      }
+      .or {
+        text-align: center;
+        font-size: 16px;
+        color: var(--muted);
+      }
+      .note {
+        font-size: 16px;
+        color: var(--muted);
+        text-align: center;
+        line-height: 1.4;
+        padding: 0 8px;
+      }
+
+      /* ---------- Виробництво ---------- */
+      .stats {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .stat {
+        flex: 1;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: calc(var(--radius) + 2px);
+        padding: 10px 14px;
+      }
+      .stat b {
+        display: block;
+        font-size: 30px;
+        line-height: 1.1;
+      }
+      .stat span {
+        font-size: 16px;
+        color: var(--muted);
+      }
+      .big-kg {
+        font-size: 26px;
+        font-weight: 800;
+        line-height: 1.15;
+      }
+      .new {
+        display: inline-block;
+        background: var(--accent);
+        color: var(--on-primary);
+        font-size: 16px;
+        font-weight: 700;
+        border-radius: 6px;
+        padding: 1px 8px;
+        margin-right: 8px;
+        vertical-align: 3px;
+      }
+
+      /* ---------- Огляд ---------- */
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        padding: 12px 20px;
+        border: 1px solid #cdd8e6;
+        border-radius: 14px;
+        margin-bottom: 22px;
+      }
+      .brand .lead {
+        font-size: 17px;
+        line-height: 1.4;
+        color: #001731;
+        flex: 1;
+      }
+      .brand .bsw {
+        display: flex;
+        gap: 12px;
+      }
+      .brand .sw {
+        width: 96px;
+      }
+      .brand .sw .box {
+        height: 40px;
+      }
+      .brand .sw .nm,
+      .brand .sw .hx {
+        font-size: 13px;
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 36px;
+      }
+      .vcard {
+        border: 1px solid #cdd8e6;
+        border-radius: 18px;
+        padding: 24px;
+      }
+      .vcard h2 {
+        margin: 0 0 6px;
+        font-size: 26px;
+      }
+      .vcard .d {
+        margin: 0 0 16px;
+        font-size: 17px;
+        line-height: 1.45;
+        color: #3e5572;
+        min-height: 100px;
+      }
+      .mini {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+        margin-bottom: 18px;
+      }
+      .mini .sw .box {
+        height: 40px;
+      }
+      .mini .sw .nm {
+        font-size: 13px;
+      }
+      .mini .sw .hx {
+        font-size: 13px;
+      }
+      .demo {
+        padding: 16px;
+        border-radius: 14px;
+        background: var(--bg);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .demo .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .facts {
+        margin: 14px 0 0;
+        padding: 0;
+        list-style: none;
+        font-size: 16px;
+        line-height: 1.5;
+      }
+      .facts li {
+        padding: 2px 0;
+      }
+      .two {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 36px;
+        margin-top: 20px;
+      }
+      .box2 h3 {
+        margin: 0 0 8px;
+        font-size: 20px;
+      }
+      .box2 ul {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 17px;
+        line-height: 1.5;
+        color: #1b2f47;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="i-orders" viewBox="0 0 24 24">
+        <rect x="5" y="4" width="14" height="17" rx="2" />
+        <path d="M9 4h6v3H9z" />
+        <path d="M8.5 11.5h7M8.5 15h7M8.5 18.5h4" />
+      </symbol>
+      <symbol id="i-clients" viewBox="0 0 24 24">
+        <circle cx="9" cy="8" r="3.2" />
+        <path d="M3.5 19.5c0-3.3 2.5-5.5 5.5-5.5s5.5 2.2 5.5 5.5" />
+        <circle cx="17" cy="9" r="2.5" />
+        <path d="M16 14.2c2.7-.3 4.8 1.6 4.8 4.3" />
+      </symbol>
+      <symbol id="i-prod" viewBox="0 0 24 24">
+        <path d="M12 3v18M4.2 7.5l15.6 9M19.8 7.5 4.2 16.5" />
+        <path d="M9.5 4.6 12 6.6l2.5-2M9.5 19.4 12 17.4l2.5 2" />
+      </symbol>
+      <symbol id="i-box" viewBox="0 0 24 24">
+        <path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z" />
+        <path d="M3.5 7.5 12 12l8.5-4.5M12 12v9" />
+      </symbol>
+      <symbol id="i-more" viewBox="0 0 24 24">
+        <circle cx="5.5" cy="12" r="1.7" fill="currentColor" />
+        <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+        <circle cx="18.5" cy="12" r="1.7" fill="currentColor" />
+      </symbol>
+    </svg>
+    <div id="root"></div>
+
+    <script>
+      // Кольори бренду взято з сайту IceLab (tailwind.config.js): #001731, #1256A3, #A8D0FD; колір логотипа #294374.
+      const BASE = {
+        bg: "#EAF3FF",
+        surface: "#FFFFFF",
+        "nav-bg": "#FFFFFF",
+        "input-bg": "#FFFFFF",
+        text: "#001731",
+        muted: "#3E5572",
+        "input-border": "#6A82A0",
+        border: "#CFDCEC",
+        "cc-bg": "#DCEBFB",
+        "cc-fg": "#0B4A8F",
+        "ci-bg": "#FFEBC7",
+        "ci-fg": "#7A4400",
+        "cp-bg": "#D6F1E2",
+        "cp-fg": "#0D5A33",
+        "cd-fg": "#FFFFFF",
+        "cr-bg": "#E7ECF3",
+        "cr-fg": "#34465C",
+        "cx-bg": "#FADADA",
+        "cx-fg": "#8A1717",
+      };
+      const THEMES = {
+        a: {
+          key: "А",
+          name: "«Світлий»",
+          dark: false,
+          mood: "Біла шапка і яскраво-сині кнопки, як на кнопках вашого сайту. М'які закруглення. Найближчий до сайту і до звичних ділових застосунків.",
+          v: {
+            ...BASE,
+            primary: "#1256A3",
+            "on-primary": "#FFFFFF",
+            header: "#FFFFFF",
+            "header-text": "#001731",
+            accent: "#1256A3",
+            "login-bg": "#EAF3FF",
+            "login-fg": "#001731",
+            radius: "12px",
+            "chip-r": "999px",
+            "cd-bg": "#1256A3",
+          },
+          contrast: { text: "16,1", btn: "7,3", chips: "6,8" },
+        },
+        b: {
+          key: "Б",
+          name: "«Темний»",
+          dark: true,
+          mood: "Повністю темний: темно-синій фон, світлий текст, світло-блакитні кнопки, майже прямі кути. Не сліпить увечері, добре видно здалеку, наприклад на планшеті в цеху.",
+          v: {
+            ...BASE,
+            bg: "#001731",
+            surface: "#0B2A4D",
+            "nav-bg": "#000F20",
+            "input-bg": "#0B2A4D",
+            text: "#F5F7FF",
+            muted: "#A9BCD6",
+            "input-border": "#6F8BB0",
+            border: "#1E4570",
+            primary: "#A8D0FD",
+            "on-primary": "#001731",
+            header: "#000F20",
+            "header-text": "#F5F7FF",
+            "loc-border": "#A8D0FD",
+            accent: "#A8D0FD",
+            "login-bg": "#000F20",
+            "login-fg": "#F5F7FF",
+            radius: "6px",
+            "chip-r": "6px",
+            "cc-bg": "#123F6E",
+            "cc-fg": "#D3E8FF",
+            "ci-bg": "#4D3611",
+            "ci-fg": "#FFD98A",
+            "cp-bg": "#0F4027",
+            "cp-fg": "#A9EBC8",
+            "cd-bg": "#A8D0FD",
+            "cd-fg": "#001731",
+            "cr-bg": "#26405E",
+            "cr-fg": "#CDDAEA",
+            "cx-bg": "#4D1E1E",
+            "cx-fg": "#FFB9B9",
+          },
+          contrast: { text: "13,5", btn: "11,2", chips: "7,5" },
+        },
+        c: {
+          key: "В",
+          name: "«Мінімалістичний»",
+          dark: false,
+          mood: "Білий і світло-сірий, кнопки глибокого темно-синього. Дуже закруглені форми. Найспокійніший вигляд: кольору мало, увага на даних.",
+          v: {
+            ...BASE,
+            bg: "#FFFFFF",
+            surface: "#F2F5FA",
+            muted: "#44546A",
+            "input-border": "#74839A",
+            border: "#DCE3ED",
+            "cc-bg": "#E2ECFA",
+            primary: "#001731",
+            "on-primary": "#FFFFFF",
+            header: "#FFFFFF",
+            "header-text": "#001731",
+            accent: "#1256A3",
+            "login-bg": "#FFFFFF",
+            "login-fg": "#001731",
+            radius: "16px",
+            "chip-r": "999px",
+            "cd-bg": "#001731",
+          },
+          contrast: { text: "16,5", btn: "18,0", chips: "6,8" },
+        },
+      };
+
+      const css = (t) =>
+        Object.entries(THEMES[t].v)
+          .map(([k, v]) => `--${k}:${v}`)
+          .join(";");
+      const ic = (id) =>
+        `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+      const mk = (t) =>
+        `<img class="mk" src="assets/${THEMES[t].dark ? "white-mark" : "mark"}.svg" alt="">`;
+      const chip = (k, text) => `<span class="chip c-${k}">${text}</span>`;
+
+      const NAV_FULL = [
+        ["orders", "Замовлення"],
+        ["clients", "Клієнти"],
+        ["prod", "Виробництво"],
+        ["box", "Бокси"],
+        ["more", "Ще"],
+      ];
+      const NAV_PROD = [
+        ["prod", "Виробництво"],
+        ["box", "Бокси"],
+        ["more", "Ще"],
+      ];
+      const nav = (items, active) =>
+        `<div class="nav">${items.map(([id, l]) => `<div class="it ${id === active ? "on" : ""}">${ic(id)}<span>${l}</span></div>`).join("")}</div>`;
+
+      function loginScreen(t) {
+        return `<div class="phone">
+    <div class="login-top"><img src="assets/${THEMES[t].dark ? "white-logo" : "logo"}.svg" alt="IceLab"><div class="sb">CRM · облік замовлень</div></div>
+    <div class="form">
+      <div class="field"><label>E-mail</label><div class="input">name@example.com</div></div>
+      <div class="field"><label>Пароль</label><div class="input">••••••••••</div></div>
+      <div class="btn btn-primary">Увійти</div>
+      <div class="or">або</div>
+      <div class="btn btn-secondary">Увійти через Google</div>
+      <div class="note">Немає доступу? Зверніться до власника: самостійної реєстрації немає.</div>
+    </div></div>`;
+      }
+
+      function ordersScreen(t) {
+        const card = (
+          n,
+          code,
+          nm,
+          meta,
+          amt,
+          k,
+          label,
+        ) => `<div class="card"><div class="nm">${nm}</div>
+    <div class="row"><span class="sub">${code} · № ${n}</span>${chip(k, label)}</div>
+    <div class="row"><span class="meta">${meta}</span><span class="amt">${amt}</span></div></div>`;
+        return `<div class="phone">
+    <div class="hdr"><div class="ttl">${mk(t)}Замовлення</div><span class="loc">Усі локації</span></div>
+    <div class="body">
+      <div class="filters"><span class="fchip on">Сьогодні</span><span class="fchip">Вчора</span><span class="fchip">Завтра</span><span class="fchip">Тиждень</span></div>
+      <div class="search">Пошук за кодом або назвою</div>
+      ${card("3472", "АА15", "Кафе «Вогник»", "30 кг · Гранули · Самовивіз", "2 250 ₴", "inprod", "У виробництві")}
+      ${card("3471", "ВС57", "ФОП Іваненко", "12 кг · Блоки · Нова Пошта", "900 ₴", "confirmed", "Підтверджено")}
+      ${card("3470", "АХ8", "Івент-агенція «Дим»", "60 кг · Гранули · Доставка", "4 500 ₴", "packed", "Запаковано")}
+      ${card("3469", "ВН3", "Склад №4", "25 кг · Гранули · Самовивіз", "1 875 ₴", "paid", "Оплачено")}
+      <div class="btn btn-primary fab">+ Нове замовлення</div>
+    </div>
+    ${nav(NAV_FULL, "orders")}</div>`;
+      }
+
+      function productionScreen(t) {
+        return `<div class="phone">
+    <div class="hdr"><div class="ttl">${mk(t)}Виробництво</div><span class="loc">Львів</span></div>
+    <div class="body">
+      <div class="stats"><div class="stat"><b>4</b><span>До виготовлення</span></div><div class="stat"><b>2</b><span>Запаковано</span></div></div>
+      <div class="card"><div><span class="new">Нове</span><span class="sub">ВС21 · № 3475</span></div>
+        <div class="big-kg" style="margin-top:6px">Виготовити 33 кг</div>
+        <div class="meta" style="margin:4px 0 2px">Продаж 30 кг · Гранули</div>
+        <div class="sub">Кафе «Снігур» · самовивіз до 14:00</div>
+        <div class="sub" style="margin-bottom:10px">Тара: бокс 60 кг × 1</div>
+        <div class="btn btn-primary">Запаковано</div></div>
+      <div class="card"><div class="sub">АМ4 · № 3474</div>
+        <div class="big-kg" style="margin-top:4px">Виготовити 14 кг</div>
+        <div class="meta" style="margin:4px 0 2px">Продаж 12 кг · Блоки</div>
+        <div class="sub" style="margin-bottom:10px">Нова Пошта · відправка до 16:00</div>
+        <div class="btn btn-primary">Запаковано</div></div>
+    </div>
+    ${nav(NAV_PROD, "prod")}</div>`;
+      }
+
+      function swatches(t, ids) {
+        const v = THEMES[t].v;
+        const all = [
+          ["bg", "Тло"],
+          ["surface", "Картка"],
+          ["text", "Текст"],
+          ["muted", "Другорядний"],
+          ["primary", "Кнопка"],
+          ["accent", "Акцент"],
+          ["header", "Шапка"],
+          ["input-border", "Рамка поля"],
+        ];
+        return all
+          .filter(([id]) => !ids || ids.includes(id))
+          .map(
+            ([id, n]) =>
+              `<div class="sw"><div class="box" style="background:${v[id]}"></div><div class="nm">${n}</div><div class="hx">${v[id]}</div></div>`,
+          )
+          .join("");
+      }
+
+      const tagHtml = `<div class="tag"><img src="assets/logo.svg" alt="IceLab">CRM · варіанти оформлення</div>`;
+
+      function variantSheet(t) {
+        const T = THEMES[t];
+        return `<section class="sheet" style="${css(t)}">
+    <div class="sheet-head"><div><h1>Варіант ${T.key} · ${T.name}</h1><p>${T.mood}</p></div>${tagHtml}</div>
+    <div class="swatches">${swatches(t)}</div>
+    <div class="phones">
+      <div class="phone-wrap"><div class="cap">Вхід<small>для всіх ролей</small></div>${loginScreen(t)}</div>
+      <div class="phone-wrap"><div class="cap">Замовлення<small>як бачить менеджер</small></div>${ordersScreen(t)}</div>
+      <div class="phone-wrap"><div class="cap">Виробництво<small>як бачить працівник у Львові: без цін</small></div>${productionScreen(t)}</div>
+    </div></section>`;
+      }
+
+      function overviewSheet() {
+        const brand = [
+          ["#001731", "Темно-синій"],
+          ["#1256A3", "Синій"],
+          ["#A8D0FD", "Світло-блакитний"],
+          ["#294374", "Колір логотипа"],
+        ]
+          .map(
+            ([hx, n]) =>
+              `<div class="sw"><div class="box" style="background:${hx}"></div><div class="nm">${n}</div><div class="hx">${hx}</div></div>`,
+          )
+          .join("");
+        const col = (t) => {
+          const T = THEMES[t];
+          return `<div class="vcard" style="${css(t)}"><h2>${T.key} · ${T.name}</h2><p class="d">${T.mood}</p>
+      <div class="mini">${swatches(t, ["bg", "text", "primary", "header"])}</div>
+      <div class="demo"><div class="btn btn-primary" style="min-height:48px">Основна дія</div><div class="btn btn-secondary" style="min-height:48px">Друга дія</div>
+        <div class="chips">${chip("confirmed", "Підтверджено")}${chip("inprod", "У виробництві")}${chip("packed", "Запаковано")}${chip("paid", "Оплачено")}${chip("draft", "Чернетка")}${chip("cancelled", "Скасовано")}</div></div>
+      <ul class="facts"><li>Контраст тексту: <b>від ${T.contrast.text} : 1</b></li><li>Контраст кнопки: <b>${T.contrast.btn} : 1</b></li><li>Статуси: <b>від ${T.contrast.chips} : 1</b></li></ul></div>`;
+        };
+        return `<section class="sheet">
+    <div class="sheet-head"><div><h1>IceLab CRM: три варіанти оформлення</h1><p>Для погодження. Далі кожен варіант показано на трьох екранах: вхід, замовлення і виробництво.</p></div>${tagHtml}</div>
+    <div class="brand"><div class="lead"><b>Кольори і логотип взято з вашого сайту.</b><br>Усі три варіанти побудовані на цих кольорах і відрізняються шапкою, кнопками, формою та світлою чи темною темою.</div><div class="bsw">${brand}</div></div>
+    <div class="cols">${col("a")}${col("b")}${col("c")}</div>
+    <div class="two">
+      <div class="box2"><h3>Що однакове в усіх варіантах</h3><ul>
+        <li>Розкладка й навігація: меню знизу на телефоні, збоку на комп'ютері</li>
+        <li>Шрифт системний (як у телефоні), текст від 16 px, кнопки від 44 px</li>
+        <li>Контраст не нижче 4,5 : 1, статус замовлення підписаний словом, а не лише кольором</li>
+        <li>Кожна роль бачить лише свої пункти меню. Виробництво не бачить цін</li></ul></div>
+      <div class="box2"><h3>Що потрібно від вас</h3><ul>
+        <li>Оберіть варіант А, Б або В. Можна щось поєднати, наприклад «В, але темний»</li>
+        <li>Якщо є інші вимоги до вигляду чи кольорів, напишіть</li>
+        <li>Імена, суми й коди в прикладах вигадані, це лише для показу</li></ul></div>
+    </div></section>`;
+      }
+
+      const q = new URLSearchParams(location.search).get("sheet") || "all";
+      const parts = {
+        o: overviewSheet,
+        a: () => variantSheet("a"),
+        b: () => variantSheet("b"),
+        c: () => variantSheet("c"),
+      };
+      document.getElementById("root").innerHTML = (q === "all" ? ["o", "a", "b", "c"] : [q])
+        .map((k) => parts[k]())
+        .join("");
+    </script>
+  </body>
+</html>
