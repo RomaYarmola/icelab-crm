@@ -17,6 +17,14 @@ import { EnvError, getSupabaseEnv } from "@/env";
  */
 const PUBLIC_PATHS = ["/login", "/auth/callback", "/auth/end-session"];
 
+/**
+ * Каталог компонентів `/ui-kit` відкритий без входу лише під час розробки (`next dev`), щоб
+ * дивитись вигляд без тестового користувача. У збірці (Vercel, `next build`) він закритий.
+ */
+const isDevUiKit = (pathname: string) =>
+  process.env.NODE_ENV === "development" &&
+  (pathname === "/ui-kit" || pathname.startsWith("/ui-kit/"));
+
 /** Ці заголовки Supabase просить додати до відповіді, що ставить cookie сесії (заборона кешування). */
 const CACHE_HEADERS = ["cache-control", "expires", "pragma"];
 
@@ -60,7 +68,7 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   // getClaims перевіряє підпис токена і оновлює його, коли термін майже вичерпано.
   const { data } = await supabase.auth.getClaims();
   const signedIn = Boolean(data?.claims?.sub);
-  const isPublic = PUBLIC_PATHS.includes(pathname);
+  const isPublic = PUBLIC_PATHS.includes(pathname) || isDevUiKit(pathname);
 
   if (!signedIn && !isPublic) {
     if (pathname.startsWith("/api/")) {
@@ -72,7 +80,8 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
     return withSessionCookies(redirectTo(request, "/login"), response);
   }
   if (signedIn && pathname === "/login" && !request.nextUrl.searchParams.has("reason")) {
-    return withSessionCookies(redirectTo(request, "/me"), response);
+    // Сторінку за роллю вибирає кореневий маршрут `/` (проксі ролі не знає).
+    return withSessionCookies(redirectTo(request, "/"), response);
   }
   return response;
 }
