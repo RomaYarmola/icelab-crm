@@ -66,7 +66,7 @@ CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:
 
 ## Середовища
 
-Окремих баз `icelab-staging` і `icelab-prod` поки немає, тому всі три середовища тимчасово працюють з однією базою `icelab-dev` (рішення D22 у [docs/decisions.md](docs/decisions.md)).
+Окремих баз `icelab-staging` і `icelab-prod` поки немає, тому всі три середовища тимчасово працюють з однією базою `icelab-dev` (рішення D22 у [docs/decisions.md](docs/decisions.md)). Плани: Vercel Hobby і безкоштовний Supabase (D28).
 
 | Середовище | Де працює | База | Де змінні |
 |---|---|---|---|
@@ -82,7 +82,7 @@ CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:
 
 - Справжніх даних клієнтів у систему не вносимо: `npm run db:reset` стирає dev-базу повністю.
 - Vercel міграції не запускає (`build` це лише `next build`). Міграції з PR застосовуємо до `icelab-dev` вручну командою `npm run db:migrate`, до злиття PR.
-- Коли з'явиться `icelab-prod` (Supabase Pro): замінити у Vercel для Production значення чотирьох змінних (`DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`), створити там власника (`npm run user:create -- ... --yes`), налаштувати Supabase (самореєстрація вимкнена, Google, Redirect URLs) і створити окремий OAuth-клієнт Google для бойової адреси.
+- Коли з'явиться `icelab-prod` (безкоштовний проєкт в організації замовника, D28): замінити у Vercel для Production значення чотирьох змінних (`DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`), створити там власника (`npm run user:create -- ... --yes`), налаштувати Supabase (самореєстрація вимкнена, Google, Redirect URLs) і створити окремий OAuth-клієнт Google для бойової адреси.
 - `icelab-staging` (безкоштовний проєкт, у тій самій організації, що й `icelab-dev`) для Preview створимо до того, як у системі з'являться справжні дані.
 
 ## Структура
@@ -122,4 +122,4 @@ await withActor(getDb(), user.id, (tx) =>
 
 ## Відновлення з резервної копії
 
-Процедура буде описана в блоці B8 (резервні копії й експорт).
+Безкоштовний Supabase резервних копій не робить, тому ми робимо власні щоденні зашифровані копії. Схема, відновлення й кроки налаштування: [docs/backups.md](docs/backups.md) (блок B7a). До появи справжніх даних бойової бази копії налаштовуємо обов'язково.
