@@ -88,14 +88,26 @@ CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:
 ## Структура
 
 ```
-src/app/        сторінки і route handlers (Next.js App Router)
-src/db/         підключення до бази і схема Drizzle (src/db/schema)
-src/lib/        спільні утиліти
-src/server/     серверна логіка (сервіси, інтеграції)
-src/features/   модулі за предметними областями
-drizzle/        згенеровані SQL-міграції (з'являться в блоці B1)
-docs/           план, рішення, докладні плани блоків
+src/app/                     сторінки і route handlers (Next.js App Router); (app) це розділи після входу
+src/components/shared/       повторно використовувані компоненти за групами (buttons, titles, form, ...)
+src/components/<назва>Page/  компоненти конкретної сторінки (loginPage, morePage, ...)
+src/constants/               константи і списки (назви статусів, розділи меню)
+src/utils/                   чисті функції (cn, формат дат і чисел, меню за ролями)
+src/db/                      підключення до бази і схема Drizzle (src/db/schema)
+src/lib/                     клієнти й допоміжні модулі (Supabase, адреса клієнта)
+src/server/                  серверна логіка: права, вхід, користувачі
+drizzle/                     SQL-міграції
+tests/                       тести (Vitest)
+docs/                        план, рішення, докладні плани блоків, варіанти дизайну
 ```
+
+## Інтерфейс
+
+Інтерфейс збирається з компонентів-«цеглинок» у `src/components/shared`, як у nbyg-front: окрема папка на групу (`buttons`, `titles`, `texts`, `form`, `customizedInput`, `chips`, `notification`, ...), файл на компонент (`MainButton.tsx`), default export, `className` приймається і зливається через `cn` (`src/utils/cn.ts`).
+
+Усі кольори, розміри тексту, закруглення, брейкпоінти й фокус задаються в одному місці, `src/app/globals.css` (Tailwind 4, `@theme inline`). Брейкпоінти: `xs` 27rem, далі стандартні `sm` 640, `md` 768, `lg` 1024, `xl` 1280. Телефон (PWA) це все, що менше `lg`, комп'ютер (веб) від `lg`. Hover діє лише від `lg`. Курсор-«пойнтер» на всьому клікабельному і плавність (один ефект для наведення, натиснення і фокуса, `--transition-duration` у `:root`) теж задані лише в `globals.css`: у компонентах пишемо `transition`, без `duration-*` і `ease-*`.
+
+Живий каталог усіх компонентів: `npm run dev`, потім http://localhost:3000/ui-kit. Перегляд оболонки для будь-якої ролі: `/ui-kit/shell/manager` (`owner`, `manager`, `location_lead`, `production`, `accountant`). Обидва адреси відкриті лише в режимі розробки, у збірці закриті. Правила: [docs/decisions.md](docs/decisions.md), D37.
 
 ## База даних
 
