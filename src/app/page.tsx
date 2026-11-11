@@ -1,8 +1,9 @@
-export default function Home() {
-  return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center gap-2 p-6 text-center">
-      <h1 className="text-2xl font-semibold">CRM IceLab</h1>
-      <p className="text-base text-neutral-600">Система в розробці.</p>
-    </main>
-  );
+import { redirect } from "next/navigation";
+import { requireUser } from "@/server/auth";
+import { homePathFor } from "@/utils/navigation";
+
+/** Корінь застосунку: без входу веде на `/login`, після входу на сторінку за роллю (ТЗ §6.1). */
+export default async function Home() {
+  const user = await requireUser();
+  redirect(homePathFor(user.role));
 }

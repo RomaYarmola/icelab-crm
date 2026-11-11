@@ -7,23 +7,31 @@ import { clientIpFromHeaders } from "@/lib/client-ip";
 import { originFromHeaders } from "@/lib/request-origin";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { signInWithPassword } from "@/server/sign-in";
+import { homePathFor } from "@/utils/navigation";
 
-export type SignInFormState = { message?: string };
+export type SignInFormState = { message?: string; email?: string };
 
-/** Вхід за e-mail і паролем. Успіх веде на `/me`, помилка повертає повідомлення для форми. */
+/**
+ * Вхід за e-mail і паролем. Успіх веде на сторінку за роллю (ТЗ §6.1), помилка повертає
+ * повідомлення для форми і введений e-mail: React очищає поля форми після дії, а повторно
+ * вводити адресу після помилки незручно.
+ */
 export async function signInAction(
   _previous: SignInFormState,
   formData: FormData,
 ): Promise<SignInFormState> {
+  const email = formData.get("email");
   const supabase = await createSupabaseServerClient();
   const result = await signInWithPassword(
     supabase.auth,
     getDb(),
-    { email: formData.get("email"), password: formData.get("password") },
+    { email, password: formData.get("password") },
     { ip: clientIpFromHeaders(await headers()) },
   );
-  if (!result.ok) return { message: result.message };
-  redirect("/me");
+  if (!result.ok) {
+    return { message: result.message, email: typeof email === "string" ? email : undefined };
+  }
+  redirect(homePathFor(result.user.role));
 }
 
 /**
