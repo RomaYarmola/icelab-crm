@@ -50,6 +50,13 @@
       "when": 1794244207235,
       "tag": "0006_login_failures",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794483942149,
+      "tag": "0007_error_log",
+      "breakpoints": true
     }
   ]
 }

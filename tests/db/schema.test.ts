@@ -13,6 +13,7 @@ const EXPECTED_TABLES = [
   "client_statuses",
   "clients",
   "default_prices",
+  "error_log",
   "ice_types",
   "locations",
   "login_failures",
@@ -34,7 +35,7 @@ describe("структура бази", () => {
     await ctx.client.close();
   });
 
-  it("містить усі 17 таблиць блоку B1 і таблицю невдалих входів з B2", async () => {
+  it("містить усі 17 таблиць блоку B1, невдалі входи з B2 і журнал помилок з B3", async () => {
     const result = await ctx.db.execute(
       sql`select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );
