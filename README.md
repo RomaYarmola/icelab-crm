@@ -54,6 +54,7 @@ npm run dev
 | `npm run user:create -- --email=... --name=... --role=...` | Створити користувача (перший власник); пароль записується у файл `.dev-users.local` |
 | `npm run user:seed-dev -- --email-template="a+{role}@gmail.com"` | Створити в dev по одному тестовому користувачу на кожну роль |
 | `npm run check:bundle` | Після `npm run build`: перевірити, що серверних секретів немає у файлах для браузера |
+| `npx tsx scripts/generate-pwa-icons.ts` | Створити значки застосунку (PWA) зі знака IceLab; потрібно лише після зміни логотипа |
 | `npm run env:check` | Перевірити змінні в `.env.local`: для кожної лише «задано чи ні» і вид ключа, значень не виводить |
 
 CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:check, тести, збірку і `check:bundle`.
@@ -62,7 +63,7 @@ CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:
 
 Два способи входу (Supabase Auth): e-mail і пароль та Google (Gmail). Самостійної реєстрації немає: користувачів створює власник, листів система не надсилає, пароль задає і скидає власник. Вхід за паролем має обмеження спроб (5 невдалих на e-mail за 15 хвилин, 20 з однієї адреси клієнта). Через Google входить лише той, кого власник додав у систему за його адресою Gmail (`npm run user:create -- ... --no-password`); сторонній Gmail не потрапить. Роль і локацію користувача беремо з таблиці `profiles` на кожен запит. Браузер не ходить у таблиці бази напряму: ролям Supabase `anon` і `authenticated` права на таблиці прибрано, усі дані йдуть через сервер.
 
-Налаштування Supabase для нового проєкту: Authentication, вимкнути самостійну реєстрацію; ліміти в Rate Limits не змінювати (див. D20 у `docs/decisions.md`); увімкнути провайдера Google (Client ID і Client Secret з Google Cloud, адреса повернення Supabase `https://<project-ref>.supabase.co/auth/v1/callback`); у URL Configuration додати адреси застосунку в Redirect URLs: `http://localhost:3000/**`, `https://icelab-crm.vercel.app/**` (Production), `https://*-romayarmolas-projects.vercel.app/**` (прев'ю PR), пізніше бойовий домен `https://crm.icelab.com.ua/**`. Якщо адреси якогось середовища немає в списку, Supabase після Google веде не на `/auth/callback`, і сторінка входу відкривається знову без жодного повідомлення. Перший власник: `npm run user:create` (див. таблицю вище). Докладно: [docs/blocks/B2-auth.md](docs/blocks/B2-auth.md).
+Налаштування Supabase для нового проєкту: Authentication, вимкнути самостійну реєстрацію; ліміти в Rate Limits не змінювати (див. D20 у `docs/decisions.md`); увімкнути провайдера Google (Client ID і Client Secret з Google Cloud, адреса повернення Supabase `https://<project-ref>.supabase.co/auth/v1/callback`); у URL Configuration додати адреси застосунку в Redirect URLs: `http://localhost:3000/**`, `https://icelab-crm.vercel.app/**` (Production), `https://*-romayarmolas-projects.vercel.app/**` (прев'ю PR); окремого домену для CRM не буде (D39). Якщо адреси якогось середовища немає в списку, Supabase після Google веде не на `/auth/callback`, і сторінка входу відкривається знову без жодного повідомлення. Перший власник: `npm run user:create` (див. таблицю вище). Докладно: [docs/blocks/B2-auth.md](docs/blocks/B2-auth.md).
 
 ## Середовища
 
@@ -95,7 +96,9 @@ src/constants/               константи і списки (назви ст
 src/utils/                   чисті функції (cn, формат дат і чисел, меню за ролями)
 src/db/                      підключення до бази і схема Drizzle (src/db/schema)
 src/lib/                     клієнти й допоміжні модулі (Supabase, адреса клієнта)
-src/server/                  серверна логіка: права, вхід, користувачі
+src/server/                  серверна логіка: права, вхід, користувачі, локація, журнал помилок
+src/instrumentation.ts       запис помилок сервера в таблицю error_log (Next.js onRequestError)
+public/sw.js                 service worker: кеш статики і сторінка «Немає зв'язку» (public/offline.html)
 drizzle/                     SQL-міграції
 tests/                       тести (Vitest)
 docs/                        план, рішення, докладні плани блоків, варіанти дизайну
@@ -106,6 +109,8 @@ docs/                        план, рішення, докладні план
 Інтерфейс збирається з компонентів-«цеглинок» у `src/components/shared`, як у nbyg-front: окрема папка на групу (`buttons`, `titles`, `texts`, `form`, `customizedInput`, `chips`, `notification`, ...), файл на компонент (`MainButton.tsx`), default export, `className` приймається і зливається через `cn` (`src/utils/cn.ts`).
 
 Усі кольори, розміри тексту, закруглення, брейкпоінти й фокус задаються в одному місці, `src/app/globals.css` (Tailwind 4, `@theme inline`). Брейкпоінти: `xs` 27rem, далі стандартні `sm` 640, `md` 768, `lg` 1024, `xl` 1280. Телефон (PWA) це все, що менше `lg`, комп'ютер (веб) від `lg`. Hover діє лише від `lg`. Курсор-«пойнтер» на всьому клікабельному і плавність (один ефект для наведення, натиснення і фокуса, `--transition-duration` у `:root`) теж задані лише в `globals.css`: у компонентах пишемо `transition`, без `duration-*` і `ease-*`.
+
+Застосунок на телефоні (PWA): маніфест `src/app/manifest.ts`, значки в `public/icons` і `src/app`, service worker `public/sw.js` реєструється лише у збірці. Він кешує тільки статику, сторінки з даними не кешуються (D34). Помилки сервера пишуться в таблицю `error_log` (D40). Ручна перевірка блока: [docs/blocks/B3-checklist.md](docs/blocks/B3-checklist.md).
 
 Живий каталог усіх компонентів: `npm run dev`, потім http://localhost:3000/ui-kit. Перегляд оболонки для будь-якої ролі: `/ui-kit/shell/manager` (`owner`, `manager`, `location_lead`, `production`, `accountant`). Обидва адреси відкриті лише в режимі розробки, у збірці закриті. Правила: [docs/decisions.md](docs/decisions.md), D37.
 
