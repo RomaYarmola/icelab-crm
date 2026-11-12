@@ -15,9 +15,10 @@ const EXPECTED_COUNTS = {
   locations: 2,
   ice_types: 3,
   order_sources: 10,
-  client_statuses: 4,
+  client_statuses: 5,
   client_applications: 7,
   box_types: 6,
+  regions: 27,
   settings: 8,
 };
 
@@ -45,7 +46,13 @@ describe("початкові дані довідників", () => {
     expect(ice.map((r) => r.code)).toEqual(["3mm", "16mm", "19mm"]);
 
     const statuses = await db.select({ code: clientStatuses.code }).from(clientStatuses);
-    expect(statuses.map((r) => r.code).sort()).toEqual(["active", "in_mind", "paused", "warm"]);
+    expect(statuses.map((r) => r.code).sort()).toEqual([
+      "active",
+      "in_mind",
+      "irrelevant",
+      "paused",
+      "warm",
+    ]);
 
     const apps = await db.select({ name: clientApplications.name }).from(clientApplications);
     expect(apps.map((r) => r.name)).toContain("Важкий дим");

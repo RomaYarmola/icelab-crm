@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   date,
@@ -46,6 +47,8 @@ export const clients = pgTable(
     /** Клієнт-заглушка «Новий клієнт»: для нього формат коду не перевіряється. */
     isPlaceholder: boolean("is_placeholder").notNull().default(false),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    /** Якщо клієнта об'єднали з іншим (D46): головна картка. Такий клієнт завжди видалений. */
+    mergedIntoId: uuid("merged_into_id").references((): AnyPgColumn => clients.id, restrict),
     createdBy: createdBy(),
     ...timestamps,
   },
@@ -60,8 +63,24 @@ export const clients = pgTable(
     index("clients_source_id_idx").on(t.sourceId),
     index("clients_default_box_type_id_idx").on(t.defaultBoxTypeId),
     index("clients_created_by_idx").on(t.createdBy),
-    // Дві великі кириличні літери й цифри. Латиниця відхиляється (її нормалізує код у B4 і B7).
-    check("clients_code_format", sql`${t.isPlaceholder} or ${t.code} ~ '^[А-ЯІЇЄҐ]{2}[0-9]+$'`),
+    // Пошук за початком коду (`АА1…`) без урахування порядку сортування мови.
+    index("clients_code_pattern_idx").using("btree", sql`${t.code} text_pattern_ops`),
+    index("clients_merged_into_id_idx").on(t.mergedIntoId),
+    // Дві великі кириличні літери й цифри (АА16) або лише цифри (клієнт без області, D24).
+    // Латиниця відхиляється (її нормалізує код). Код 404 зарезервований за клієнтом-заглушкою.
+    check(
+      "clients_code_format",
+      sql`${t.isPlaceholder} or ${t.code} ~ '^[А-ЯІЇЄҐ]{2}[0-9]+$' or (${t.code} ~ '^[0-9]+$' and ${t.code} <> '404')`,
+    ),
+    check(
+      "clients_not_merged_into_self",
+      sql`${t.mergedIntoId} is null or ${t.mergedIntoId} <> ${t.id}`,
+    ),
+    // Об'єднаний клієнт прихований: інакше в списку з'явився б дубль.
+    check(
+      "clients_merged_is_deleted",
+      sql`${t.mergedIntoId} is null or ${t.deletedAt} is not null`,
+    ),
     check(
       "clients_markup_range",
       sql`${t.markupPercentOverride} is null or (${t.markupPercentOverride} >= 0 and ${t.markupPercentOverride} <= 100)`,
@@ -91,6 +110,9 @@ export const clientContacts = pgTable(
   (t) => [
     index("client_contacts_client_id_idx").on(t.clientId),
     index("client_contacts_phone_idx").on(t.phone),
+    // Пошук за частиною телефону чи імені контакту (триграми, розширення pg_trgm).
+    index("client_contacts_phone_trgm_idx").using("gin", sql`${t.phone} gin_trgm_ops`),
+    index("client_contacts_name_trgm_idx").using("gin", sql`${t.name} gin_trgm_ops`),
     index("client_contacts_created_by_idx").on(t.createdBy),
     check("client_contacts_phone_e164", sql`${t.phone} is null or ${t.phone} ~ '^[+][0-9]{8,15}$'`),
   ],
