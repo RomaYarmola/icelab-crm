@@ -24,6 +24,8 @@ const TZ_MATRIX: Record<Resource, readonly [string, string, string, string, stri
   clients: ["RW", "RW", "R", "-", "R", "-"],
   // Ціни клієнта, історія
   client_prices: ["RW", "RW", "-", "-", "R", "-"],
+  // Не з ТЗ: прайс за замовчуванням, рішення D44 (змінює власник, дивляться менеджер і бухгалтер)
+  default_prices: ["RW", "R", "-", "-", "R", "-"],
   // Довідники
   reference_data: ["RW", "R", "R", "R", "R", "-"],
   // Замовлення: створення, правка до «у виробництві»
@@ -118,6 +120,7 @@ describe("правила поза матрицею", () => {
       "order_cash",
       "bank_payments",
       "client_prices",
+      "default_prices",
     ] as const) {
       expect(can(production, resource, "read"), resource).toBe(false);
     }
