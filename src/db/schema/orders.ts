@@ -45,6 +45,11 @@ export const orders = pgTable(
     markupPercentApplied: percent("markup_percent_applied"),
     /** Ціна за кг, зафіксована при підтвердженні: подальші зміни прайсу замовлення не міняють. */
     pricePerKgSnapshot: money("price_per_kg_snapshot"),
+    /**
+     * Ціну в чернетці вказав менеджер вручну (D52). Без цього ціна береться з картки клієнта чи
+     * прайсу й перераховується, поки замовлення не підтверджене.
+     */
+    priceManual: boolean("price_manual").notNull().default(false),
     deliveryMethod: deliveryMethod("delivery_method").notNull().default("other"),
     addressId: uuid("address_id").references(() => clientAddresses.id, restrict),
     deliveryText: text("delivery_text"),
@@ -73,6 +78,8 @@ export const orders = pgTable(
     /** Сирий результат розбору заявки (AI). */
     draftPayload: jsonb("draft_payload"),
     duplicateOf: uuid("duplicate_of").references((): AnyPgColumn => orders.id, restrict),
+    /** Чому замовлення скасовано (обов'язково для нових скасувань, D51). */
+    cancelReason: text("cancel_reason"),
     /** Імпортовані архівні замовлення (B7). */
     isArchive: boolean("is_archive").notNull().default(false),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
@@ -90,6 +97,19 @@ export const orders = pgTable(
     index("orders_confirmed_by_idx").on(t.confirmedBy),
     index("orders_duplicate_of_idx").on(t.duplicateOf),
     index("orders_created_by_idx").on(t.createdBy),
+    // Пошук дублів і «як минулого разу»: замовлення клієнта за датою.
+    index("orders_client_date_idx").on(t.clientId, t.orderDate),
+    // Підтверджене замовлення вже має зафіксовану ціну (D52). Чернетка й скасоване її не мають;
+    // імпортовані архівні замовлення (B7) цього правила не стосується.
+    check(
+      "orders_confirmed_has_price",
+      sql`${t.status} in ('draft', 'cancelled') or ${t.isArchive} or ${t.pricePerKgSnapshot} is not null`,
+    ),
+    // Нове скасування має причину (D51).
+    check(
+      "orders_cancelled_has_reason",
+      sql`${t.status} <> 'cancelled' or ${t.isArchive} or length(btrim(coalesce(${t.cancelReason}, ''))) > 0`,
+    ),
     check("orders_kg_sold_ok", sql`${t.kgSold} >= 0`),
     check("orders_kg_to_produce_ok", sql`${t.kgToProduce} >= 0`),
     check("orders_box_count_ok", sql`${t.boxCount} >= 0`),
@@ -155,5 +175,30 @@ export const orderStatusHistory = pgTable(
   (t) => [
     index("order_status_history_order_id_idx").on(t.orderId, t.changedAt),
     index("order_status_history_changed_by_idx").on(t.changedBy),
+  ],
+).enableRLS();
+
+/**
+ * Зміни ціни підтвердженого замовлення (D52): це може зробити лише власник і лише з приміткою.
+ * Кожна зміна лишає тут слід: хто, коли, стара й нова ціна за кг, чому.
+ */
+export const orderPriceChanges = pgTable(
+  "order_price_changes",
+  {
+    id: pk(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    oldPrice: money("old_price").notNull(),
+    newPrice: money("new_price").notNull(),
+    note: text("note").notNull(),
+    changedBy: uuid("changed_by").references(() => profiles.id, restrict),
+    changedAt: timestamp("changed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("order_price_changes_order_id_idx").on(t.orderId, t.changedAt),
+    index("order_price_changes_changed_by_idx").on(t.changedBy),
+    check("order_price_changes_values_ok", sql`${t.oldPrice} >= 0 and ${t.newPrice} >= 0`),
+    check("order_price_changes_note_ok", sql`length(btrim(${t.note})) > 0`),
   ],
 ).enableRLS();

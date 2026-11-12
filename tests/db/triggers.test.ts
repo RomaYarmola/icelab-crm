@@ -152,7 +152,11 @@ describe("тригери", () => {
       await withActor(
         db,
         actorId,
-        (tx) => tx.update(orders).set({ status: "confirmed" }).where(eq(orders.id, order.id)),
+        (tx) =>
+          tx
+            .update(orders)
+            .set({ status: "confirmed", pricePerKgSnapshot: "75" })
+            .where(eq(orders.id, order.id)),
         { note: "Підтверджено клієнтом" },
       );
       rows = await historyOf(order.id);
@@ -235,7 +239,10 @@ describe("тригери", () => {
           .values({ clientId: client.id, locationId, orderDate: "2026-11-09" })
           .returning();
         await pause(tx);
-        await tx.update(orders).set({ status: "confirmed" }).where(eq(orders.id, row!.id));
+        await tx
+          .update(orders)
+          .set({ status: "confirmed", pricePerKgSnapshot: "75" })
+          .where(eq(orders.id, row!.id));
         await pause(tx);
         await tx.update(orders).set({ status: "in_production" }).where(eq(orders.id, row!.id));
         return row!;

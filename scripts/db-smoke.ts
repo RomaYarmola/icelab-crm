@@ -16,10 +16,10 @@ import { getEnv } from "@/env";
 // Усі записи виконуються в транзакції, яку наприкінці скасовують, тож у базі нічого не лишається.
 
 // 17 таблиць B1, login_failures (B2), error_log (B3) і regions (B4)
-const EXPECTED_TABLES = 20;
+const EXPECTED_TABLES = 21;
 // 15 (updated_at) + 6 (created_by) + 1 (сума) + 1 (історія статусів) + 9 (журнал змін: з B4 ще
 // прайс, контакти й адреси клієнтів)
-const EXPECTED_TRIGGERS = 32;
+const EXPECTED_TRIGGERS = 33;
 const TEST_CODE = "ЯЯ9999"; // «ЯЯ9999» кирилицею
 
 class Rollback extends Error {}
@@ -171,7 +171,10 @@ async function main() {
         `total = ${withTotal?.total}`,
       );
 
-      await tx.update(orders).set({ status: "confirmed" }).where(eq(orders.id, order!.id));
+      await tx
+        .update(orders)
+        .set({ status: "confirmed", pricePerKgSnapshot: "75" })
+        .where(eq(orders.id, order!.id));
       const history = await tx
         .select()
         .from(orderStatusHistory)
