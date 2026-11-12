@@ -1,6 +1,7 @@
 import Card from "../shared/cards/Card";
 import InstallHint from "../shared/pwa/InstallHint";
 import ButtonLink from "../shared/buttons/ButtonLink";
+import PriceIcon from "../shared/icons/PriceIcon";
 import UsersIcon from "../shared/icons/UsersIcon";
 import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
@@ -13,10 +14,12 @@ interface ProfileContentProps {
   locationLabel: string;
   /** Власник бачить перехід на екран «Користувачі». */
   canManageUsers: boolean;
+  /** Власник, менеджер і бухгалтер бачать перехід на екран «Прайс». */
+  canViewPrices: boolean;
 }
 
 /**
- * Сторінка «Ще»: хто увійшов, зміна пароля, для власника перехід до користувачів. «Вийти» тут
+ * Сторінка «Ще»: хто увійшов, зміна пароля, переходи до «Прайсу» і (для власника) «Користувачів». «Вийти» тут
  * немає: вихід лежить лише в меню (меню «Ще», мітка користувача, бічна панель).
  */
 export default function ProfileContent({
@@ -25,6 +28,7 @@ export default function ProfileContent({
   roleLabel,
   locationLabel,
   canManageUsers,
+  canViewPrices,
 }: ProfileContentProps) {
   return (
     <div className="flex max-w-md flex-col gap-8">
@@ -49,6 +53,17 @@ export default function ProfileContent({
         <SectionTitle id="password-title">Змінити пароль</SectionTitle>
         <ChangePasswordForm />
       </section>
+
+      {canViewPrices ? (
+        <ButtonLink
+          href="/more/prices"
+          variant="outline"
+          fullWidth
+          icon={<PriceIcon className="size-6" />}
+        >
+          Прайс
+        </ButtonLink>
+      ) : null}
 
       {canManageUsers ? (
         <ButtonLink

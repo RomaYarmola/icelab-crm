@@ -18,6 +18,7 @@ import {
   findSimilarClients,
   getClient,
   listClients,
+  previewClientCode,
   restoreClient,
   updateClient,
 } from "@/server/clients";
@@ -151,6 +152,30 @@ describe("клієнти: створення, зміна, список, карт
         } else {
           await expect(result, role).rejects.toBeInstanceOf(ForbiddenError);
         }
+      }
+    });
+  });
+
+  describe("підказка коду в формі", () => {
+    it("показує код, який отримає наступний клієнт, не створюючи його", async () => {
+      const before = (await db.select().from(clients)).length;
+      const hint = await previewClientCode(db, users.manager, "ВС");
+      expect(hint).toMatch(/^ВС[0-9]+$/);
+      expect((await db.select().from(clients)).length).toBe(before);
+      const created = await create({ regionPrefix: "ВС" });
+      expect(created.code).toBe(hint);
+    });
+
+    it("без області підказує цифровий код, латиниця в області приймається", async () => {
+      expect(await previewClientCode(db, users.manager, "")).toMatch(/^[0-9]+$/);
+      expect(await previewClientCode(db, users.manager, null)).toMatch(/^[0-9]+$/);
+      expect(await previewClientCode(db, users.manager, "BC")).toMatch(/^ВС[0-9]+$/);
+    });
+
+    it("невідому область відхиляє, права як у створення", async () => {
+      await expect(previewClientCode(db, users.manager, "ЯЯ")).rejects.toThrow(ValidationError);
+      for (const role of ["location_lead", "production", "accountant", "driver"] as const) {
+        await expect(previewClientCode(db, users[role], "АА")).rejects.toThrow(ForbiddenError);
       }
     });
   });
