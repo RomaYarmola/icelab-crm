@@ -75,10 +75,18 @@ describe("безпечне подання даних", () => {
     }
   });
 
+  it("внутрішній коментар бачать лише власник і менеджер (D58)", () => {
+    for (const role of USER_ROLES) {
+      const view = toOrderView(order, role);
+      if (role === "owner" || role === "manager")
+        expect(view, role).toHaveProperty("internalComment");
+      else expect(view, role).not.toHaveProperty("internalComment");
+    }
+  });
+
   it("службові поля не потрапляють у подання жодної ролі", () => {
     for (const role of USER_ROLES) {
       const view = toOrderView(order, role);
-      expect(view, role).not.toHaveProperty("internalComment");
       expect(view, role).not.toHaveProperty("telegramChatId");
       expect(view, role).not.toHaveProperty("draftPayload");
     }

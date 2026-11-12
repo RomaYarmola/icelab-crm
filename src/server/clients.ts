@@ -63,7 +63,7 @@ export type ClientListQuery = {
 export type ClientListPage = { items: ClientListItem[]; hasMore: boolean };
 
 /** Умова пошуку за кодом, назвою (з помилками), телефоном і ім'ям контакту (D47). */
-function searchCondition(raw: string): SQL | undefined {
+export function clientSearchCondition(raw: string): SQL | undefined {
   const query = raw.trim().slice(0, SEARCH_MAX_LENGTH);
   if (query === "") return undefined;
 
@@ -113,7 +113,7 @@ export async function listClients(
   if (query.applicationId) {
     conditions.push(eq(clients.applicationId, parseInput(uuid, query.applicationId)));
   }
-  if (query.search) conditions.push(searchCondition(query.search));
+  if (query.search) conditions.push(clientSearchCondition(query.search));
 
   const normalizedCode = normalizeClientCode((query.search ?? "").trim());
   const rows = await db
