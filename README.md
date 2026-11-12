@@ -53,6 +53,7 @@ npm run dev
 | `npm run db:reset -- --yes` | Скинути dev-базу (лише `APP_ENV=dev`) |
 | `npm run user:create -- --email=... --name=... --role=...` | Створити користувача (перший власник); пароль записується у файл `.dev-users.local` |
 | `npm run user:seed-dev -- --email-template="a+{role}@gmail.com"` | Створити в dev по одному тестовому користувачу на кожну роль |
+| `npm run clients:seed-dev` | Додати в dev вигаданих клієнтів «Тест: …» (`-- --bulk` ще 35, `-- --remove` видалити). База одна з Production: лише після погодження |
 | `npm run check:bundle` | Після `npm run build`: перевірити, що серверних секретів немає у файлах для браузера |
 | `npx tsx scripts/generate-pwa-icons.ts` | Створити значки застосунку (PWA) зі знака IceLab; потрібно лише після зміни логотипа |
 | `npm run env:check` | Перевірити змінні в `.env.local`: для кожної лише «задано чи ні» і вид ключа, значень не виводить |
@@ -77,7 +78,7 @@ CI (GitHub Actions) на кожен PR запускає lint, typecheck, format:
 
 Кожен PR автоматично розгортається на Vercel як preview. Гілка `main` розгортається в Production. Регіон функцій Vercel: `fra1` (Франкфурт), база Supabase теж у Франкфурті.
 
-Змінна `APP_ENV` (`dev`, `staging` або `prod`) потрібна захисним скриптам: `db:reset` і `user:seed-dev` працюють лише при `APP_ENV=dev`, а `user:create` в інших середовищах вимагає `--yes`.
+Змінна `APP_ENV` (`dev`, `staging` або `prod`) потрібна захисним скриптам: `db:reset`, `user:seed-dev` і `clients:seed-dev` працюють лише при `APP_ENV=dev`, а `user:create` в інших середовищах вимагає `--yes`.
 
 **Поки Production і Preview на `icelab-dev`:**
 
@@ -112,7 +113,9 @@ docs/                        план, рішення, докладні план
 
 Застосунок на телефоні (PWA): маніфест `src/app/manifest.ts`, значки в `public/icons` і `src/app`, service worker `public/sw.js` реєструється лише у збірці. Він кешує тільки статику, сторінки з даними не кешуються (D34). Помилки сервера пишуться в таблицю `error_log` (D40). Ручна перевірка блока: [docs/blocks/B3-checklist.md](docs/blocks/B3-checklist.md).
 
-Живий каталог усіх компонентів: `npm run dev`, потім http://localhost:3000/ui-kit. Перегляд оболонки для будь-якої ролі: `/ui-kit/shell/manager` (`owner`, `manager`, `location_lead`, `production`, `accountant`). Обидва адреси відкриті лише в режимі розробки, у збірці закриті. Правила: [docs/decisions.md](docs/decisions.md), D37.
+Клієнти і ціни (B4): розділ «Клієнти» (пошук, картка з контактами, адресами й цінами, об'єднання дублів), екран «Прайс» у «Ще → Прайс». Код клієнта це область і номер («АА16»), його видає сервер (D42). Рішення D42–D50 у [docs/decisions.md](docs/decisions.md), ручна перевірка: [docs/blocks/B4-checklist.md](docs/blocks/B4-checklist.md).
+
+Живий каталог усіх компонентів: `npm run dev`, потім http://localhost:3000/ui-kit. Перегляд оболонки для будь-якої ролі: `/ui-kit/shell/manager` (`owner`, `manager`, `location_lead`, `production`, `accountant`). Екрани клієнтів і прайсу з вигаданими даними: `?screen=clients`, `client` (`&tab=contacts|addresses|prices`), `new-client`, `prices`, `merge`. Обидва адреси відкриті лише в режимі розробки, у збірці закриті. Правила: [docs/decisions.md](docs/decisions.md), D37.
 
 ## База даних
 

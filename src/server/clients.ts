@@ -17,7 +17,7 @@ import {
 import type { AnyPgDatabase } from "@/db/types";
 import { isRegionPrefix, normalizeClientCode } from "@/utils/clientCode";
 import { normalizePhone, phoneSearchDigits } from "@/utils/phone";
-import { nextClientCode, retryOnCodeConflict } from "./client-codes";
+import { nextClientCode, peekNextClientCode, retryOnCodeConflict } from "./client-codes";
 import { type ClientCardView, type ClientListItem, toClientCardView } from "./client-views";
 import { parseInput, ValidationError } from "./errors";
 import { type AppUser, requirePermission, requireRole } from "./guards";
@@ -407,6 +407,21 @@ export async function createClient(
       return client!;
     }),
   );
+}
+
+/**
+ * Підказка «буде АА16» у формі створення: який код отримає клієнт, якщо зберегти зараз. Нічого не
+ * блокує, тож справжній код може відрізнятись, якщо хтось створить клієнта раніше. Порожня область
+ * означає код з самих цифр.
+ */
+export async function previewClientCode(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  regionPrefix: string | null | undefined,
+): Promise<string> {
+  requirePermission(actor, "clients", "write");
+  const prefix = await loadRegion(db, regionPrefix);
+  return peekNextClientCode(db, prefix);
 }
 
 /** Змінює поля клієнта. Код і область тут не міняються (див. `assignClientRegion`). */

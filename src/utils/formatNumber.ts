@@ -22,3 +22,7 @@ export const formatKg = (value: number): string => `${formatNumber(value)} кг`
 
 /** 2 250 ₴, 99,90 ₴ */
 export const formatMoney = (value: number): string => moneyFormatter.format(value);
+
+/** 75 ₴/кг. Ціну з бази (рядок «75.00») приймаємо як є. */
+export const formatPricePerKg = (value: string | number): string =>
+  `${formatMoney(Number(value))}/кг`;

@@ -7,8 +7,12 @@ import Chip from "../shared/chips/Chip";
 import StatusChip from "../shared/chips/StatusChip";
 import Tag from "../shared/chips/Tag";
 import Container from "../shared/container/Container";
+import Checkbox from "../shared/customizedInput/Checkbox";
 import CustomizedInput from "../shared/customizedInput/CustomizedInput";
+import PhoneField from "../shared/customizedInput/PhoneField";
 import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
+import DetailList from "../shared/detailList/DetailList";
+import Disclosure from "../shared/disclosure/Disclosure";
 import EmptyState from "../shared/emptyState/EmptyState";
 import ErrorState from "../shared/errorState/ErrorState";
 import Form from "../shared/form/Form";
@@ -21,6 +25,8 @@ import MainLink from "../shared/links/MainLink";
 import Loader from "../shared/loader/Loader";
 import Logo from "../shared/logo/Logo";
 import Notification from "../shared/notification/Notification";
+import TabLinks from "../shared/tabs/TabLinks";
+import SearchDemo from "./SearchDemo";
 import LocationSelectDemo from "./LocationSelectDemo";
 import PopupDemo from "./PopupDemo";
 import Text from "../shared/texts/Text";
@@ -176,6 +182,17 @@ export default function UiKitContent() {
             ]}
             error="Для цієї ролі потрібно вибрати локацію."
           />
+          <PhoneField
+            name="demo-phone-field"
+            label="Телефон з форматуванням"
+            hint="Введіть 0501234567 і перейдіть далі: номер стане «+38 050 123 45 67»"
+          />
+          <Checkbox
+            name="demo-primary"
+            label="Основний контакт"
+            hint="Зона натискання 44 px: клікабельний увесь рядок"
+            defaultChecked
+          />
           <CustomizedInput name="demo-note" label="Коментар" as="textarea" placeholder="Нотатка" />
           <CustomizedInput
             name="demo-off"
@@ -204,6 +221,44 @@ export default function UiKitContent() {
           <Tag variant="plain">Київ (підпис без рамки)</Tag>
           <LocationSelectDemo />
         </div>
+      </Block>
+
+      <Block title="Пошук, фільтри, «Показати ще»">
+        <SearchDemo />
+      </Block>
+
+      <Block title="Вкладки і розкривні блоки">
+        <div className="flex max-w-xl flex-col gap-4">
+          <TabLinks
+            label="Приклад вкладок"
+            activeId="contacts"
+            items={[
+              { id: "main", label: "Основне", href: "/ui-kit" },
+              { id: "contacts", label: "Контакти", href: "/ui-kit" },
+              { id: "addresses", label: "Адреси", href: "/ui-kit" },
+              { id: "prices", label: "Ціни", href: "/ui-kit" },
+            ]}
+          />
+          <Disclosure summary="Додати контакт">
+            <Text variant="muted">Вміст, що розкривається. Стрілка розвертається.</Text>
+          </Disclosure>
+          <Disclosure variant="plain" summary="Історія цін">
+            <Text variant="muted">Те саме без рамки: для другорядних деталей.</Text>
+          </Disclosure>
+        </div>
+      </Block>
+
+      <Block title="Перелік «назва: значення»">
+        <Card className="max-w-xl">
+          <DetailList
+            items={[
+              { label: "Тип клієнта", value: "ФОП" },
+              { label: "Менеджер", value: "Олена Коваль" },
+              { label: "ЄДРПОУ або ІПН", value: null },
+              { label: "Примітка", value: "Просить привозити до 10:00." },
+            ]}
+          />
+        </Card>
       </Block>
 
       <Block title="Картки">
