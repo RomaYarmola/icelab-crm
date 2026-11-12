@@ -117,6 +117,10 @@ const MONEY_KEYS = normalize([
   "total",
   "totalAmount",
 ]);
+/** Ціни клієнтів і історія цін: потрібне право читати `client_prices`. */
+const CLIENT_PRICE_KEYS = normalize(["prices", "clientPrices", "priceHistory", "currentPrices"]);
+/** Прайс (ціни за замовчуванням): потрібне право читати `default_prices`. */
+const DEFAULT_PRICE_KEYS = normalize(["defaultPrices", "priceList"]);
 /** Готівка: потрібне право на готівку по замовленню. */
 const CASH_KEYS = normalize(["cash", "cashAmount", "cashEntries"]);
 /** Безготівка й зіставлення платежів: потрібне право на банківські платежі. */
@@ -132,6 +136,15 @@ export function forbiddenKeysFor(role: UserRole): Set<string> {
   if (!hasMoney) for (const key of MONEY_KEYS) forbidden.add(key);
   if (!hasCash) for (const key of CASH_KEYS) forbidden.add(key);
   if (!can(role, "bank_payments", "read")) for (const key of BANK_KEYS) forbidden.add(key);
+  // Ціни клієнтів і прайс (B4): ціна за кг у відповіді про клієнта теж ціна.
+  if (!can(role, "client_prices", "read")) {
+    for (const key of CLIENT_PRICE_KEYS) forbidden.add(key);
+    forbidden.add(normalizeKey("pricePerKg"));
+  }
+  if (!can(role, "default_prices", "read")) {
+    for (const key of DEFAULT_PRICE_KEYS) forbidden.add(key);
+    forbidden.add(normalizeKey("pricePerKg"));
+  }
   if (!hasMoney && !hasCash) for (const key of PAYMENT_STATE_KEYS) forbidden.add(key);
   return forbidden;
 }

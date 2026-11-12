@@ -10,6 +10,24 @@ export function readText(formData: FormData, name: string): string {
   return typeof value === "string" ? value : "";
 }
 
+/** Текстове поле, де порожній рядок означає «немає значення» (`null`). */
+export function readOptionalText(formData: FormData, name: string): string | null {
+  const value = readText(formData, name).trim();
+  return value === "" ? null : value;
+}
+
+/** Прапорець (checkbox): поставлений дає `true`, відсутній `false`. */
+export function readFlag(formData: FormData, name: string): boolean {
+  const value = formData.get(name);
+  return value === "on" || value === "1" || value === "true";
+}
+
+/** Ціле число з поля: порожнє дає `null`, не число дає `NaN` (схема відхилить із повідомленням). */
+export function readOptionalInt(formData: FormData, name: string): number | null {
+  const value = readOptionalText(formData, name);
+  return value === null ? null : Number(value);
+}
+
 /** Повідомлення про непередбачену помилку: подробиці користувачу не показуємо. */
 export const UNEXPECTED_ERROR_MESSAGE = "Щось пішло не так. Спробуйте ще раз.";
 

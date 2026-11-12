@@ -152,3 +152,34 @@ describe("безпечне подання даних", () => {
     });
   });
 });
+
+describe("ціни клієнтів і прайс у відповідях (B4)", () => {
+  it("роль без права на ціни клієнта не отримує ні ціни за кг, ні історії цін", () => {
+    for (const role of ["location_lead", "production", "driver"] as const) {
+      const found = findForbiddenFields(
+        { id: "1", prices: [{ pricePerKg: "60.00" }], clientPrices: [], priceHistory: [] },
+        role,
+      );
+      expect(found, role).toEqual(
+        expect.arrayContaining(["prices", "prices[0].pricePerKg", "clientPrices", "priceHistory"]),
+      );
+    }
+  });
+
+  it("власник, менеджер і бухгалтер бачать ціни клієнта", () => {
+    for (const role of ["owner", "manager", "accountant"] as const) {
+      expect(findForbiddenFields({ prices: [{ pricePerKg: "60.00" }] }, role), role).toEqual([]);
+    }
+  });
+
+  it("прайс (defaultPrices) бачать лише ролі з правом на нього", () => {
+    for (const role of ["owner", "manager", "accountant"] as const) {
+      expect(findForbiddenFields({ defaultPrices: [{ pricePerKg: "60.00" }] }, role), role).toEqual(
+        [],
+      );
+    }
+    for (const role of ["location_lead", "production", "driver"] as const) {
+      expect(findForbiddenFields({ defaultPrices: [] }, role), role).toEqual(["defaultPrices"]);
+    }
+  });
+});

@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { clients, locations, orders, profiles } from "@/db/schema";
+import type { AppUser } from "@/server/guards";
+import { USER_ROLES, type UserRole } from "@/server/permissions";
 import type { TestDb } from "./harness";
 
 /** Код клієнта кирилицею: «АА» (U+0410 U+0410) і число. Латинська «AA» тут не підходить. */
@@ -63,4 +65,24 @@ export async function makeOrder(
     .values({ orderDate: "2026-11-09", ...overrides })
     .returning();
   return row!;
+}
+
+/** Користувачі всіх шести ролей для тестів серверних функцій (локація лише там, де вона обов'язкова). */
+export async function makeAppUsers(db: TestDb) {
+  const location = await makeLocation(db);
+  const bound = new Set<UserRole>(["location_lead", "production", "driver"]);
+  const users = {} as Record<UserRole, AppUser>;
+  for (const role of USER_ROLES) {
+    const locationId = bound.has(role) ? location.id : null;
+    const profile = await makeProfile(db, { role, fullName: `Тест ${role}`, locationId });
+    users[role] = {
+      id: profile.id,
+      email: null,
+      fullName: profile.fullName,
+      role,
+      locationId,
+      locationName: null,
+    };
+  }
+  return users;
 }

@@ -105,6 +105,21 @@ export const clientApplications = pgTable("client_applications", {
   ...timestamps,
 }).enableRLS();
 
+/**
+ * Області для коду клієнта (D24): дві літери з автомобільних номерів України і назва регіону.
+ * Список готовий і затверджений Романом, нові префікси вручну не додаються. Префікс кирилицею.
+ */
+export const regions = pgTable(
+  "regions",
+  {
+    prefix: text("prefix").primaryKey(),
+    name: text("name").notNull(),
+    /** Порядок у списку вибору: спершу найчастіші (Київ, Київська, Львівська), решта за назвою. */
+    sort: integer("sort").notNull().default(0),
+  },
+  (t) => [check("regions_prefix_format", sql`${t.prefix} ~ '^[А-ЯІЇЄҐ]{2}$'`)],
+).enableRLS();
+
 /** Налаштування у вигляді «ключ → значення». */
 export const settings = pgTable("settings", {
   key: text("key").primaryKey(),

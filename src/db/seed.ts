@@ -5,6 +5,7 @@ import {
   iceTypes,
   locations,
   orderSources,
+  regions,
   settings,
 } from "@/db/schema";
 import {
@@ -14,6 +15,7 @@ import {
   ICE_TYPES,
   LOCATIONS,
   ORDER_SOURCES,
+  REGIONS,
   SETTINGS,
 } from "./seed-data";
 import type { AnyPgDatabase } from "./types";
@@ -75,6 +77,14 @@ export async function seedReferenceData(db: AnyPgDatabase): Promise<SeedResult> 
         .values(BOX_TYPES)
         .onConflictDoNothing({ target: boxTypes.code })
         .returning({ id: boxTypes.id })
+    ).length;
+
+    added.regions = (
+      await tx
+        .insert(regions)
+        .values(REGIONS)
+        .onConflictDoNothing({ target: regions.prefix })
+        .returning({ prefix: regions.prefix })
     ).length;
 
     added.settings = (

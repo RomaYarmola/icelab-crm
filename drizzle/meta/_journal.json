@@ -57,6 +57,13 @@
       "when": 1794483942149,
       "tag": "0007_error_log",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794493474135,
+      "tag": "0008_clients_regions",
+      "breakpoints": true
     }
   ]
 }

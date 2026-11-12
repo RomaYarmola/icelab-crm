@@ -23,6 +23,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 export const RESOURCES = [
   "clients", // клієнти, адреси (без цін)
   "client_prices", // ціни клієнта, історія
+  "default_prices", // прайс: ціни за замовчуванням (не з ТЗ, рішення D44)
   "reference_data", // довідники: типи льоду, тари, статуси, джерела, правила надбавки
   "orders", // замовлення: створення, правка до «у виробництві»
   "order_money", // замовлення: суми й ціни
@@ -64,6 +65,8 @@ const W_OWN: Access = { write: true, ownLocation: true };
 const MATRIX: Record<Resource, Partial<Record<UserRole, Access>>> = {
   clients: { owner: RW, manager: RW, location_lead: R, accountant: R },
   client_prices: { owner: RW, manager: RW, accountant: R },
+  // D44: прайс змінює лише власник, менеджер і бухгалтер дивляться, старший локації цін не бачить.
+  default_prices: { owner: RW, manager: R, accountant: R },
   reference_data: { owner: RW, manager: R, location_lead: R, production: R, accountant: R },
   orders: { owner: RW, manager: RW, location_lead: RW_OWN, accountant: R },
   order_money: { owner: R, manager: R, accountant: R },
