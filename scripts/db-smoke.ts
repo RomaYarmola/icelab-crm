@@ -15,8 +15,8 @@ import { getEnv } from "@/env";
 // Перевіряє структуру і тригери на справжній базі (dev або staging).
 // Усі записи виконуються в транзакції, яку наприкінці скасовують, тож у базі нічого не лишається.
 
-// 17 таблиць B1 і login_failures (B2)
-const EXPECTED_TABLES = 18;
+// 17 таблиць B1, login_failures (B2) і error_log (B3)
+const EXPECTED_TABLES = 19;
 // 15 (updated_at) + 6 (created_by) + 1 (сума) + 1 (історія статусів) + 6 (журнал змін)
 const EXPECTED_TRIGGERS = 29;
 const TEST_CODE = "ЯЯ9999"; // «ЯЯ9999» кирилицею
@@ -39,7 +39,7 @@ async function main() {
       from pg_class c join pg_namespace n on n.oid = c.relnamespace
      where n.nspname = 'public' and c.relkind = 'r'`;
   check(
-    "18 таблиць у схемі public",
+    `${EXPECTED_TABLES} таблиць у схемі public`,
     tables.length === EXPECTED_TABLES,
     `знайдено ${tables.length}`,
   );

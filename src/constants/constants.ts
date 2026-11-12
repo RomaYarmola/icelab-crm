@@ -19,3 +19,6 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   closed: "Закрито",
   cancelled: "Скасовано",
 };
+
+/** Мінімальна довжина пароля (Supabase Auth і форми). Спільна для сервера й екранів. */
+export const MIN_PASSWORD_LENGTH = 10;

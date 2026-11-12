@@ -61,7 +61,7 @@ describe("курсор і фокус", () => {
     // Контур фокуса для полів вимкнено глобально, а рамку перефарбовує сам компонент поля.
     expect(css).toMatch(/textarea,\s*select\s*\):focus-visible\s*{\s*outline-color:\s*transparent/);
     const input = readFileSync(
-      join(ROOT, "src/components/shared/customizedInput/CustomizedInput.tsx"),
+      join(ROOT, "src/components/shared/customizedInput/fieldStyles.ts"),
       "utf8",
     );
     expect(input).toContain("focus:border-blue-focus");
@@ -73,7 +73,7 @@ describe("курсор і фокус", () => {
     expect(css).toMatch(/--shadow-focus:\s*0 0 0 3px var\(--color-blue-focus\)/);
     expect(css).toMatch(/--shadow-focus-error:\s*0 0 0 3px rgb\(179 38 30/);
     const input = readFileSync(
-      join(ROOT, "src/components/shared/customizedInput/CustomizedInput.tsx"),
+      join(ROOT, "src/components/shared/customizedInput/fieldStyles.ts"),
       "utf8",
     );
     expect(input).toContain("focus:shadow-focus");
@@ -202,6 +202,52 @@ describe("курсор і фокус", () => {
     expect(userMenu).toContain("anchorRef={triggerRef}");
     // Попап мітки користувача на планшеті ширший: там текст профілю 16 px.
     expect(userMenu).toContain("w-[min(16rem,");
+  });
+
+  it("«Назад» на екранах: компонент BackLink зі значком, а не стрілка-символ у тексті", () => {
+    const back = readFileSync(join(ROOT, "src/components/shared/links/BackLink.tsx"), "utf8");
+    expect(back).toContain("ChevronIcon");
+    // Висота від 44 px (вимога ТЗ) і наведення лише від lg.
+    expect(back).toContain("min-h-11");
+    expect(back).toContain("lg:hover:");
+    for (const file of ["UsersPageContent.tsx", "NewUserContent.tsx", "UserDetailContent.tsx"]) {
+      const source = readFileSync(join(ROOT, "src/components/usersPage", file), "utf8");
+      expect(source, file).toContain("<BackLink");
+      expect(source, file).not.toContain("←");
+    }
+  });
+
+  it("пароль користувача власник не вигадує: «Згенерувати» при створенні й зміні пароля", () => {
+    for (const file of ["UserForm.tsx", "ResetPasswordForm.tsx"]) {
+      const source = readFileSync(join(ROOT, "src/components/usersPage", file), "utf8");
+      expect(source, file).toContain("<GeneratePasswordField");
+    }
+    const field = readFileSync(
+      join(ROOT, "src/components/shared/customizedInput/GeneratePasswordField.tsx"),
+      "utf8",
+    );
+    expect(field).toContain("Згенерувати");
+    expect(field).toContain("Скопіювати");
+    // Згенерований пароль показується одразу: власник має його побачити й передати.
+    expect(field).toContain("setIsVisible(true)");
+  });
+
+  it("«Вийти» лише в меню: на сторінці профілю кнопки виходу немає", () => {
+    const profile = readFileSync(
+      join(ROOT, "src/components/profilePage/ProfileContent.tsx"),
+      "utf8",
+    );
+    // Ні дії виходу, ні форми з кнопкою (у коментарі про це слово згадується, тож за текст не перевіряємо).
+    expect(profile).not.toContain("signOut");
+    expect(profile).not.toContain("<form");
+    const more = readFileSync(join(ROOT, "src/components/shared/navigation/MoreMenu.tsx"), "utf8");
+    expect(more).toContain("Вийти");
+  });
+
+  it("модальне вікно не зсуває сторінку: місце під смугу прокрутки зарезервоване", () => {
+    // Без scrollbar-gutter смуга зникає разом із прокруткою, і вміст стрибає на її ширину.
+    expect(css).toMatch(/html\s*{\s*scrollbar-gutter:\s*stable/);
+    expect(css).toMatch(/body:has\(dialog\[open\]\)\s*{\s*overflow:\s*hidden/);
   });
 
   it("фокус з'являється плавно: контур завжди є, але прозорий, при фокусі змінюється колір", () => {

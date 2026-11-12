@@ -1,5 +1,7 @@
-import { and, count, eq, ne } from "drizzle-orm";
+import { and, asc, count, desc, eq, ne } from "drizzle-orm";
+import { pgSchema, text, uuid } from "drizzle-orm/pg-core";
 import { z } from "zod";
+import { MIN_PASSWORD_LENGTH } from "@/constants/constants";
 import { withActor } from "@/db/actor";
 import { userRole } from "@/db/schema/enums";
 import { locations, profiles } from "@/db/schema";
@@ -28,7 +30,62 @@ export interface AuthAdmin {
 
 export type UserDeps = { db: AnyPgDatabase; admin: AuthAdmin };
 
-export const MIN_PASSWORD_LENGTH = 10;
+/**
+ * Акаунти Supabase Auth: лише для читання e-mail (у нашій таблиці `profiles` його немає). Таблиця
+ * описана тут, а не в `db/schema`, щоб міграції її не створювали: вона належить Supabase.
+ */
+const authUsers = pgSchema("auth").table("users", {
+  id: uuid("id").primaryKey(),
+  email: text("email"),
+});
+
+/** Користувач для списку й форми редагування (профіль разом з e-mail акаунта). */
+export type UserListItem = {
+  id: string;
+  email: string | null;
+  fullName: string;
+  role: UserRole;
+  locationId: string | null;
+  locationName: string | null;
+  phone: string | null;
+  isActive: boolean;
+  createdAt: Date;
+};
+
+function selectUsers(db: AnyPgDatabase) {
+  return db
+    .select({
+      id: profiles.id,
+      email: authUsers.email,
+      fullName: profiles.fullName,
+      role: profiles.role,
+      locationId: profiles.locationId,
+      locationName: locations.name,
+      phone: profiles.phone,
+      isActive: profiles.isActive,
+      createdAt: profiles.createdAt,
+    })
+    .from(profiles)
+    .leftJoin(locations, eq(locations.id, profiles.locationId))
+    .leftJoin(authUsers, eq(authUsers.id, profiles.id));
+}
+
+/** Список користувачів для власника: спершу активні, далі за іменем. */
+export async function listUsers(db: AnyPgDatabase, actor: AppUser): Promise<UserListItem[]> {
+  requirePermission(actor, "users", "read");
+  return selectUsers(db).orderBy(desc(profiles.isActive), asc(profiles.fullName));
+}
+
+/** Один користувач для екрана редагування; `null`, якщо такого немає. */
+export async function getUser(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  userId: string,
+): Promise<UserListItem | null> {
+  requirePermission(actor, "users", "read");
+  const [row] = await selectUsers(db).where(eq(profiles.id, userId)).limit(1);
+  return row ?? null;
+}
 
 const passwordSchema = z
   .string()

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { getSupabaseAdminEnv } from "@/env";
+import { ValidationError } from "@/server/errors";
 import type { AuthAdmin } from "@/server/users";
 
 /** Заборона входу «назавжди» (100 років): Supabase приймає лише тривалість, а не дату. */
@@ -26,6 +27,13 @@ export function createSupabaseAuthAdmin(): AuthAdmin {
         email_confirm: true,
         ...(password ? { password } : {}),
       });
+      // Помилки, які користувач може виправити, показуємо українською, решта лишається службовою.
+      if (error?.code === "email_exists") {
+        throw new ValidationError("Користувач з таким e-mail уже існує.");
+      }
+      if (error?.code === "weak_password") {
+        throw new ValidationError("Пароль занадто простий. Спробуйте довший або складніший.");
+      }
       if (error || !data.user) {
         throw new Error(`Supabase: не вдалося створити акаунт (${error?.status ?? "?"}).`);
       }
@@ -37,6 +45,9 @@ export function createSupabaseAuthAdmin(): AuthAdmin {
     },
     async setPassword(id, password) {
       const { error } = await client.auth.admin.updateUserById(id, { password });
+      if (error?.code === "weak_password") {
+        throw new ValidationError("Пароль занадто простий. Спробуйте довший або складніший.");
+      }
       if (error) throw new Error(`Supabase: не вдалося змінити пароль (${error.status ?? "?"}).`);
     },
     async setBanned(id, banned) {

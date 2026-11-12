@@ -42,6 +42,8 @@ function canSeeSection(role: UserRole, id: NavItemId): boolean {
       return can(role, "bank_payments", "read");
     case "boxes":
       return can(role, "box_scan", "write") || can(role, "box_debts_stock", "read");
+    case "users":
+      return can(role, "users", "read");
     case "more":
       return true;
   }
@@ -78,6 +80,15 @@ export function navItemsFor(role: UserRole, placement: NavPlacement): NavItem[] 
     sections = sections.filter((id) => id !== "payments").slice(0, BAR_SECTION_LIMIT);
   }
   return [...sections, "more" as const].map((id) => NAV_ITEMS[id]);
+}
+
+/**
+ * Екрани власника всередині «Ще» («Користувачі»): не розділи нижньої панелі, лише пункти меню «Ще»
+ * для ролей, які мають на них право.
+ */
+export function accountNavItemsFor(role: UserRole): NavItem[] {
+  if (!canUseWeb(role)) return [];
+  return (["users"] as const).filter((id) => canSeeSection(role, id)).map((id) => NAV_ITEMS[id]);
 }
 
 /** Розділи, які доступні ролі, але не вмістились у нижню панель телефона: вони в меню «Ще». */

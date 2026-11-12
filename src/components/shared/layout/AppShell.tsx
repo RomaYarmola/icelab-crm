@@ -7,7 +7,7 @@ import type { AppUser } from "@/server/guards";
 import type { LocationFilter } from "@/server/locations";
 import { ROLE_LABELS } from "@/server/permissions";
 import { getInitial } from "@/utils/initials";
-import { extraNavItemsFor, navItemsFor } from "@/utils/navigation";
+import { accountNavItemsFor, extraNavItemsFor, navItemsFor } from "@/utils/navigation";
 import Tag from "../chips/Tag";
 import Container from "../container/Container";
 import Header from "../header/Header";
@@ -41,6 +41,7 @@ export default function AppShell({
 }: AppShellProps) {
   const sections = navItemsFor(user.role, "side");
   const phoneOverflow = extraNavItemsFor(user.role);
+  const accountItems = accountNavItemsFor(user.role);
   const locationLabel = user.locationName ?? ALL_LOCATIONS_LABEL;
   const roleLabel = ROLE_LABELS[user.role];
 
@@ -65,7 +66,8 @@ export default function AppShell({
       />
       {/* Сторінка «Ще» не в меню комп'ютера, але має заголовок у шапці. */}
       <Header
-        items={[...sections, NAV_ITEMS.more]}
+        // «Користувачі» перед «Ще»: адреса /more/users теж починається з /more, а заголовок береться з першого збігу.
+        items={[...sections, ...accountItems, NAV_ITEMS.more]}
         location={
           // Власник, менеджер і бухгалтер вибирають локацію, решта бачить лише підпис своєї.
           locationFilter.isSelectable ? (
@@ -82,7 +84,7 @@ export default function AppShell({
         userMenu={
           // Від sm усі розділи вже в нижній панелі, тож у меню користувача лише профіль і вихід.
           <UserMenu initial={getInitial(user.fullName)} label={`Профіль: ${user.fullName}`}>
-            {renderMoreMenu([])}
+            {renderMoreMenu(accountItems)}
           </UserMenu>
         }
       />
@@ -92,7 +94,7 @@ export default function AppShell({
       <BottomNav
         items={sections}
         phoneOverflowIds={phoneOverflow.map((item) => item.id)}
-        moreContent={renderMoreMenu(phoneOverflow)}
+        moreContent={renderMoreMenu([...phoneOverflow, ...accountItems])}
       />
       <OfflineNotification />
     </div>

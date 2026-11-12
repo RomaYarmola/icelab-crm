@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { NavItem as NavItemData } from "@/constants/navigation";
+import { NAV_ITEMS, NavItem as NavItemData } from "@/constants/navigation";
+import { cn } from "@/utils/cn";
 import { isActivePath } from "@/utils/navigation";
 import LogoutIcon from "../icons/LogoutIcon";
 import Text from "../texts/Text";
@@ -36,7 +38,15 @@ export default function MoreMenu({
 
   return (
     <div className="flex w-full flex-col gap-1">
-      <div className="flex min-w-0 flex-col px-4 py-2">
+      {/* Профіль веде на сторінку «Ще»: там дані користувача і зміна пароля. */}
+      <Link
+        href={NAV_ITEMS.more.href}
+        aria-label={`Профіль: ${fullName}`}
+        className={cn(
+          "flex min-w-0 flex-col rounded-field px-4 py-2 transition",
+          pathname === NAV_ITEMS.more.href ? "bg-grey-light" : "lg:hover:bg-grey-light",
+        )}
+      >
         {/* На телефоні (до sm) текст профілю дрібніший, від sm звичайного розміру. */}
         <Text variant="label" className="truncate text-caption sm:text-body">
           {fullName}
@@ -49,7 +59,7 @@ export default function MoreMenu({
             {email}
           </Text>
         ) : null}
-      </div>
+      </Link>
 
       <hr className="my-1 border-grey-border" />
 
