@@ -1,10 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import ServiceWorkerRegistration from "@/components/shared/pwa/ServiceWorkerRegistration";
 import { APP_DESCRIPTION, APP_NAME } from "@/constants/constants";
 
 export const metadata: Metadata = {
   title: { default: APP_NAME, template: `%s | ${APP_NAME}` },
   description: APP_DESCRIPTION,
+  applicationName: APP_NAME,
+  // iPhone: відкриття з головного екрана без адресного рядка, підпис значка «IceLab».
+  appleWebApp: { capable: true, title: "IceLab", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -24,7 +28,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="uk">
-      <body className="font-system text-body text-navy antialiased">{children}</body>
+      <body className="font-system text-body text-navy antialiased">
+        {children}
+        <ServiceWorkerRegistration />
+      </body>
     </html>
   );
 }

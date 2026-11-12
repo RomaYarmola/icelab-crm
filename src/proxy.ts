@@ -10,8 +10,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Усе, крім службових файлів Next.js і зображень.
+  // Усе, крім службових файлів Next.js, зображень і файлів застосунку (PWA): маніфест, service
+  // worker і сторінка «Немає зв'язку» браузер просить без входу, їм не можна переходити на /login.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|offline.html|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)",
   ],
 };
