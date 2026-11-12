@@ -32,6 +32,8 @@ export const CLIENT_STATUSES = [
   { code: "warm", name: "Підігрітий" },
   { code: "in_mind", name: "Має на увазі" },
   { code: "paused", name: "Пауза" },
+  // Додано за відповіддю Романа (В1.5): клієнти Львова зі статусом «Неактуально».
+  { code: "irrelevant", name: "Неактуально" },
 ];
 
 // Назви з ТЗ, коди придумано для коду застосунку.
@@ -115,4 +117,36 @@ export const SETTINGS = [
   { key: "payment.date_window_days", value: 14 },
   { key: "np.default_payer", value: "Recipient" }, // TODO питання 7
   { key: "report.daily_time", value: "21:00" },
+];
+
+// Області для коду клієнта (D24): позначки з автомобільних номерів України, карту дав Роман.
+// Префікс кирилицею. Спершу Київ, Київська й Львівська області, решта за назвою.
+export const REGIONS = [
+  { prefix: "АА", name: "Київ (місто)", sort: 1 },
+  { prefix: "АІ", name: "Київська область", sort: 2 },
+  { prefix: "ВС", name: "Львівська область", sort: 3 },
+  { prefix: "АВ", name: "Вінницька область", sort: 10 },
+  { prefix: "АС", name: "Волинська область", sort: 11 },
+  { prefix: "АЕ", name: "Дніпропетровська область", sort: 12 },
+  { prefix: "АН", name: "Донецька область", sort: 13 },
+  { prefix: "АМ", name: "Житомирська область", sort: 14 },
+  { prefix: "АО", name: "Закарпатська область", sort: 15 },
+  { prefix: "АР", name: "Запорізька область", sort: 16 },
+  { prefix: "АТ", name: "Івано-Франківська область", sort: 17 },
+  { prefix: "ВА", name: "Кіровоградська область", sort: 18 },
+  { prefix: "АК", name: "АР Крим", sort: 19 },
+  { prefix: "ВВ", name: "Луганська область", sort: 20 },
+  { prefix: "ВЕ", name: "Миколаївська область", sort: 21 },
+  { prefix: "ВН", name: "Одеська область", sort: 22 },
+  { prefix: "ВІ", name: "Полтавська область", sort: 23 },
+  { prefix: "ВК", name: "Рівненська область", sort: 24 },
+  { prefix: "СН", name: "Севастополь", sort: 25 },
+  { prefix: "ВМ", name: "Сумська область", sort: 26 },
+  { prefix: "ВО", name: "Тернопільська область", sort: 27 },
+  { prefix: "АХ", name: "Харківська область", sort: 28 },
+  { prefix: "ВТ", name: "Херсонська область", sort: 29 },
+  { prefix: "ВХ", name: "Хмельницька область", sort: 30 },
+  { prefix: "СА", name: "Черкаська область", sort: 31 },
+  { prefix: "СЕ", name: "Чернівецька область", sort: 32 },
+  { prefix: "СВ", name: "Чернігівська область", sort: 33 },
 ];
