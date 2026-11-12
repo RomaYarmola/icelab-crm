@@ -1,7 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { withActor } from "@/db/actor";
 import { clients } from "@/db/schema";
-import { isCodeConflict, nextClientCode, retryOnCodeConflict } from "@/server/client-codes";
+import {
+  isCodeConflict,
+  nextClientCode,
+  peekNextClientCode,
+  retryOnCodeConflict,
+} from "@/server/client-codes";
 import { createTestDb, type TestDb } from "../db/harness";
 import { makeClient, makeProfile } from "../db/helpers";
 
@@ -43,6 +48,17 @@ describe("видача коду клієнта (D42)", () => {
     expect(await next("АІ")).toBe("АІ100");
     expect(await next("ВС")).toBe("ВС501");
     expect(await next("АХ")).toBe("АХ1");
+  });
+
+  it("підказка коду збігається з видачею і нічого не блокує й не створює", async () => {
+    await makeClient(db, { code: "АА15" });
+    await makeClient(db, { code: "21" });
+    expect(await peekNextClientCode(db, "АА")).toBe("АА16");
+    expect(await peekNextClientCode(db, "ВС")).toBe("ВС1");
+    expect(await peekNextClientCode(db, null)).toBe("22");
+    // Підказка не змінила базу: видача дає те саме.
+    expect(await next("АА")).toBe("АА16");
+    await expect(peekNextClientCode(db, "AA")).rejects.toThrow("Некоректний префікс");
   });
 
   it("видалені клієнти враховуються: їхній код лишається зайнятим", async () => {

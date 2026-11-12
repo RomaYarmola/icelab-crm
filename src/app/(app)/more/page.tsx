@@ -17,6 +17,7 @@ export default async function MorePage() {
       roleLabel={ROLE_LABELS[user.role]}
       locationLabel={user.locationName ?? ALL_LOCATIONS_LABEL}
       canManageUsers={can(user.role, "users", "read")}
+      canViewPrices={can(user.role, "default_prices", "read")}
     />
   );
 }

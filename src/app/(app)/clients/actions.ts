@@ -17,12 +17,19 @@ import {
 import { mergeClients } from "@/server/client-merge";
 import {
   assignClientRegion,
+  type ClientListPage,
+  type ClientListQuery,
   type CreateClientInput,
   createClient,
   deleteClient,
+  findSimilarClients,
+  listClients,
+  previewClientCode,
   restoreClient,
+  type SimilarClient,
   updateClient,
 } from "@/server/clients";
+import { reportError } from "@/server/error-log";
 import { ValidationError } from "@/server/errors";
 import {
   readFlag,
@@ -30,7 +37,9 @@ import {
   readOptionalText,
   readText,
   runFormAction,
+  UNEXPECTED_ERROR_MESSAGE,
 } from "@/server/form-state";
+import { ForbiddenError } from "@/server/guards";
 import { changeClientPrice } from "@/server/prices";
 import type { FormState } from "@/utils/formState";
 
@@ -85,6 +94,78 @@ const CLIENT_FIELD_NAMES = [
 
 function echo(formData: FormData, names: string[]): Record<string, string> {
   return Object.fromEntries(names.map((name) => [name, readText(formData, name)]));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Читання для екранів: «Показати ще» у списку і підказка «Схожі клієнти»
+// ---------------------------------------------------------------------------------------------
+
+export type LoadMoreResult = { ok: true; page: ClientListPage } | { ok: false; message: string };
+
+const loadMoreSchema = z.object({
+  search: z.string().max(200).optional(),
+  statusId: z.string().max(64).optional(),
+  managerId: z.string().max(64).optional(),
+  applicationId: z.string().max(64).optional(),
+  includeDeleted: z.boolean().optional(),
+  offset: z.number().int().min(0).max(100_000),
+});
+
+/** Наступна частина списку клієнтів (кнопка «Показати ще»). Права й значення перевіряє `listClients`. */
+export async function loadMoreClientsAction(
+  filters: Omit<ClientListQuery, "limit" | "offset"> & { offset: number },
+): Promise<LoadMoreResult> {
+  const actor = await requireUser();
+  const parsed = loadMoreSchema.safeParse(filters);
+  if (!parsed.success) return { ok: false, message: "Не вдалося завантажити клієнтів." };
+  try {
+    return { ok: true, page: await listClients(getDb(), actor, parsed.data) };
+  } catch (error) {
+    if (error instanceof ValidationError || error instanceof ForbiddenError) {
+      return { ok: false, message: error.message };
+    }
+    await reportError({ source: "form_action", error });
+    return { ok: false, message: UNEXPECTED_ERROR_MESSAGE };
+  }
+}
+
+/**
+ * Підказка при створенні клієнта (D48): схожі за назвою чи телефоном. Лише підказка, тож будь-яка
+ * помилка дає порожній список, а не повідомлення.
+ */
+export async function findSimilarClientsAction(input: {
+  name?: string;
+  phone?: string;
+}): Promise<SimilarClient[]> {
+  const actor = await requireUser();
+  try {
+    return await findSimilarClients(getDb(), actor, {
+      name: typeof input.name === "string" ? input.name : null,
+      phone: typeof input.phone === "string" ? input.phone : null,
+    });
+  } catch (error) {
+    if (!(error instanceof ValidationError || error instanceof ForbiddenError)) {
+      await reportError({ source: "form_action", error });
+    }
+    return [];
+  }
+}
+
+/** Підказка «буде АА16» у формі. Помилка (невідома область, немає прав) дає `null`: підказка зникає. */
+export async function previewClientCodeAction(regionPrefix: string): Promise<string | null> {
+  const actor = await requireUser();
+  try {
+    return await previewClientCode(
+      getDb(),
+      actor,
+      typeof regionPrefix === "string" ? regionPrefix : "",
+    );
+  } catch (error) {
+    if (!(error instanceof ValidationError || error instanceof ForbiddenError)) {
+      await reportError({ source: "form_action", error });
+    }
+    return null;
+  }
 }
 
 export async function createClientAction(

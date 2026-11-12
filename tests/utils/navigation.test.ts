@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { NAV_ITEMS, type NavItemId } from "@/constants/navigation";
 import { USER_ROLES, type UserRole } from "@/server/permissions";
 import {
+  accountNavItemsFor,
   canOpenPage,
   extraNavItemsFor,
   homePathFor,
@@ -134,5 +135,41 @@ describe("заголовки сторінок у шапці", () => {
     for (const item of Object.values(NAV_ITEMS)) {
       if (item.id !== "more") expect(item.title, item.id).toBeUndefined();
     }
+  });
+});
+
+describe("екрани всередині «Ще» («Прайс», «Користувачі»)", () => {
+  const ids = (role: UserRole) => accountNavItemsFor(role).map((item) => item.id);
+
+  it("власник бачить «Прайс» і «Користувачі», менеджер і бухгалтер лише «Прайс»", () => {
+    expect(ids("owner")).toEqual(["prices", "users"]);
+    expect(ids("manager")).toEqual(["prices"]);
+    expect(ids("accountant")).toEqual(["prices"]);
+  });
+
+  it("старший локації й виробництво не бачать цін, водій нічого не бачить", () => {
+    expect(ids("location_lead")).toEqual([]);
+    expect(ids("production")).toEqual([]);
+    expect(ids("driver")).toEqual([]);
+  });
+
+  it("сторінка прайсу відкривається тим, кому вона в меню, і лише їм", () => {
+    for (const role of USER_ROLES) {
+      expect(canOpenPage(role, "prices"), role).toBe(ids(role).includes("prices"));
+    }
+  });
+
+  it("«Прайс» не розділ нижньої панелі й не бічної: він лише в меню «Ще»", () => {
+    for (const role of USER_ROLES) {
+      expect(navItemsFor(role, "bar").map((item) => item.id)).not.toContain("prices");
+      expect(navItemsFor(role, "side").map((item) => item.id)).not.toContain("prices");
+    }
+    expect(NAV_ITEMS.prices.href).toBe("/more/prices");
+  });
+
+  it("адреса прайсу вкладена в «Ще»: підсвічується «Ще», а заголовок бере власну назву", () => {
+    expect(isActivePath("/more/prices", NAV_ITEMS.more.href)).toBe(true);
+    expect(isActivePath("/more/prices", NAV_ITEMS.prices.href)).toBe(true);
+    expect(NAV_ITEMS.prices.title).toBeUndefined();
   });
 });

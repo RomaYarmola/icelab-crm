@@ -4,6 +4,7 @@ import ClientsIcon from "../icons/ClientsIcon";
 import MoreIcon from "../icons/MoreIcon";
 import OrdersIcon from "../icons/OrdersIcon";
 import PaymentsIcon from "../icons/PaymentsIcon";
+import PriceIcon from "../icons/PriceIcon";
 import ProductionIcon from "../icons/ProductionIcon";
 import UsersIcon from "../icons/UsersIcon";
 
@@ -18,6 +19,7 @@ const icons: Record<NavItemId, typeof OrdersIcon> = {
   production: ProductionIcon,
   boxes: BoxIcon,
   payments: PaymentsIcon,
+  prices: PriceIcon,
   users: UsersIcon,
   more: MoreIcon,
 };

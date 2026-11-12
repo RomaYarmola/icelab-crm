@@ -23,26 +23,24 @@ export const CLIENT_CODE_UNIQUE_CONSTRAINT = "clients_code_uq";
 const UNIQUE_VIOLATION = "23505";
 
 /**
- * Видає наступний код. Викликати всередині транзакції, у якій одразу створюється клієнт (`withActor`):
- * блокування префікса діє до кінця транзакції, тож двоє менеджерів не отримають однаковий номер.
+ * Рахує наступний код за наявними клієнтами, нічого не блокуючи. Для підказки «буде АА16» у формі;
+ * справжній код видає `nextClientCode`, бо між підказкою й збереженням хтось міг створити клієнта.
  */
-export async function nextClientCode(tx: Executor, regionPrefix: string | null): Promise<string> {
+export async function peekNextClientCode(
+  db: Executor,
+  regionPrefix: string | null,
+): Promise<string> {
   if (regionPrefix !== null && !isRegionPrefix(regionPrefix)) {
     throw new Error(`Некоректний префікс області: ${regionPrefix}`);
   }
 
-  // Окреме блокування на кожен префікс і на цифрові коди.
-  await tx.execute(
-    sql`select pg_advisory_xact_lock(hashtext(${`client-code:${regionPrefix ?? "#"}`}))`,
-  );
-
   const result =
     regionPrefix === null
-      ? await tx.execute(sql`
+      ? await db.execute(sql`
           select coalesce(max(case when code ~ '^[0-9]+$' then code::bigint end), 0) as max_number
           from clients
           where not is_placeholder`)
-      : await tx.execute(sql`
+      : await db.execute(sql`
           select coalesce(
             max(case when substr(code, ${regionPrefix.length + 1}::int) ~ '^[0-9]+$'
                      then substr(code, ${regionPrefix.length + 1}::int)::bigint end),
@@ -57,6 +55,22 @@ export async function nextClientCode(tx: Executor, regionPrefix: string | null):
   const code = formatClientCode(regionPrefix, next);
   if (!isValidClientCode(code)) throw new Error(`Не вдалося видати код клієнта: ${code}`);
   return code;
+}
+
+/**
+ * Видає наступний код. Викликати всередині транзакції, у якій одразу створюється клієнт (`withActor`):
+ * блокування префікса діє до кінця транзакції, тож двоє менеджерів не отримають однаковий номер.
+ */
+export async function nextClientCode(tx: Executor, regionPrefix: string | null): Promise<string> {
+  if (regionPrefix !== null && !isRegionPrefix(regionPrefix)) {
+    throw new Error(`Некоректний префікс області: ${regionPrefix}`);
+  }
+
+  // Окреме блокування на кожен префікс і на цифрові коди.
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${`client-code:${regionPrefix ?? "#"}`}))`,
+  );
+  return peekNextClientCode(tx, regionPrefix);
 }
 
 /** Чи помилка це збіг коду клієнта з уже наявним (двоє створили клієнтів одночасно). */

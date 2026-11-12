@@ -7,7 +7,10 @@ import {
   changeClientPriceAction,
   createClientAction,
   deleteClientAction,
+  findSimilarClientsAction,
+  loadMoreClientsAction,
   mergeClientsAction,
+  previewClientCodeAction,
   restoreClientAction,
   updateClientAction,
 } from "@/app/(app)/clients/actions";
@@ -82,6 +85,55 @@ describe("серверні дії розділу «Клієнти»", () => {
 
   const newClient = async (name: string, regionPrefix: string | null = "АА") =>
     (await createClient(db, users.owner, { name, regionPrefix })).id;
+
+  describe("читання для екранів", () => {
+    it("«Показати ще»: наступна частина списку з ознакою, чи є ще", async () => {
+      as("owner");
+      for (let i = 1; i <= 3; i++) await newClient(`Список-${i}`, "АХ");
+      const first = await loadMoreClientsAction({ search: "Список-", offset: 0 });
+      expect(first.ok && first.page.items.map((item) => item.name)).toEqual([
+        "Список-1",
+        "Список-2",
+        "Список-3",
+      ]);
+      const tail = await loadMoreClientsAction({ search: "Список-", offset: 2 });
+      expect(tail.ok && tail.page.items.map((item) => item.name)).toEqual(["Список-3"]);
+      expect(tail.ok && tail.page.hasMore).toBe(false);
+    });
+
+    it("«Показати ще»: сміття у фільтрах дає повідомлення, а не помилку сервера", async () => {
+      const bad = await loadMoreClientsAction({ statusId: "не-ідентифікатор", offset: 0 });
+      expect(bad).toEqual({ ok: false, message: "Некоректний ідентифікатор." });
+      const negative = await loadMoreClientsAction({ offset: -5 });
+      expect(negative.ok).toBe(false);
+    });
+
+    it("«Показати ще»: роль без права на клієнтів отримує відмову", async () => {
+      as("production");
+      expect(await loadMoreClientsAction({ offset: 0 })).toEqual({
+        ok: false,
+        message: "Недостатньо прав для цієї дії.",
+      });
+    });
+
+    it("схожі клієнти: знаходить за назвою, а помилка дає порожній список", async () => {
+      as("owner");
+      await newClient("Кафе Унікальне", "АІ");
+      const found = await findSimilarClientsAction({ name: "Кафе Унікальне" });
+      expect(found.map((item) => item.name)).toContain("Кафе Унікальне");
+      expect(await findSimilarClientsAction({ name: "ab" })).toEqual([]);
+      as("production");
+      expect(await findSimilarClientsAction({ name: "Кафе Унікальне" })).toEqual([]);
+    });
+
+    it("підказка коду: код за областю, null для невідомої області й без прав", async () => {
+      expect(await previewClientCodeAction("ВН")).toMatch(/^ВН[0-9]+$/);
+      expect(await previewClientCodeAction("")).toMatch(/^[0-9]+$/);
+      expect(await previewClientCodeAction("ЯЯ")).toBeNull();
+      as("accountant");
+      expect(await previewClientCodeAction("АА")).toBeNull();
+    });
+  });
 
   describe("створення", () => {
     it("менеджер створює клієнта: код за областю, телефон нормалізовано, перехід на картку", async () => {

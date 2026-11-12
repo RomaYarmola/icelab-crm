@@ -6,7 +6,7 @@ import {
   formatTime,
   APP_TIME_ZONE,
 } from "@/utils/formatDate";
-import { formatKg, formatMoney, formatNumber } from "@/utils/formatNumber";
+import { formatKg, formatMoney, formatNumber, formatPricePerKg } from "@/utils/formatNumber";
 
 // Intl ставить нерозривні пробіли між тисячами й перед символом валюти: для порівняння
 // замінюємо їх на звичайні.
@@ -53,5 +53,11 @@ describe("числа, кілограми і гроші за стандартом
     expect(plain(formatMoney(2250))).toBe("2 250 ₴");
     expect(plain(formatMoney(99.9))).toBe("99,9 ₴");
     expect(plain(formatMoney(0))).toBe("0 ₴");
+  });
+
+  it("ціна за кілограм: рядок із бази й число", () => {
+    expect(plain(formatPricePerKg("75.00"))).toBe("75 ₴/кг");
+    expect(plain(formatPricePerKg("99.9"))).toBe("99,9 ₴/кг");
+    expect(plain(formatPricePerKg(1250))).toBe("1 250 ₴/кг");
   });
 });

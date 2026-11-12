@@ -20,6 +20,7 @@
     "db:smoke": "tsx scripts/db-smoke.ts",
     "user:create": "tsx scripts/user-create.ts",
     "user:seed-dev": "tsx scripts/user-seed-dev.ts",
+    "clients:seed-dev": "tsx scripts/clients-seed-dev.ts",
     "check:bundle": "tsx scripts/check-bundle.ts",
     "env:check": "tsx scripts/env-check.ts"
   },
