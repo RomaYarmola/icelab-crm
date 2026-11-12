@@ -7,6 +7,8 @@ import {
   type AuthAdmin,
   changeOwnPassword,
   createUserAccount,
+  getUser,
+  listUsers,
   provisionUser,
   resetUserPassword,
   setUserActive,
@@ -380,6 +382,57 @@ describe("керування користувачами", () => {
 
       const failing = { updateUser: async () => ({ error: { message: "щось пішло не так" } }) };
       await expectRejects(changeOwnPassword(failing, "mii-novyi-parol-1"), ValidationError);
+    });
+  });
+  describe("список користувачів", () => {
+    it("власник бачить профілі разом з e-mail, локацією і станом; активні першими, далі за іменем", async () => {
+      const lviv = await makeLocation(db, "lviv-list");
+      const active = await makeProfile(db, { fullName: "Яна Активна", role: "manager" });
+      const lead = await makeProfile(db, {
+        fullName: "Андрій Старший",
+        role: "location_lead",
+        locationId: lviv.id,
+      });
+      const off = await makeProfile(db, { fullName: "Анатолій Вимкнений", isActive: false });
+      await db.execute(
+        sql`update auth.users set email = 'yana@example.com' where id = ${active.id}`,
+      );
+
+      const list = await listUsers(db, owner);
+      const byId = new Map(list.map((user) => [user.id, user]));
+
+      expect(byId.get(active.id)).toMatchObject({
+        email: "yana@example.com",
+        fullName: "Яна Активна",
+        role: "manager",
+        locationId: null,
+        locationName: null,
+        isActive: true,
+      });
+      expect(byId.get(lead.id)).toMatchObject({
+        role: "location_lead",
+        locationId: lviv.id,
+        locationName: "lviv-list",
+      });
+      expect(byId.get(off.id)?.isActive).toBe(false);
+
+      // Активні спершу (за іменем), вимкнені в кінці.
+      const firstInactive = list.findIndex((user) => !user.isActive);
+      expect(firstInactive).toBeGreaterThan(0);
+      expect(list.slice(firstInactive).every((user) => !user.isActive)).toBe(true);
+      const activeNames = list.slice(0, firstInactive).map((user) => user.fullName);
+      expect(activeNames).toEqual([...activeNames].sort((a, b) => a.localeCompare(b)));
+    });
+
+    it("не власнику список недоступний", async () => {
+      await expectRejects(listUsers(db, manager), ForbiddenError);
+    });
+
+    it("getUser повертає одного користувача або null", async () => {
+      const found = await getUser(db, owner, owner.id);
+      expect(found).toMatchObject({ id: owner.id, role: "owner" });
+      expect(await getUser(db, owner, crypto.randomUUID())).toBeNull();
+      await expectRejects(getUser(db, manager, owner.id), ForbiddenError);
     });
   });
 });

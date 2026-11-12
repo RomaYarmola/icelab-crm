@@ -5,6 +5,7 @@ import MoreIcon from "../icons/MoreIcon";
 import OrdersIcon from "../icons/OrdersIcon";
 import PaymentsIcon from "../icons/PaymentsIcon";
 import ProductionIcon from "../icons/ProductionIcon";
+import UsersIcon from "../icons/UsersIcon";
 
 interface NavIconProps {
   id: NavItemId;
@@ -17,6 +18,7 @@ const icons: Record<NavItemId, typeof OrdersIcon> = {
   production: ProductionIcon,
   boxes: BoxIcon,
   payments: PaymentsIcon,
+  users: UsersIcon,
   more: MoreIcon,
 };
 

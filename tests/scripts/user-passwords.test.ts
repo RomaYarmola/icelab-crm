@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MIN_PASSWORD_LENGTH } from "@/server/users";
+import { MIN_PASSWORD_LENGTH } from "@/constants/constants";
 import { generatePassword } from "../../scripts/_user-passwords";
 
 describe("генератор паролів для скриптів", () => {

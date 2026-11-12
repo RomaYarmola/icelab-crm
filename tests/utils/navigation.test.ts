@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { NavItemId } from "@/constants/navigation";
+import { NAV_ITEMS, type NavItemId } from "@/constants/navigation";
 import { USER_ROLES, type UserRole } from "@/server/permissions";
 import {
   canOpenPage,
@@ -124,5 +124,15 @@ describe("меню за ролями (ТЗ §6.1)", () => {
   it("оплати власника переходять у «Ще» на телефоні, але є на комп'ютері", () => {
     expect(ids("owner", "bar")).not.toContain("payments");
     expect(ids("owner", "side")).toContain("payments");
+  });
+});
+
+describe("заголовки сторінок у шапці", () => {
+  it("сторінка «Ще» в шапці називається «Профіль», решта пунктів як у меню", () => {
+    expect(NAV_ITEMS.more.label).toBe("Ще");
+    expect(NAV_ITEMS.more.title).toBe("Профіль");
+    for (const item of Object.values(NAV_ITEMS)) {
+      if (item.id !== "more") expect(item.title, item.id).toBeUndefined();
+    }
   });
 });

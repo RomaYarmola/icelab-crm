@@ -6,6 +6,7 @@ import IconButton from "../buttons/IconButton";
 import EyeIcon from "../icons/EyeIcon";
 import EyeOffIcon from "../icons/EyeOffIcon";
 import IconSwitch from "../icons/IconSwitch";
+import { getFieldClassName } from "./fieldStyles";
 
 interface CustomizedInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "className"> {
   name: string;
@@ -17,6 +18,12 @@ interface CustomizedInputProps extends Omit<InputHTMLAttributes<HTMLInputElement
   /** Сховати підпис візуально (він лишається для екранних читалок). */
   isLabelHidden?: boolean;
   as?: "input" | "textarea";
+  /**
+   * Лише для `type="password"`: показувати пароль текстом. Якщо передано, видимістю керує
+   * батьківський компонент (разом з `onPasswordVisibleChange`), інакше поле запам'ятовує її саме.
+   */
+  isPasswordVisible?: boolean;
+  onPasswordVisibleChange?: (isVisible: boolean) => void;
   labelClassName?: string;
   fieldClassName?: string;
 }
@@ -26,8 +33,7 @@ interface CustomizedInputProps extends Omit<InputHTMLAttributes<HTMLInputElement
  * Використовується в усіх формах: з нього складаються логін, користувачі, клієнти, замовлення.
  * Для `type="password"` усередині поля справа з'являється кнопка «показати / сховати пароль».
  *
- * Фокус: рамка поля стає акцентною і з'являється м'яка тінь (`shadow-focus`), товщина рамки не
- * змінюється. Усі значення беруться з токенів у globals.css.
+ * Вигляд поля (рамка, фокус, тінь) задає `getFieldClassName`, спільний зі списком `CustomizedSelect`.
  */
 export default function CustomizedInput({
   name,
@@ -37,6 +43,8 @@ export default function CustomizedInput({
   isLabelHidden = false,
   as = "input",
   type = "text",
+  isPasswordVisible: isPasswordVisibleProp,
+  onPasswordVisibleChange,
   labelClassName = "",
   fieldClassName = "",
   ...rest
@@ -44,18 +52,15 @@ export default function CustomizedInput({
   const id = useId();
   const messageId = `${id}-message`;
   const hasMessage = Boolean(error || hint);
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [ownPasswordVisible, setOwnPasswordVisible] = useState(false);
+  const isPasswordVisible = isPasswordVisibleProp ?? ownPasswordVisible;
   const isPassword = as === "input" && type === "password";
 
-  const fieldClasses = cn(
-    "w-full rounded-field border bg-white px-4 text-body text-navy placeholder:text-grey-text transition disabled:opacity-60",
-    error
-      ? "border-red-error focus:shadow-focus-error"
-      : "border-grey-field focus:border-blue-focus focus:shadow-focus lg:hover:not-focus:border-navy",
-    as === "textarea" ? "min-h-32 resize-y py-3" : "min-h-12.5",
-    isPassword && "pr-12",
-    fieldClassName,
-  );
+  const fieldClasses = getFieldClassName({
+    hasError: Boolean(error),
+    isMultiline: as === "textarea",
+    className: cn(isPassword && "pr-12", fieldClassName),
+  });
 
   const commonProps = {
     id,
@@ -89,7 +94,10 @@ export default function CustomizedInput({
               disabled={rest.disabled}
               // Кнопка не забирає фокус у поля, тож можна натиснути її і одразу продовжити вводити.
               onMouseDown={(event) => event.preventDefault()}
-              onClick={() => setIsPasswordVisible((visible) => !visible)}
+              onClick={() => {
+                setOwnPasswordVisible(!isPasswordVisible);
+                onPasswordVisibleChange?.(!isPasswordVisible);
+              }}
               className="absolute top-1/2 right-1 -translate-y-1/2 text-grey-text lg:hover:text-navy"
             >
               <IconSwitch

@@ -26,7 +26,9 @@ export default function Header({ items, location, userMenu }: HeaderProps) {
       <div className="flex h-16 items-center justify-between gap-3 px-4 lg:px-15">
         <div className="flex min-w-0 items-center gap-3">
           <Logo variant="mark" priority className="lg:hidden" />
-          <h1 className="truncate text-h2 text-navy">{current?.label ?? APP_NAME}</h1>
+          <h1 className="truncate text-h2 text-navy">
+            {current?.title ?? current?.label ?? APP_NAME}
+          </h1>
         </div>
         <div className="flex shrink-0 items-center gap-3">
           {location}

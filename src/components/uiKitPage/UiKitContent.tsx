@@ -8,6 +8,7 @@ import StatusChip from "../shared/chips/StatusChip";
 import Tag from "../shared/chips/Tag";
 import Container from "../shared/container/Container";
 import CustomizedInput from "../shared/customizedInput/CustomizedInput";
+import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
 import EmptyState from "../shared/emptyState/EmptyState";
 import ErrorState from "../shared/errorState/ErrorState";
 import Form from "../shared/form/Form";
@@ -15,6 +16,7 @@ import BoxIcon from "../shared/icons/BoxIcon";
 import CloseIcon from "../shared/icons/CloseIcon";
 import MoreIcon from "../shared/icons/MoreIcon";
 import OrdersIcon from "../shared/icons/OrdersIcon";
+import BackLink from "../shared/links/BackLink";
 import MainLink from "../shared/links/MainLink";
 import Loader from "../shared/loader/Loader";
 import Logo from "../shared/logo/Logo";
@@ -120,6 +122,7 @@ export default function UiKitContent() {
       </Block>
 
       <Block title="Посилання">
+        <BackLink href="/ui-kit">Користувачі</BackLink>
         <Text>
           Текст із <MainLink href="/ui-kit">посиланням усередині</MainLink> і{" "}
           <MainLink href="https://icelab.com.ua" isExternal>
@@ -152,6 +155,26 @@ export default function UiKitContent() {
             label="Пароль"
             hint="Кнопка справа показує або ховає пароль"
             defaultValue="demo-password"
+          />
+          <CustomizedSelect
+            name="demo-role"
+            label="Роль"
+            options={[
+              { value: "manager", label: "Менеджер" },
+              { value: "location_lead", label: "Старший локації" },
+              { value: "accountant", label: "Бухгалтер" },
+            ]}
+            hint="Нативний список: на телефоні відкривається системним вибирачем"
+          />
+          <CustomizedSelect
+            name="demo-role-error"
+            label="Локація"
+            options={[
+              { value: "", label: "Оберіть локацію" },
+              { value: "kyiv", label: "Київ" },
+              { value: "lviv", label: "Львів" },
+            ]}
+            error="Для цієї ролі потрібно вибрати локацію."
           />
           <CustomizedInput name="demo-note" label="Коментар" as="textarea" placeholder="Нотатка" />
           <CustomizedInput
