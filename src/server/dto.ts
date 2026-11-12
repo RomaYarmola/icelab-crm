@@ -1,5 +1,5 @@
 import type { orderItems, orders } from "@/db/schema";
-import { can, type UserRole } from "./permissions";
+import { can, isOwnLocationOnly, type UserRole } from "./permissions";
 
 /**
  * Безпечне подання даних: з рядка бази лишаємо лише ті поля, які роль має право бачити.
@@ -25,9 +25,13 @@ const ORDER_BASE_FIELDS = [
   "iceTypeId",
   "kgSold",
   "kgToProduce",
+  "markupPercentApplied",
   "deliveryMethod",
+  "addressId",
   "deliveryText",
   "timeWindow",
+  "recipientName",
+  "recipientPhone",
   "boxTypeId",
   "boxCount",
   "boxOwnership",
@@ -39,10 +43,15 @@ const ORDER_BASE_FIELDS = [
   "closedAt",
   "seenByProductionAt",
   "isArchive",
+  "cancelReason",
+  "duplicateOf",
+  "createdAt",
+  "updatedAt",
 ] as const satisfies readonly (keyof OrderRow)[];
 
 const ORDER_MONEY_FIELDS = [
   "pricePerKgSnapshot",
+  "priceManual",
   "total",
 ] as const satisfies readonly (keyof OrderRow)[];
 const ORDER_PAYMENT_FIELDS = [
@@ -50,8 +59,11 @@ const ORDER_PAYMENT_FIELDS = [
   "paidAt",
 ] as const satisfies readonly (keyof OrderRow)[];
 
-// Службові поля (internalComment, telegram*, draftPayload, confirmedBy, createdBy та інші)
-// свідомо не входять у жодне подання: додамо, коли їх справді потребуватиме екран.
+/** Внутрішній коментар бачать і міняють лише ті, хто веде замовлення (власник, менеджер). */
+const ORDER_INTERNAL_FIELDS = ["internalComment"] as const satisfies readonly (keyof OrderRow)[];
+
+// Службові поля (telegram*, draftPayload, confirmedBy, createdBy та інші) свідомо не входять у
+// жодне подання: додамо, коли їх справді потребуватиме екран.
 
 function pick<T extends object, K extends keyof T>(source: T, keys: readonly K[]): Pick<T, K> {
   const result = {} as Pick<T, K>;
@@ -61,7 +73,8 @@ function pick<T extends object, K extends keyof T>(source: T, keys: readonly K[]
 
 export type OrderView = Pick<OrderRow, (typeof ORDER_BASE_FIELDS)[number]> &
   Partial<Pick<OrderRow, (typeof ORDER_MONEY_FIELDS)[number]>> &
-  Partial<Pick<OrderRow, (typeof ORDER_PAYMENT_FIELDS)[number]>>;
+  Partial<Pick<OrderRow, (typeof ORDER_PAYMENT_FIELDS)[number]>> &
+  Partial<Pick<OrderRow, (typeof ORDER_INTERNAL_FIELDS)[number]>>;
 
 /**
  * Замовлення для відповіді сервера.
@@ -74,6 +87,9 @@ export function toOrderView(order: OrderRow, role: UserRole): OrderView {
   if (can(role, "order_money", "read")) Object.assign(view, pick(order, ORDER_MONEY_FIELDS));
   if (can(role, "order_money", "read") || can(role, "order_cash", "read")) {
     Object.assign(view, pick(order, ORDER_PAYMENT_FIELDS));
+  }
+  if (can(role, "orders", "write") && !isOwnLocationOnly(role, "orders")) {
+    Object.assign(view, pick(order, ORDER_INTERNAL_FIELDS));
   }
   return view;
 }

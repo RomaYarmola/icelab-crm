@@ -32,6 +32,8 @@ const TZ_MATRIX: Record<Resource, readonly [string, string, string, string, stri
   orders: ["RW", "RW", "RW*", "-", "R", "-"],
   // Замовлення: суми й ціни
   order_money: ["R", "R", "-", "-", "R", "-"],
+  // Не з ТЗ: зміна ціни підтвердженого замовлення, рішення D52 (лише власник, з приміткою)
+  order_price_override: ["W", "-", "-", "-", "-", "-"],
   // Екран виробництва
   production_screen: ["R", "R", "RW*", "RW*", "-", "-"],
   // Статус «готово/запаковано»

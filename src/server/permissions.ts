@@ -27,6 +27,7 @@ export const RESOURCES = [
   "reference_data", // довідники: типи льоду, тари, статуси, джерела, правила надбавки
   "orders", // замовлення: створення, правка до «у виробництві»
   "order_money", // замовлення: суми й ціни
+  "order_price_override", // зміна ціни підтвердженого замовлення (не з ТЗ, рішення D52)
   "production_screen", // екран виробництва
   "order_ready_status", // статус «готово/запаковано»
   "order_cash", // готівка по замовленню
@@ -70,6 +71,8 @@ const MATRIX: Record<Resource, Partial<Record<UserRole, Access>>> = {
   reference_data: { owner: RW, manager: R, location_lead: R, production: R, accountant: R },
   orders: { owner: RW, manager: RW, location_lead: RW_OWN, accountant: R },
   order_money: { owner: R, manager: R, accountant: R },
+  // D52: після підтвердження ціну замовлення змінює лише власник, з приміткою.
+  order_price_override: { owner: W },
   production_screen: { owner: R, manager: R, location_lead: RW_OWN, production: RW_OWN },
   order_ready_status: { owner: W, location_lead: W_OWN, production: W_OWN },
   order_cash: {
