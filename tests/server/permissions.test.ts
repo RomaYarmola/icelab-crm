@@ -40,6 +40,8 @@ const TZ_MATRIX: Record<Resource, readonly [string, string, string, string, stri
   order_ready_status: ["W", "-", "W*", "W*", "-", "-"],
   // Готівка по замовленню (водій записує через бота)
   order_cash: ["RW", "R", "RW*", "-", "R", "W~"],
+  // Не з ТЗ: сторно запису готівки, рішення D69 (лише власник, з причиною)
+  cash_reversal: ["W", "-", "-", "-", "-", "-"],
   // Безготівка, виписка, зіставлення
   bank_payments: ["RW", "-", "-", "-", "RW", "-"],
   // Бокси: скан видачі й повернення
