@@ -42,6 +42,8 @@ function canSeeSection(role: UserRole, id: NavItemId): boolean {
       return can(role, "bank_payments", "read");
     case "boxes":
       return can(role, "box_scan", "write") || can(role, "box_debts_stock", "read");
+    case "cash":
+      return can(role, "order_cash", "read");
     case "prices":
       return can(role, "default_prices", "read");
     case "users":
@@ -85,12 +87,12 @@ export function navItemsFor(role: UserRole, placement: NavPlacement): NavItem[] 
 }
 
 /**
- * Екрани всередині «Ще» («Прайс», «Користувачі»): не розділи нижньої панелі, лише пункти меню
- * «Ще» для ролей, які мають на них право.
+ * Екрани всередині «Ще» («Готівка», «Прайс», «Користувачі»): не розділи нижньої панелі, лише
+ * пункти меню «Ще» для ролей, які мають на них право.
  */
 export function accountNavItemsFor(role: UserRole): NavItem[] {
   if (!canUseWeb(role)) return [];
-  return (["prices", "users"] as const)
+  return (["cash", "prices", "users"] as const)
     .filter((id) => canSeeSection(role, id))
     .map((id) => NAV_ITEMS[id]);
 }

@@ -12,6 +12,7 @@ import {
 } from "@/server/order-views";
 import { can, type UserRole } from "@/server/permissions";
 import type { FormState } from "@/utils/formState";
+import { cashLinkFor } from "@/utils/cashLink";
 import { parseOrderListParams } from "@/utils/orderListParams";
 import OrderCardContent from "../ordersPage/OrderCardContent";
 import OrderFormContent from "../ordersPage/OrderFormContent";
@@ -334,6 +335,7 @@ export default function OrdersPreview({
         canEditItems: isOffice && policy.core !== "none",
         itemsNeedNote: policy.core === "owner_note",
       }}
+      cashHref={cashLinkFor(role, order)}
       notice={current === "draft" ? "created" : undefined}
       actions={{
         transition: action,

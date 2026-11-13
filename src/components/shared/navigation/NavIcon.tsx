@@ -1,5 +1,6 @@
 import { NavItemId } from "@/constants/navigation";
 import BoxIcon from "../icons/BoxIcon";
+import CashIcon from "../icons/CashIcon";
 import ClientsIcon from "../icons/ClientsIcon";
 import MoreIcon from "../icons/MoreIcon";
 import OrdersIcon from "../icons/OrdersIcon";
@@ -19,6 +20,7 @@ const icons: Record<NavItemId, typeof OrdersIcon> = {
   production: ProductionIcon,
   boxes: BoxIcon,
   payments: PaymentsIcon,
+  cash: CashIcon,
   prices: PriceIcon,
   users: UsersIcon,
   more: MoreIcon,

@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
+import CashPreview, {
+  CASH_PREVIEW_SCREENS,
+  type CashPreviewScreen,
+} from "@/components/uiKitPage/CashPreview";
 import ClientsPreview, {
   CLIENT_PREVIEW_SCREENS,
   type ClientPreviewScreen,
@@ -213,6 +217,7 @@ const PREVIEW_SCREENS = [
   ...CLIENT_PREVIEW_SCREENS,
   ...ORDER_PREVIEW_SCREENS,
   ...PRODUCTION_PREVIEW_SCREENS,
+  ...CASH_PREVIEW_SCREENS,
 ] as const;
 
 /**
@@ -222,7 +227,8 @@ const PREVIEW_SCREENS = [
  * (за замовчуванням), `profile`, `users`, `new-user`, `user`, а також екрани клієнтів і прайсу
  * (`clients`, `client` з `&tab=contacts|addresses|prices`, `prices`, `merge` тощо) і замовлень
  * (`order-list`, `order`, `new-order`, `edit-order` з `&status=draft|confirmed|in_production|packed|shipped|paid|closed|cancelled`)
- * і виробництва (`production`, `production-empty`, `production-wall`: режим «на стіні» лише для старшого локації).
+ * і виробництва (`production`, `production-empty`, `production-wall`: режим «на стіні» лише для старшого локації)
+ * і готівки (`cash`, `cash-empty`).
  */
 export default async function ShellPreviewPage({
   params,
@@ -312,6 +318,12 @@ export default async function ShellPreviewPage({
             markAllSeen: previewFormAction,
             openScreen: previewOpenScreen,
           }}
+        />
+      ) : (CASH_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
+        <CashPreview
+          role={knownRole}
+          screen={screen as CashPreviewScreen}
+          actions={{ record: previewFormAction, reverse: previewFormAction }}
         />
       ) : (
         <ShellPreviewContent />
