@@ -138,13 +138,13 @@ describe("заголовки сторінок у шапці", () => {
   });
 });
 
-describe("екрани всередині «Ще» («Готівка», «Прайс», «Користувачі»)", () => {
+describe("екрани всередині «Ще» («Готівка», «Прайс», «Журнал змін», «Користувачі»)", () => {
   const ids = (role: UserRole) => accountNavItemsFor(role).map((item) => item.id);
 
-  it("власник бачить «Готівку», «Прайс» і «Користувачі», менеджер і бухгалтер «Готівку» та «Прайс»", () => {
-    expect(ids("owner")).toEqual(["cash", "prices", "users"]);
+  it("власник бачить «Готівку», «Прайс», «Журнал змін» і «Користувачі», бухгалтер «Готівку», «Прайс» і «Журнал змін», менеджер «Готівку» та «Прайс»", () => {
+    expect(ids("owner")).toEqual(["cash", "prices", "audit", "users"]);
     expect(ids("manager")).toEqual(["cash", "prices"]);
-    expect(ids("accountant")).toEqual(["cash", "prices"]);
+    expect(ids("accountant")).toEqual(["cash", "prices", "audit"]);
   });
 
   it("старший локації бачить лише «Готівку» (цін немає), виробництво й водій нічого", () => {
@@ -181,5 +181,24 @@ describe("екрани всередині «Ще» («Готівка», «Пра
     expect(isActivePath("/more/prices", NAV_ITEMS.more.href)).toBe(true);
     expect(isActivePath("/more/prices", NAV_ITEMS.prices.href)).toBe(true);
     expect(NAV_ITEMS.prices.title).toBeUndefined();
+  });
+});
+
+describe("журнал змін у меню (B8, D89)", () => {
+  it("відкривається лише власнику й бухгалтеру, у меню «Ще»", () => {
+    for (const role of USER_ROLES) {
+      const allowed = role === "owner" || role === "accountant";
+      expect(canOpenPage(role, "audit"), role).toBe(allowed);
+      expect(
+        navItemsFor(role, "bar").map((item) => item.id),
+        role,
+      ).not.toContain("audit");
+      expect(
+        navItemsFor(role, "side").map((item) => item.id),
+        role,
+      ).not.toContain("audit");
+    }
+    expect(NAV_ITEMS.audit.href).toBe("/more/audit");
+    expect(isActivePath("/more/audit", NAV_ITEMS.more.href)).toBe(true);
   });
 });

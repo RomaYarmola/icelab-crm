@@ -270,7 +270,7 @@ describe("ціни клієнтів і прайс", () => {
         .select()
         .from(auditLog)
         .where(and(eq(auditLog.tableName, "client_prices"), eq(auditLog.rowId, created.id)))
-        .orderBy(auditLog.at);
+        .orderBy(auditLog.at, auditLog.action);
       expect(rows.map((r) => [r.action, r.actorId])).toEqual([
         ["insert", users.manager.id],
         ["update", users.owner.id],

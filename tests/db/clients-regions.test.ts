@@ -173,7 +173,7 @@ describe("клієнти і області (міграція 0008)", () => {
         .select()
         .from(auditLog)
         .where(and(eq(auditLog.tableName, table), eq(auditLog.rowId, rowId)))
-        .orderBy(auditLog.at);
+        .orderBy(auditLog.at, auditLog.action);
 
     it("зміни контакту пишуться з автором", async () => {
       const actor = await makeProfile(db, { fullName: "Менеджер журналу" });

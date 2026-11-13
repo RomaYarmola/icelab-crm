@@ -176,7 +176,7 @@ describe("тригери", () => {
         .select()
         .from(auditLog)
         .where(and(eq(auditLog.tableName, table), eq(auditLog.rowId, rowId)))
-        .orderBy(auditLog.at);
+        .orderBy(auditLog.at, auditLog.action);
 
     it("при створенні пише лише непорожні поля", async () => {
       const client = await makeClient(db, { name: "Журнал створення" });
@@ -278,7 +278,7 @@ describe("тригери", () => {
         .select()
         .from(auditLog)
         .where(and(eq(auditLog.tableName, "clients"), eq(auditLog.rowId, clientId)))
-        .orderBy(auditLog.at);
+        .orderBy(auditLog.at, auditLog.action);
       expect(rows.map((r) => r.action)).toEqual(["insert", "update", "update"]);
       expect(rows[2]!.diff).toEqual({ name: { old: "Два", new: "Три" } });
 

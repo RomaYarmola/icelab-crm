@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { CLIENT_TAB_LABELS, CLIENT_TABS, type ClientTab } from "@/constants/clients";
 import type { ClientFormOptions } from "@/server/client-options";
+import type { AuditPage } from "@/server/audit";
 import type { ClientCardView } from "@/server/client-views";
 import type { DefaultPriceHistoryItem } from "@/server/prices";
+import EntityHistory from "../auditPage/EntityHistory";
 import Tag from "../shared/chips/Tag";
 import BackLink from "../shared/links/BackLink";
 import Notification from "../shared/notification/Notification";
@@ -30,6 +32,10 @@ interface ClientCardContentProps {
     canEditPrices: boolean;
     isOwner: boolean;
   };
+  /** Роль бачить вкладку «Історія» (як і «Ціни»: власник, менеджер, бухгалтер). */
+  canSeeHistory: boolean;
+  /** Історія змін клієнта, завантажена, коли відкрито вкладку «Історія». */
+  history: AuditPage | null;
   /** Прайс для порівняння на вкладці «Ціни» (лише ролям з правом на ціни). */
   defaultPrices: DefaultPriceHistoryItem[] | null;
   /** Сьогоднішня дата `YYYY-MM-DD`. */
@@ -52,13 +58,17 @@ export default function ClientCardContent({
   actions,
   permissions,
   defaultPrices,
+  canSeeHistory,
+  history,
   today,
   notice,
   tabHref = (id) => (id === "main" ? `/clients/${client.id}` : `/clients/${client.id}?tab=${id}`),
 }: ClientCardContentProps) {
   const canSeePrices = client.prices !== undefined;
   const canEdit = permissions.canWrite && !client.isDeleted;
-  const tabs = CLIENT_TABS.filter((id) => id !== "prices" || canSeePrices);
+  const tabs = CLIENT_TABS.filter(
+    (id) => (id !== "prices" || canSeePrices) && (id !== "history" || canSeeHistory),
+  );
   const activeTab = tabs.includes(tab) ? tab : "main";
   const details = [client.statusName, client.managerName].filter(Boolean).join(" · ");
 
@@ -179,6 +189,10 @@ export default function ClientCardContent({
           actions={actions}
           canEdit={canEdit}
         />
+      ) : null}
+
+      {activeTab === "history" && history ? (
+        <EntityHistory page={history} titleId="client-history" />
       ) : null}
 
       {activeTab === "prices" && client.prices ? (

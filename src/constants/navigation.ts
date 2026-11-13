@@ -1,6 +1,15 @@
 /** Розділи застосунку, які показуємо в меню. Кожному відповідає адреса, підпис і значок. */
 export type NavItemId =
-  "orders" | "clients" | "production" | "boxes" | "payments" | "cash" | "prices" | "users" | "more";
+  | "orders"
+  | "clients"
+  | "production"
+  | "boxes"
+  | "payments"
+  | "cash"
+  | "prices"
+  | "audit"
+  | "users"
+  | "more";
 
 export interface NavItem {
   id: NavItemId;
@@ -22,6 +31,8 @@ export const NAV_ITEMS: Record<NavItemId, NavItem> = {
   // немає, лише в меню «Ще».
   cash: { id: "cash", label: "Готівка", href: "/more/cash" },
   prices: { id: "prices", label: "Прайс", href: "/more/prices" },
+  // Журнал змін: власник і бухгалтер (матриця `audit_log`), лише читання.
+  audit: { id: "audit", label: "Журнал змін", href: "/more/audit" },
   users: { id: "users", label: "Користувачі", href: "/more/users" },
   // У меню телефона пункт називається «Ще», а сама сторінка це профіль: у шапці так і пишемо.
   more: { id: "more", label: "Ще", title: "Профіль", href: "/more" },

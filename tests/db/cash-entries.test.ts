@@ -180,7 +180,7 @@ describe("готівка по замовленню: таблиця cash_entries 
         .select()
         .from(auditLog)
         .where(and(eq(auditLog.tableName, "cash_entries"), eq(auditLog.rowId, row.id)))
-        .orderBy(auditLog.at);
+        .orderBy(auditLog.at, auditLog.action);
       expect(rows.map((r) => [r.action, r.actorId])).toEqual([
         ["insert", leadId],
         ["update", ownerId],

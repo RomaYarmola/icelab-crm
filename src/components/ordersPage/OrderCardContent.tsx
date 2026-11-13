@@ -1,7 +1,9 @@
 import Link from "next/link";
+import type { AuditPage } from "@/server/audit";
 import type { OrderCardView } from "@/server/order-views";
 import type { TransitionOption } from "@/server/order-rules";
 import { formatIsoDate } from "@/utils/isoDate";
+import EntityHistory from "../auditPage/EntityHistory";
 import DeleteRecordForm from "../clientsPage/DeleteRecordForm";
 import StatusChip from "../shared/chips/StatusChip";
 import ButtonLink from "../shared/buttons/ButtonLink";
@@ -37,6 +39,8 @@ interface OrderCardContentProps {
   actions: OrderCardActions;
   /** Посилання «Готівка» на екран готівки (ролі, що читають готівку, по готівкових замовленнях). */
   cashHref?: string | null;
+  /** Історія змін замовлення (D91): лише ролі, що бачать гроші (власник, менеджер, бухгалтер). */
+  changeHistory?: AuditPage | null;
   /** Замовлення щойно створено: показуємо підтвердження. */
   notice?: "created";
 }
@@ -51,6 +55,7 @@ export default function OrderCardContent({
   permissions,
   actions,
   cashHref,
+  changeHistory,
   notice,
 }: OrderCardContentProps) {
   const isCancelled = order.status === "cancelled";
@@ -129,6 +134,7 @@ export default function OrderCardContent({
       {canChangePrice ? <OrderPriceForm orderId={order.id} action={actions.changePrice} /> : null}
 
       <OrderHistory history={order.history} />
+      {changeHistory ? <EntityHistory page={changeHistory} titleId="order-change-history" /> : null}
 
       {permissions.canDeleteDraft ? (
         <DeleteRecordForm

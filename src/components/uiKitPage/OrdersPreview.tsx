@@ -14,6 +14,7 @@ import { can, type UserRole } from "@/server/permissions";
 import type { FormState } from "@/utils/formState";
 import { cashLinkFor } from "@/utils/cashLink";
 import { parseOrderListParams } from "@/utils/orderListParams";
+import { PREVIEW_AUDIT_ENTRIES } from "./AuditPreview";
 import OrderCardContent from "../ordersPage/OrderCardContent";
 import OrderFormContent from "../ordersPage/OrderFormContent";
 import { buildCreateDefaults, buildEditDefaults } from "../ordersPage/orderFormDefaults";
@@ -336,6 +337,12 @@ export default function OrdersPreview({
         itemsNeedNote: policy.core === "owner_note",
       }}
       cashHref={cashLinkFor(role, order)}
+      // Історія змін (D91): лише ролям, що бачать гроші.
+      changeHistory={
+        can(role, "order_money", "read")
+          ? { items: PREVIEW_AUDIT_ENTRIES.slice(0, 4), hasMore: false }
+          : null
+      }
       notice={current === "draft" ? "created" : undefined}
       actions={{
         transition: action,
