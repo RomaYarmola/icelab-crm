@@ -7,9 +7,9 @@ const numberFormatter = new Intl.NumberFormat(APP_LOCALE, {
   maximumFractionDigits: 3,
 });
 
+// Символ гривні додаємо самі, а не через `style: "currency"`: ICU Node пише «₴», а браузери «грн»,
+// і серверний рендер розходиться з клієнтським (помилка гідратації).
 const moneyFormatter = new Intl.NumberFormat(APP_LOCALE, {
-  style: "currency",
-  currency: "UAH",
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
@@ -21,7 +21,7 @@ export const formatNumber = (value: number): string => numberFormatter.format(va
 export const formatKg = (value: number): string => `${formatNumber(value)} кг`;
 
 /** 2 250 ₴, 99,90 ₴ */
-export const formatMoney = (value: number): string => moneyFormatter.format(value);
+export const formatMoney = (value: number): string => `${moneyFormatter.format(value)}\u00a0₴`;
 
 /** 75 ₴/кг. Ціну з бази (рядок «75.00») приймаємо як є. */
 export const formatPricePerKg = (value: string | number): string =>

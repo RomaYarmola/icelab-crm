@@ -151,6 +151,20 @@ export function allowedTransitions(from: OrderStatus, performer: Performer): Tra
   });
 }
 
+/** Перехід для кнопки на картці: куди, який це крок і чи потрібна примітка (причина). */
+export type TransitionOption = { to: OrderStatus; kind: TransitionKind; needsNote: boolean };
+
+/**
+ * Кнопки переходів, доступні виконавцю зі статусу (D51): куди можна перейти, чи це крок вперед,
+ * назад чи скасування і чи треба писати причину. Права на локацію сервер перевіряє окремо.
+ */
+export function transitionOptions(from: OrderStatus, performer: Performer): TransitionOption[] {
+  return allowedTransitions(from, performer).flatMap((transition) => {
+    const check = checkTransition(transition.from, transition.to, performer);
+    return check.ok ? [{ to: transition.to, kind: check.kind, needsNote: check.needsNote }] : [];
+  });
+}
+
 /**
  * Які мітки часу ставить перехід у статус (`orders.confirmed_at` тощо). Назад ці мітки знімаємо
  * зі статусу, який залишили. `in_production` міток не має: старий `seen_by_production_at` веде

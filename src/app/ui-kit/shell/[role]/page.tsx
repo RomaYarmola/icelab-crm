@@ -7,6 +7,10 @@ import ClientsPreview, {
   CLIENT_PREVIEW_SCREENS,
   type ClientPreviewScreen,
 } from "@/components/uiKitPage/ClientsPreview";
+import OrdersPreview, {
+  ORDER_PREVIEW_SCREENS,
+  type OrderPreviewScreen,
+} from "@/components/uiKitPage/OrdersPreview";
 import ShellPreviewContent from "@/components/uiKitPage/ShellPreviewContent";
 import UserDetailContent from "@/components/usersPage/UserDetailContent";
 import UsersPageContent from "@/components/usersPage/UsersPageContent";
@@ -14,6 +18,7 @@ import type { AppUser } from "@/server/guards";
 import { buildLocationFilter, type LocationOption } from "@/server/locations";
 import { isLocationBound, ROLE_LABELS, USER_ROLES, type UserRole } from "@/server/permissions";
 import type { LoadMoreResult } from "@/app/(app)/clients/actions";
+import type { LoadMoreOrdersResult } from "@/app/(app)/orders/actions";
 import type { SimilarClient } from "@/server/clients";
 import type { UserListItem } from "@/server/users";
 import type { FormState } from "@/utils/formState";
@@ -39,6 +44,11 @@ async function previewFormAction(): Promise<FormState> {
 
 /** Заглушки читання в каталозі: список без довантаження, підказка коду й схожі клієнти для прикладу. */
 async function previewLoadMore(): Promise<LoadMoreResult> {
+  "use server";
+  return { ok: true, page: { items: [], hasMore: false } };
+}
+
+async function previewLoadMoreOrders(): Promise<LoadMoreOrdersResult> {
   "use server";
   return { ok: true, page: { items: [], hasMore: false } };
 }
@@ -97,6 +107,7 @@ const PREVIEW_SCREENS = [
   "new-user",
   "user",
   ...CLIENT_PREVIEW_SCREENS,
+  ...ORDER_PREVIEW_SCREENS,
 ] as const;
 
 /**
@@ -104,19 +115,20 @@ const PREVIEW_SCREENS = [
  * Лише для розробки: у збірці сторінки немає. Посилання меню ведуть на справжні сторінки,
  * які вимагають входу. Параметр `?screen=` показує екрани з вигаданими даними: `orders`
  * (за замовчуванням), `profile`, `users`, `new-user`, `user`, а також екрани клієнтів і прайсу
- * (`clients`, `client` з `&tab=contacts|addresses|prices`, `prices`, `merge` тощо).
+ * (`clients`, `client` з `&tab=contacts|addresses|prices`, `prices`, `merge` тощо) і замовлень
+ * (`order-list`, `order` з `&status=draft|confirmed|in_production|packed|shipped|paid|closed|cancelled`).
  */
 export default async function ShellPreviewPage({
   params,
   searchParams,
 }: {
   params: Promise<{ role: string }>;
-  searchParams: Promise<{ screen?: string; tab?: string }>;
+  searchParams: Promise<{ screen?: string; tab?: string; status?: string }>;
 }) {
   if (process.env.NODE_ENV === "production") notFound();
 
   const { role } = await params;
-  const { screen: requestedScreen, tab } = await searchParams;
+  const { screen: requestedScreen, tab, status } = await searchParams;
   const screen = PREVIEW_SCREENS.find((item) => item === requestedScreen) ?? "orders";
   const knownRole = USER_ROLES.find((item): item is UserRole => item === role);
   if (!knownRole || knownRole === "driver") notFound();
@@ -168,6 +180,14 @@ export default async function ShellPreviewPage({
           loadMore={previewLoadMore}
           previewCode={previewCode}
           findSimilar={previewSimilar}
+        />
+      ) : (ORDER_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
+        <OrdersPreview
+          role={knownRole}
+          screen={screen as OrderPreviewScreen}
+          status={status}
+          action={previewFormAction}
+          loadMore={previewLoadMoreOrders}
         />
       ) : (
         <ShellPreviewContent />

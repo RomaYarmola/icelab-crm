@@ -12,6 +12,7 @@ import {
   previousStatus,
   STATUS_FLOW,
   suggestMarkupPercent,
+  transitionOptions,
 } from "@/server/order-rules";
 import { USER_ROLES, type UserRole } from "@/server/permissions";
 
@@ -334,5 +335,27 @@ describe("закриття і дублі", () => {
     expect(isLikelyDuplicate(order, { ...order, id: "b", status: "cancelled" })).toBe(false);
     expect(isLikelyDuplicate(order, { ...order, id: "b", deleted: true })).toBe(false);
     expect(isLikelyDuplicate(order, order)).toBe(false);
+  });
+});
+
+describe("кнопки переходів із приміткою", () => {
+  it("менеджер у чернетці: підтвердити без примітки, скасувати з причиною", () => {
+    expect(transitionOptions("draft", "manager")).toEqual([
+      { to: "confirmed", kind: "forward", needsNote: false },
+      { to: "cancelled", kind: "cancel", needsNote: true },
+    ]);
+  });
+
+  it("власник у відправленому: «Оплачено» з приміткою, назад і скасування теж", () => {
+    expect(transitionOptions("shipped", "owner")).toEqual([
+      { to: "paid", kind: "forward", needsNote: true },
+      { to: "packed", kind: "back", needsNote: true },
+      { to: "cancelled", kind: "cancel", needsNote: true },
+    ]);
+  });
+
+  it("бухгалтер і закрите замовлення: кнопок немає", () => {
+    expect(transitionOptions("confirmed", "accountant")).toEqual([]);
+    expect(transitionOptions("cancelled", "owner")).toEqual([]);
   });
 });

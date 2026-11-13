@@ -55,6 +55,15 @@ describe("числа, кілограми і гроші за стандартом
     expect(plain(formatMoney(0))).toBe("0 ₴");
   });
 
+  it("гривня завжди «₴», а не «грн»: рядок однаковий на сервері й у браузері", () => {
+    // Різні ICU (Node і браузер) пишуть валюту по-різному й ламали гідратацію екранів.
+    expect(plain(formatMoney(2400))).toBe("2 400 ₴");
+    expect(plain(formatMoney(99.9))).toBe("99,9 ₴");
+    // Між числом і гривнею нерозривний пробіл: символ не відривається від суми на новий рядок.
+    expect(formatMoney(2400).endsWith("\u00a0₴")).toBe(true);
+    expect(formatMoney(2400)).not.toContain("грн");
+  });
+
   it("ціна за кілограм: рядок із бази й число", () => {
     expect(plain(formatPricePerKg("75.00"))).toBe("75 ₴/кг");
     expect(plain(formatPricePerKg("99.9"))).toBe("99,9 ₴/кг");

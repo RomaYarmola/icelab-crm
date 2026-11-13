@@ -1,9 +1,54 @@
 import type { Metadata } from "next";
-import OrdersIcon from "@/components/shared/icons/OrdersIcon";
-import PlaceholderPage from "@/components/shared/placeholderPage/PlaceholderPage";
+import { loadMoreOrdersAction } from "@/app/(app)/orders/actions";
+import OrdersPageContent from "@/components/ordersPage/OrdersPageContent";
+import { getDb } from "@/db/client";
+import { requireUser } from "@/server/auth";
+import { getClientFormOptions } from "@/server/client-options";
+import { getLocationFilter } from "@/server/location-filter";
+import { listOrders } from "@/server/orders";
+import { parseOrderListParams } from "@/utils/orderListParams";
+import { todayIso } from "@/utils/isoDate";
 
 export const metadata: Metadata = { title: "Замовлення" };
 
-export default function OrdersPage() {
-  return <PlaceholderPage icon={<OrdersIcon />} title="Тут буде список замовлень" />;
+/**
+ * Список замовлень: день, фільтри й пошук беремо з адреси сторінки. Локація з вибору в шапці
+ * звужує список (роль з локацією бачить лише свою: це робить сам `listOrders`). Доступ до розділу
+ * закриває layout.
+ */
+export default async function OrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const filters = parseOrderListParams(await searchParams, todayIso());
+  const user = await requireUser();
+  const locationFilter = await getLocationFilter();
+  const db = getDb();
+  const locationId = locationFilter.selectedId ?? undefined;
+
+  const [page, options] = await Promise.all([
+    listOrders(db, user, {
+      dateFrom: filters.dateFrom || undefined,
+      dateTo: filters.dateTo || undefined,
+      statuses: filters.status ? [filters.status as never] : undefined,
+      managerId: filters.managerId || undefined,
+      deliveryMethod: filters.deliveryMethod || undefined,
+      locationId,
+      search: filters.search || undefined,
+    }),
+    getClientFormOptions(db, user),
+  ]);
+
+  return (
+    <OrdersPageContent
+      page={page}
+      filters={filters}
+      managers={options.managers}
+      locationId={locationId}
+      // Форма створення з'явиться в PR 3 разом із кнопкою «Нове замовлення».
+      canCreate={false}
+      loadMore={loadMoreOrdersAction}
+    />
+  );
 }
