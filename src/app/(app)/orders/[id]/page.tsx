@@ -15,6 +15,7 @@ import { requireUser } from "@/server/auth";
 import { canDeleteDraft, editPolicy, transitionOptions } from "@/server/order-rules";
 import { getOrder } from "@/server/orders";
 import { can } from "@/server/permissions";
+import { listEntityHistory } from "@/server/audit";
 import { cashLinkFor } from "@/utils/cashLink";
 
 export const metadata: Metadata = { title: "Замовлення" };
@@ -39,6 +40,10 @@ export default async function OrderPage({
   if (!order) notFound();
 
   const policy = editPolicy(order.status, user.role);
+  // Історія змін (D91): лише ролям, що бачать гроші; старший локації й виробництво її не отримують.
+  const changeHistory = can(user.role, "order_money", "read")
+    ? await listEntityHistory(getDb(), user, { kind: "order", id })
+    : null;
   const isOffice = user.role === "owner" || user.role === "manager";
 
   return (
@@ -54,6 +59,7 @@ export default async function OrderPage({
         itemsNeedNote: policy.core === "owner_note",
       }}
       cashHref={cashLinkFor(user.role, order)}
+      changeHistory={changeHistory}
       notice={query.created ? "created" : undefined}
       actions={{
         transition: transitionOrderAction,

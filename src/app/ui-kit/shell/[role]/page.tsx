@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
+import AuditPreview, {
+  AUDIT_PREVIEW_SCREENS,
+  type AuditPreviewScreen,
+} from "@/components/uiKitPage/AuditPreview";
 import CashPreview, {
   CASH_PREVIEW_SCREENS,
   type CashPreviewScreen,
@@ -57,6 +61,12 @@ async function previewFormAction(): Promise<FormState> {
 async function previewOpenScreen(): Promise<{ status: "ok"; started: number; marked: number }> {
   "use server";
   return { status: "ok", started: 0, marked: 0 };
+}
+
+/** Заглушка «Показати ще» у журналі змін: нічого не довантажує. */
+async function previewLoadMoreAudit(): Promise<{ ok: true; page: { items: []; hasMore: false } }> {
+  "use server";
+  return { ok: true, page: { items: [], hasMore: false } };
 }
 
 /** Заглушки читання в каталозі: список без довантаження, підказка коду й схожі клієнти для прикладу. */
@@ -218,6 +228,7 @@ const PREVIEW_SCREENS = [
   ...ORDER_PREVIEW_SCREENS,
   ...PRODUCTION_PREVIEW_SCREENS,
   ...CASH_PREVIEW_SCREENS,
+  ...AUDIT_PREVIEW_SCREENS,
 ] as const;
 
 /**
@@ -228,7 +239,8 @@ const PREVIEW_SCREENS = [
  * (`clients`, `client` з `&tab=contacts|addresses|prices`, `prices`, `merge` тощо) і замовлень
  * (`order-list`, `order`, `new-order`, `edit-order` з `&status=draft|confirmed|in_production|packed|shipped|paid|closed|cancelled`)
  * і виробництва (`production`, `production-empty`, `production-wall`: режим «на стіні» лише для старшого локації)
- * і готівки (`cash`, `cash-empty`).
+ * і готівки (`cash`, `cash-empty`) і журналу змін (`audit`, `audit-empty`; на картках замовлення й клієнта
+ * («Історія») лише для ролей з грошима).
  */
 export default async function ShellPreviewPage({
   params,
@@ -325,6 +337,8 @@ export default async function ShellPreviewPage({
           screen={screen as CashPreviewScreen}
           actions={{ record: previewFormAction, reverse: previewFormAction }}
         />
+      ) : (AUDIT_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
+        <AuditPreview screen={screen as AuditPreviewScreen} loadMore={previewLoadMoreAudit} />
       ) : (
         <ShellPreviewContent />
       )}

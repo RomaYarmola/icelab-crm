@@ -20,8 +20,11 @@ export type AddressKindValue = keyof typeof ADDRESS_KIND_LABELS;
 /** Перший пункт списку областей: клієнт без області отримує код з самих цифр (D42). */
 export const NO_REGION_LABEL = "Без області (код з цифр)";
 
-/** Вкладки картки клієнта. «Ціни» бачать лише ролі з правом на ціни клієнта. */
-export const CLIENT_TABS = ["main", "contacts", "addresses", "prices"] as const;
+/**
+ * Вкладки картки клієнта. «Ціни» і «Історія» бачать лише ролі з правом на ціни клієнта (власник,
+ * менеджер, бухгалтер): в історії є й зміни цін.
+ */
+export const CLIENT_TABS = ["main", "contacts", "addresses", "prices", "history"] as const;
 export type ClientTab = (typeof CLIENT_TABS)[number];
 
 export const CLIENT_TAB_LABELS: Record<ClientTab, string> = {
@@ -29,4 +32,5 @@ export const CLIENT_TAB_LABELS: Record<ClientTab, string> = {
   contacts: "Контакти",
   addresses: "Адреси",
   prices: "Ціни",
+  history: "Історія",
 };

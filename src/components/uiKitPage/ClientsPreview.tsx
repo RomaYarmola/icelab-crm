@@ -1,12 +1,14 @@
 import { CLIENT_TABS, type ClientTab } from "@/constants/clients";
 import type { LoadMoreResult } from "@/app/(app)/clients/actions";
 import type { ClientFormOptions } from "@/server/client-options";
+import type { AuditPage } from "@/server/audit";
 import type { MergePreview } from "@/server/client-merge";
 import type { ClientCardView, ClientListItem } from "@/server/client-views";
 import type { SimilarClient } from "@/server/clients";
 import { can, type UserRole } from "@/server/permissions";
 import type { ClientPriceHistoryItem, DefaultPriceHistoryItem } from "@/server/prices";
 import type { FormState } from "@/utils/formState";
+import { PREVIEW_AUDIT_ENTRIES } from "./AuditPreview";
 import ClientCardContent from "../clientsPage/ClientCardContent";
 import ClientsPageContent from "../clientsPage/ClientsPageContent";
 import MergeClientsContent from "../clientsPage/MergeClientsContent";
@@ -339,12 +341,25 @@ export default function ClientsPreview({
 
   const activeTab: ClientTab = CLIENT_TABS.find((id) => id === tab) ?? "main";
   const noop = action;
+  // Історія змін клієнта (ТЗ §11): лише ролі з правом на ціни клієнта.
+  const canSeeHistory = can(role, "client_prices", "read");
+  const history: AuditPage | null =
+    canSeeHistory && activeTab === "history"
+      ? {
+          items: PREVIEW_AUDIT_ENTRIES.filter((item) => item.sectionLabel === "Замовлення")
+            .slice(0, 3)
+            .map((item) => ({ ...item, tableLabel: "Клієнт", href: null })),
+          hasMore: false,
+        }
+      : null;
   return (
     <ClientCardContent
       client={cardFor(role, screen === "client-deleted" ? { isDeleted: true } : {})}
       tab={activeTab}
       options={OPTIONS}
       defaultPrices={can(role, "default_prices", "read") ? DEFAULT_PRICES : null}
+      canSeeHistory={canSeeHistory}
+      history={history}
       today={TODAY}
       tabHref={(id) => (id === "main" ? tabBase : `${tabBase}&tab=${id}`)}
       permissions={{

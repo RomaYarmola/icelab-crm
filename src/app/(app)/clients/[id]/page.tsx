@@ -18,6 +18,7 @@ import ClientCardContent from "@/components/clientsPage/ClientCardContent";
 import { CLIENT_TABS, type ClientTab } from "@/constants/clients";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
+import { listEntityHistory } from "@/server/audit";
 import { getClientFormOptions } from "@/server/client-options";
 import { getClient } from "@/server/clients";
 import { can } from "@/server/permissions";
@@ -56,12 +57,21 @@ export default async function ClientPage({
       ? await listDefaultPrices(db, user)
       : null;
 
+  // Історія змін (ТЗ §11): лише ролям, що бачать ціни клієнта, і лише коли відкрито її вкладку.
+  const canSeeHistory = can(user.role, "client_prices", "read");
+  const history =
+    canSeeHistory && query.tab === "history"
+      ? await listEntityHistory(db, user, { kind: "client", id })
+      : null;
+
   return (
     <ClientCardContent
       client={client}
       tab={isTab(query.tab) ? query.tab : "main"}
       options={options}
       defaultPrices={defaultPrices}
+      canSeeHistory={canSeeHistory}
+      history={history}
       today={todayIso()}
       notice={query.created ? "created" : query.merged ? "merged" : undefined}
       permissions={{
