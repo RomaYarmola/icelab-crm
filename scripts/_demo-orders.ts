@@ -1,8 +1,9 @@
-import { and, asc, eq, like } from "drizzle-orm";
-import { clients, iceTypes, locations, orderItems, orders } from "@/db/schema";
+import { and, asc, eq, inArray, like, sql } from "drizzle-orm";
+import { cashEntries, clients, iceTypes, locations, orderItems, orders } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import type { OrderStatus } from "@/constants/constants";
 import type { AppUser } from "@/server/guards";
+import { recordCashEntry, reverseCashEntry } from "@/server/cash";
 import { addOrderItem } from "@/server/order-items";
 import { transitionOrder } from "@/server/order-status";
 import { createOrder, type CreateOrderInput } from "@/server/orders";
@@ -305,6 +306,8 @@ export async function addDemoOrders(
 
 /** Видаляє демо-замовлення разом із позиціями, історією й змінами ціни. */
 export async function removeDemoOrders(db: AnyPgDatabase): Promise<{ removed: number }> {
+  // Демо-готівка: записи готівки видаляються лише тут (див. `removeDemoCash`).
+  const cash = await removeDemoCash(db);
   const demo = await db
     .select({ id: orders.id })
     .from(orders)
@@ -318,5 +321,189 @@ export async function removeDemoOrders(db: AnyPgDatabase): Promise<{ removed: nu
     await db.delete(orderItems).where(and(eq(orderItems.orderId, id)));
     await db.delete(orders).where(eq(orders.id, id));
   }
-  return { removed: demo.length };
+  return { removed: demo.length + cash.removed };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Демо-готівка (B6, D71)
+// ---------------------------------------------------------------------------------------------
+
+/** Позначка демо-замовлень з готівкою: за нею їх знаходить `--remove`. */
+export const DEMO_CASH_MARK = "Тест: демо-готівка";
+
+type DemoCashEntry = {
+  amount: number;
+  receivedBy?: string;
+  note?: string;
+  /** Запис додано через бота водія (приклад для екрана). */
+  viaBot?: boolean;
+  /** Одразу сторнувати з цією причиною. */
+  reverseReason?: string;
+};
+
+type DemoCashOrder = Omit<DemoOrder, "until"> & {
+  until: "confirmed" | "packed" | "shipped";
+  entries: DemoCashEntry[];
+};
+
+/**
+ * Замовлення з готівковою оплатою на сьогодні: без оплати, часткова з записом від водія, з
+ * помилковим записом під сторно, повністю сплачене (стає «Закрито» саме). Усі на демо-клієнтів.
+ */
+export const DEMO_CASH_ORDERS: DemoCashOrder[] = [
+  {
+    day: 0,
+    client: 4,
+    location: "kyiv",
+    ice: "16mm",
+    kg: 40,
+    price: 70,
+    delivery: "np",
+    until: "shipped",
+    entries: [
+      { amount: 1000, receivedBy: "Водій Іван", viaBot: true, note: "Решту обіцяв доплатити" },
+    ],
+  },
+  {
+    day: 0,
+    client: 1,
+    location: "kyiv",
+    ice: "3mm",
+    kg: 12,
+    price: 85,
+    delivery: "pickup",
+    until: "packed",
+    entries: [],
+  },
+  {
+    day: 0,
+    client: 6,
+    location: "kyiv",
+    ice: "19mm",
+    kg: 100,
+    price: 72,
+    delivery: "our_delivery",
+    until: "confirmed",
+    deliveryFee: 300,
+    entries: [],
+  },
+  {
+    day: 0,
+    client: 0,
+    location: "kyiv",
+    ice: "16mm",
+    kg: 20,
+    price: 75,
+    delivery: "our_delivery",
+    until: "shipped",
+    entries: [{ amount: 500, reverseReason: "Записано не в те замовлення" }, { amount: 600 }],
+  },
+  {
+    day: 0,
+    client: 2,
+    location: "lviv",
+    ice: "16mm",
+    kg: 60,
+    price: 75,
+    delivery: "our_delivery",
+    until: "shipped",
+    deliveryFee: 150,
+    entries: [{ amount: 4650, note: "Оплатили повністю" }],
+  },
+];
+
+const CASH_FLOW = ["confirmed", "in_production", "packed", "shipped"] as const;
+
+export type AddDemoCashResult = { added: number; entries: number; skipped: boolean };
+
+/**
+ * Додає демо-замовлення з готівкою й записи готівки від імені власника. Записи йдуть тією самою
+ * функцією, що й на екрані (`recordCashEntry`), тож статуси й автозакриття справжні. Якщо демо-готівка
+ * вже є, нічого не робить.
+ */
+export async function addDemoCash(db: AnyPgDatabase, actor: AppUser): Promise<AddDemoCashResult> {
+  const [existing] = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(like(orders.internalComment, `${DEMO_CASH_MARK}%`))
+    .limit(1);
+  if (existing) return { added: 0, entries: 0, skipped: true };
+
+  const demoClients = await db
+    .select({ id: clients.id })
+    .from(clients)
+    .where(like(clients.name, "Тест:%"))
+    .orderBy(asc(clients.name));
+  if (demoClients.length === 0) {
+    throw new Error("Немає демонстраційних клієнтів: спершу npm run clients:seed-dev.");
+  }
+  const lookup = async (table: typeof locations | typeof iceTypes, code: string) => {
+    const [row] = await db.select({ id: table.id }).from(table).where(eq(table.code, code));
+    if (!row) throw new Error(`Немає «${code}» (запустіть npm run db:seed).`);
+    return row.id;
+  };
+
+  const today = todayIso();
+  let entriesAdded = 0;
+  for (const spec of DEMO_CASH_ORDERS) {
+    const created = await createOrder(db, actor, {
+      clientId: demoClients[spec.client % demoClients.length]!.id,
+      locationId: await lookup(locations, spec.location),
+      orderDate: addDays(today, spec.day),
+      iceTypeId: await lookup(iceTypes, spec.ice),
+      kgSold: spec.kg,
+      price: spec.price,
+      deliveryMethod: spec.delivery,
+      paymentKind: "cash",
+      internalComment: DEMO_CASH_MARK,
+    });
+    if (spec.deliveryFee) {
+      await addOrderItem(db, actor, created.id, {
+        kind: "delivery",
+        title: "Доставка",
+        qty: 1,
+        price: spec.deliveryFee,
+      });
+    }
+    for (const status of CASH_FLOW.slice(0, CASH_FLOW.indexOf(spec.until) + 1)) {
+      await transitionOrder(db, actor, created.id, status);
+    }
+    for (const entry of spec.entries) {
+      const result = await recordCashEntry(db, actor, {
+        orderId: created.id,
+        amount: entry.amount,
+        receivedBy: entry.receivedBy,
+        note: entry.note,
+        via: entry.viaBot ? "driver_bot" : "web",
+      });
+      entriesAdded += 1;
+      if (entry.reverseReason) {
+        await reverseCashEntry(db, actor, result.entryId, entry.reverseReason);
+      }
+    }
+  }
+  return { added: DEMO_CASH_ORDERS.length, entries: entriesAdded, skipped: false };
+}
+
+/**
+ * Видаляє демо-замовлення з готівкою разом із записами готівки. Записи готівки в застосунку не
+ * видаляються (їх береже тригер бази, D67), тому на час видалення тригер вимикається в транзакції:
+ * вона або проходить повністю й тригер знову увімкнено, або скасовується цілком.
+ */
+export async function removeDemoCash(db: AnyPgDatabase): Promise<{ removed: number }> {
+  const demo = await db
+    .select({ id: orders.id })
+    .from(orders)
+    .where(like(orders.internalComment, `${DEMO_CASH_MARK}%`));
+  if (demo.length === 0) return { removed: 0 };
+  const ids = demo.map((row) => row.id);
+
+  await db.transaction(async (tx) => {
+    await tx.execute(sql`alter table cash_entries disable trigger cash_entries_guard`);
+    await tx.delete(cashEntries).where(inArray(cashEntries.orderId, ids));
+    await tx.execute(sql`alter table cash_entries enable trigger cash_entries_guard`);
+    await tx.delete(orderItems).where(inArray(orderItems.orderId, ids));
+    await tx.delete(orders).where(inArray(orders.id, ids));
+  });
+  return { removed: ids.length };
 }
