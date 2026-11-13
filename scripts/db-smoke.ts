@@ -15,11 +15,13 @@ import { getEnv } from "@/env";
 // Перевіряє структуру і тригери на справжній базі (dev або staging).
 // Усі записи виконуються в транзакції, яку наприкінці скасовують, тож у базі нічого не лишається.
 
-// 17 таблиць B1, login_failures (B2), error_log (B3) і regions (B4)
-const EXPECTED_TABLES = 21;
+// 17 таблиць B1, login_failures (B2), error_log (B3), regions (B4), order_price_changes (B5) і
+// cash_entries (B6)
+const EXPECTED_TABLES = 22;
 // 15 (updated_at) + 6 (created_by) + 1 (сума) + 1 (історія статусів) + 9 (журнал змін: з B4 ще
-// прайс, контакти й адреси клієнтів)
-const EXPECTED_TRIGGERS = 33;
+// прайс, контакти й адреси клієнтів) + 1 (зміни цін, B5) + 3 (готівка, B6: час зміни, журнал,
+// захист від правки й видалення)
+const EXPECTED_TRIGGERS = 36;
 const TEST_CODE = "ЯЯ9999"; // «ЯЯ9999» кирилицею
 
 class Rollback extends Error {}

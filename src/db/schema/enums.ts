@@ -44,4 +44,7 @@ export const orderItemKind = pgEnum("order_item_kind", ["ice", "delivery", "box_
 /** Спосіб оплати замовлення. `unknown` до уточнення (питання 13 до замовника). */
 export const paymentKind = pgEnum("payment_kind", ["cash", "fop", "company", "unknown"]);
 
+/** Звідки внесено запис готівки: з веб-інтерфейсу чи через Telegram-бота водія (B12). */
+export const cashEntryVia = pgEnum("cash_entry_via", ["web", "driver_bot"]);
+
 export const auditAction = pgEnum("audit_action", ["insert", "update", "delete"]);
