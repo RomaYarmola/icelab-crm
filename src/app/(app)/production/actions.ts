@@ -5,21 +5,28 @@ import { z } from "zod";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { ValidationError } from "@/server/errors";
-import { readText, runFormAction } from "@/server/form-state";
+import { readOptionalText, readText, runFormAction } from "@/server/form-state";
+import { updateOrder } from "@/server/orders";
 import { autoStartProduction, markOrdersSeen } from "@/server/production";
+import { notifyOrderChange, notifyProductionChange } from "@/server/production-signal";
 import type { FormState } from "@/utils/formState";
 import { todayIso } from "@/utils/isoDate";
 
 /**
  * Дії екрана виробництва (B6). Кнопки «Розпочати», «Готово» і «Повернути в роботу» це звичайний
  * перехід статусу (`transitionOrderAction` з розділу замовлень). Тут лише те, що робить сам екран:
- * автозапуск замовлень на сьогодні (D72) і «Нове» → побачене (D65).
+ * автозапуск замовлень на сьогодні (D72), «Нове» → побачене (D65) і правка «виготовити» та
+ * коментаря старшим локації.
  */
 
 export type ProductionOpenResult =
   { status: "ok"; started: number; marked: number } | { status: "error"; message: string };
 
 const idList = z.array(z.uuid()).max(500);
+
+function refresh() {
+  revalidatePath("/production", "layout");
+}
 
 /**
  * Екран відкрито: замовлення на сьогодні переходять у «У виробництві» (D72), а показані «нові»
@@ -44,7 +51,9 @@ export async function openProductionScreenAction(input: {
       date: input.date,
       orderIds: ids.data,
     });
-    if (started.started > 0 || marked.marked > 0) revalidatePath("/production", "layout");
+    if (started.started > 0 || marked.marked > 0) refresh();
+    // Інші відкриті екрани цієї локації мають побачити, що замовлення вже розпочато.
+    if (started.started > 0 && actor.locationId) notifyProductionChange([actor.locationId]);
     return { status: "ok", started: started.started, marked: marked.marked };
   } catch (error) {
     if (error instanceof ValidationError) return { status: "error", message: error.message };
@@ -62,8 +71,42 @@ export async function markAllSeenAction(
   return runFormAction(
     async () => {
       await markOrdersSeen(getDb(), actor, { date });
-      revalidatePath("/production", "layout");
+      refresh();
+      if (actor.locationId) notifyProductionChange([actor.locationId]);
     },
     { success: "Усі замовлення позначено побаченими." },
+  );
+}
+
+/**
+ * Старший локації міняє «виготовити» (кг) і коментар для виробництва прямо з екрана цеху. Права й
+ * стан замовлення перевіряє `updateOrder` (D58): лише після підтвердження, до відправлення.
+ */
+export async function updateProductionOrderAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const values = {
+    kgToProduce: readText(formData, "kgToProduce"),
+    comment: readText(formData, "comment"),
+  };
+  return runFormAction(
+    async () => {
+      const id = z.uuid().safeParse(readText(formData, "id"));
+      if (!id.success) throw new ValidationError("Замовлення не знайдено.");
+      const patch: Record<string, unknown> = {};
+      if (formData.has("kgToProduce")) {
+        const kg = readOptionalText(formData, "kgToProduce");
+        if (kg === null) throw new ValidationError("Вкажіть, скільки кілограмів виготовити.");
+        patch.kgToProduce = kg;
+      }
+      if (formData.has("comment")) patch.comment = readOptionalText(formData, "comment");
+      await updateOrder(getDb(), actor, id.data, patch);
+      refresh();
+      revalidatePath("/orders", "layout");
+      notifyOrderChange(getDb(), id.data);
+    },
+    { success: "Зміни збережено.", values },
   );
 }

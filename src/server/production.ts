@@ -54,6 +54,8 @@ export type ProductionCard = {
 
 export type ProductionQueue = {
   date: string;
+  /** Коли сервер зібрав чергу (ISO): екран показує «Оновлено о 14:05». */
+  generatedAt: string;
   locationId: string | null;
   cards: ProductionCard[];
   summary: ProductionSummary;
@@ -166,6 +168,7 @@ export async function listProductionQueue(
 
   return {
     date: scope.date,
+    generatedAt: new Date().toISOString(),
     locationId,
     cards: sortProductionQueue(cards),
     summary: summarizeProduction(cards),

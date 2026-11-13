@@ -31,6 +31,7 @@ import {
 } from "@/server/order-form";
 import { addOrderItem, deleteOrderItem, updateOrderItem } from "@/server/order-items";
 import { cancelAsDuplicate, changeOrderPrice, transitionOrder } from "@/server/order-status";
+import { notifyOrderChange } from "@/server/production-signal";
 import {
   createOrder,
   type CreateOrderInput,
@@ -48,11 +49,16 @@ import type { FormState } from "@/utils/formState";
  * перевіряє вона) і повертає стан для екрана. Помилки введення повертаються з введеними значеннями.
  */
 
-function refresh() {
+/**
+ * Оновлює екрани після зміни замовлення. Якщо вказано замовлення, шле сигнал відкритим екранам
+ * виробництва його локації (D64): вони самі перезавантажать дані.
+ */
+function refresh(orderId?: string) {
   revalidatePath("/orders", "layout");
   // Статус замовлення видно й на екрані виробництва та в готівці (B6).
   revalidatePath("/production", "layout");
   revalidatePath("/more/cash");
+  if (orderId) notifyOrderChange(getDb(), orderId);
 }
 
 function readId(formData: FormData, name = "id"): string {
@@ -209,10 +215,11 @@ export async function updateOrderAction(
   const values = echo(formData, ORDER_FIELD_NAMES);
   return runFormAction(
     async () => {
-      await updateOrder(getDb(), actor, readId(formData), readUpdateFields(formData), {
+      const id = readId(formData);
+      await updateOrder(getDb(), actor, id, readUpdateFields(formData), {
         note: readOptionalText(formData, "note") ?? undefined,
       });
-      refresh();
+      refresh(id);
     },
     { success: "Зміни збережено.", values },
   );
@@ -227,10 +234,11 @@ export async function transitionOrderAction(
     async () => {
       const to = z.enum(orderStatus.enumValues).safeParse(readText(formData, "to"));
       if (!to.success) throw new ValidationError("Оберіть, у який статус перевести замовлення.");
-      await transitionOrder(getDb(), actor, readId(formData), to.data, {
+      const id = readId(formData);
+      await transitionOrder(getDb(), actor, id, to.data, {
         note: readOptionalText(formData, "note") ?? undefined,
       });
-      refresh();
+      refresh(id);
     },
     { success: "Статус змінено.", values: echo(formData, ["to", "note"]) },
   );
@@ -276,8 +284,9 @@ export async function cancelAsDuplicateAction(
   const actor = await requireUser();
   const state = await runFormAction(
     async () => {
-      await cancelAsDuplicate(getDb(), actor, readId(formData), readId(formData, "originalId"));
-      refresh();
+      const id = readId(formData);
+      await cancelAsDuplicate(getDb(), actor, id, readId(formData, "originalId"));
+      refresh(id);
     },
     { success: "Замовлення скасовано як дубль." },
   );
