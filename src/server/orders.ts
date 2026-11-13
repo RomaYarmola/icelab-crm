@@ -25,6 +25,7 @@ import { normalizePhone } from "@/utils/phone";
 import { clientSearchCondition } from "./clients";
 import { parseInput, ValidationError } from "./errors";
 import { ForbiddenError, type AppUser, requirePermission, requireRole } from "./guards";
+import { DEFAULT_UNIT, newItemSchema } from "./order-item-schema";
 import {
   canDeleteDraft,
   DEFAULT_MARKUP_SETTINGS,
@@ -113,6 +114,8 @@ const createOrderSchema = optionalFields.extend({
   locationId: uuid,
   orderDate: dateField,
   price: priceField,
+  /** Додаткові позиції («Доставка», «Продаж боксу», «Інше»), що створюються разом із замовленням. */
+  items: z.array(newItemSchema).max(20, "Забагато додаткових позицій.").optional(),
 });
 
 const updateOrderSchema = optionalFields.extend({
@@ -289,6 +292,18 @@ async function autoValues(
   };
 }
 
+/**
+ * Дані клієнта для надбавки: окрема надбавка клієнта, код застосування й загальні налаштування
+ * надбавок. Для підказки у формі замовлення (`order-form.ts`).
+ */
+export async function loadMarkupContext(db: AnyPgDatabase, clientId: string) {
+  const [client, settings] = await Promise.all([
+    loadClientContext(db, clientId),
+    getMarkupSettings(db),
+  ]);
+  return { ...client, settings };
+}
+
 function iceItemTitle(iceTypeName: string | null): string {
   return iceTypeName ? `Лід ${iceTypeName}` : "Лід";
 }
@@ -372,6 +387,17 @@ export async function createOrder(
       unit: "кг",
       price,
     });
+    for (const item of data.items ?? []) {
+      await tx.insert(orderItems).values({
+        orderId: order!.id,
+        kind: item.kind,
+        title: item.title,
+        qty: String(item.qty),
+        unit: item.unit ?? DEFAULT_UNIT[item.kind],
+        price: String(item.price ?? 0),
+        boxTypeId: item.boxTypeId ?? null,
+      });
+    }
     return order!;
   });
 }

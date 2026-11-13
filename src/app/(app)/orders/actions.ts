@@ -22,6 +22,13 @@ import {
   type OrderTemplate,
   repeatLastOrder,
 } from "@/server/order-duplicates";
+import {
+  type ClientAddressOption,
+  getOrderPricing,
+  listClientAddressOptions,
+  type OrderPricing,
+  searchClientsForOrder,
+} from "@/server/order-form";
 import { addOrderItem, deleteOrderItem, updateOrderItem } from "@/server/order-items";
 import { cancelAsDuplicate, changeOrderPrice, transitionOrder } from "@/server/order-status";
 import {
@@ -33,6 +40,7 @@ import {
   type UpdateOrderInput,
   updateOrder,
 } from "@/server/orders";
+import type { ClientListItem } from "@/server/client-views";
 import type { FormState } from "@/utils/formState";
 
 /**
@@ -76,11 +84,29 @@ const ORDER_FIELD_NAMES = [
   "internalComment",
   "price",
   "note",
+  "itemsJson",
 ];
 
 /** Значення поля форми: порожнє означає «не вказано» (`undefined`), щоб діяли значення за замовчуванням. */
 const optional = (formData: FormData, name: string) =>
   readOptionalText(formData, name) ?? undefined;
+
+/**
+ * Додаткові позиції нового замовлення: форма надсилає їх JSON-рядком у прихованому полі
+ * `itemsJson`. Значення перевіряє схема всередині `createOrder`.
+ */
+function readNewItems(formData: FormData): CreateOrderInput["items"] {
+  const raw = readOptionalText(formData, "itemsJson");
+  if (raw === null) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new ValidationError("Не вдалося прочитати додаткові позиції.");
+  }
+  if (!Array.isArray(parsed)) throw new ValidationError("Не вдалося прочитати додаткові позиції.");
+  return parsed as CreateOrderInput["items"];
+}
 
 /** Поля нового замовлення з форми. Значення перевіряє схема всередині серверної функції. */
 function readCreateFields(formData: FormData): CreateOrderInput {
@@ -106,6 +132,7 @@ function readCreateFields(formData: FormData): CreateOrderInput {
     comment: optional(formData, "comment"),
     internalComment: optional(formData, "internalComment"),
     price: optional(formData, "price"),
+    items: readNewItems(formData),
   };
 }
 
@@ -393,6 +420,58 @@ export async function repeatLastOrderAction(clientId: string): Promise<OrderTemp
   const actor = await requireUser();
   try {
     return await repeatLastOrder(getDb(), actor, typeof clientId === "string" ? clientId : "");
+  } catch (error) {
+    if (!(error instanceof ValidationError || error instanceof ForbiddenError)) {
+      await reportError({ source: "form_action", error });
+    }
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Підказки форми замовлення
+// ---------------------------------------------------------------------------------------------
+
+/** Пошук клієнта у формі замовлення (код, назва, телефон). Будь-яка помилка дає порожній список. */
+export async function searchClientsForOrderAction(query: string): Promise<ClientListItem[]> {
+  const actor = await requireUser();
+  try {
+    return await searchClientsForOrder(getDb(), actor, typeof query === "string" ? query : "");
+  } catch (error) {
+    if (!(error instanceof ValidationError || error instanceof ForbiddenError)) {
+      await reportError({ source: "form_action", error });
+    }
+    return [];
+  }
+}
+
+/** Адреси вибраного клієнта для списку в формі. Помилка дає порожній список. */
+export async function clientAddressesAction(clientId: string): Promise<ClientAddressOption[]> {
+  const actor = await requireUser();
+  try {
+    return await listClientAddressOptions(
+      getDb(),
+      actor,
+      typeof clientId === "string" ? clientId : "",
+    );
+  } catch (error) {
+    if (!(error instanceof ValidationError || error instanceof ForbiddenError)) {
+      await reportError({ source: "form_action", error });
+    }
+    return [];
+  }
+}
+
+/** Ціна за прайсом і надбавка для підказок у формі. Помилка дає `null`: підказки зникають. */
+export async function orderPricingAction(input: {
+  clientId: string;
+  iceTypeId?: string | null;
+  orderDate: string;
+  deliveryMethod?: string | null;
+}): Promise<OrderPricing | null> {
+  const actor = await requireUser();
+  try {
+    return await getOrderPricing(getDb(), actor, input);
   } catch (error) {
     if (!(error instanceof ValidationError || error instanceof ForbiddenError)) {
       await reportError({ source: "form_action", error });

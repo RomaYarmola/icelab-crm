@@ -3,9 +3,15 @@ import { z } from "zod";
 import { withActor } from "@/db/actor";
 import { boxTypes, orderItems, orders } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
-import { parseDecimal } from "@/utils/orderMath";
 import { parseInput, ValidationError } from "./errors";
 import { ForbiddenError, type AppUser, requirePermission } from "./guards";
+import {
+  addItemSchema,
+  DEFAULT_UNIT,
+  type OrderItemInput,
+  type OrderItemPatch,
+  updateItemSchema,
+} from "./order-item-schema";
 import { editPolicy } from "./order-rules";
 import { loadOrderRow } from "./orders";
 
@@ -16,41 +22,8 @@ import { loadOrderRow } from "./orders";
  */
 
 const uuid = z.uuid("Некоректний ідентифікатор.");
-const MAX_AMOUNT_FIELD = 1_000_000;
 
-const numberField = (message: string) =>
-  z
-    .union([z.string(), z.number()])
-    .transform((value) => parseDecimal(value))
-    .pipe(
-      z
-        .number(message)
-        .min(0, "Значення не може бути від'ємним.")
-        .max(MAX_AMOUNT_FIELD, "Надто велике значення: перевірте число."),
-    );
-
-const itemFields = {
-  kind: z.enum(
-    ["delivery", "box_sale", "other"],
-    "Оберіть вид позиції: доставка, продаж боксу чи інше.",
-  ),
-  title: z.string().trim().min(1, "Вкажіть назву позиції.").max(200, "Назва позиції надто довга."),
-  qty: numberField("Кількість має бути числом.").refine(
-    (value) => value > 0,
-    "Кількість має бути більшою за нуль.",
-  ),
-  unit: z.string().trim().min(1, "Вкажіть одиницю виміру.").max(20, "Одиниця виміру надто довга."),
-  price: numberField("Ціна має бути числом."),
-  boxTypeId: uuid.nullable().optional(),
-};
-
-const addItemSchema = z.object({ ...itemFields, unit: itemFields.unit.optional() });
-const updateItemSchema = z.object(itemFields).omit({ kind: true }).partial();
-
-export type OrderItemInput = z.input<typeof addItemSchema>;
-export type OrderItemPatch = z.input<typeof updateItemSchema>;
-
-const DEFAULT_UNIT = { delivery: "послуга", box_sale: "шт", other: "шт" } as const;
+export type { OrderItemInput, OrderItemPatch };
 
 /** Чи можна міняти позиції замовлення в цьому статусі цією роллю (D58); повертає, чи потрібна примітка. */
 function assertCanEditItems(
