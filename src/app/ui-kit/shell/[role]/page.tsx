@@ -19,7 +19,10 @@ import { buildLocationFilter, type LocationOption } from "@/server/locations";
 import { isLocationBound, ROLE_LABELS, USER_ROLES, type UserRole } from "@/server/permissions";
 import type { LoadMoreResult } from "@/app/(app)/clients/actions";
 import type { LoadMoreOrdersResult } from "@/app/(app)/orders/actions";
+import type { ClientListItem } from "@/server/client-views";
 import type { SimilarClient } from "@/server/clients";
+import type { DuplicateOrder, OrderTemplate } from "@/server/order-duplicates";
+import type { ClientAddressOption, OrderPricing } from "@/server/order-form";
 import type { UserListItem } from "@/server/users";
 import type { FormState } from "@/utils/formState";
 
@@ -51,6 +54,97 @@ async function previewLoadMore(): Promise<LoadMoreResult> {
 async function previewLoadMoreOrders(): Promise<LoadMoreOrdersResult> {
   "use server";
   return { ok: true, page: { items: [], hasMore: false } };
+}
+
+async function previewSearchClients(): Promise<ClientListItem[]> {
+  "use server";
+  return [
+    {
+      id: "c1",
+      code: "АА15",
+      name: "Кафе «Вогник»",
+      statusId: null,
+      statusName: "Активний",
+      managerId: null,
+      managerName: null,
+      primaryPhone: "+380501234567",
+      isDeleted: false,
+    },
+    {
+      id: "c2",
+      code: "ВС57",
+      name: "ФОП Іваненко",
+      statusId: null,
+      statusName: null,
+      managerId: null,
+      managerName: null,
+      primaryPhone: null,
+      isDeleted: false,
+    },
+  ];
+}
+
+async function previewAddresses(): Promise<ClientAddressOption[]> {
+  "use server";
+  return [
+    { id: "ad1", text: "Доставка: Кафе на Подолі, Київ, вул. Сагайдачного, 12", isDefault: true },
+    { id: "ad2", text: "Склад Нової Пошти: Львів, відділення № 14", isDefault: false },
+  ];
+}
+
+async function previewPricing(): Promise<OrderPricing | null> {
+  "use server";
+  return {
+    source: "default",
+    pricePerKg: "75.00",
+    markupPercent: 10,
+    markupSettings: { npPercent: 10, eventPercent: 10 },
+  };
+}
+
+async function previewDuplicates(): Promise<DuplicateOrder[]> {
+  "use server";
+  return [
+    {
+      id: "o1",
+      number: 3472,
+      status: "confirmed",
+      orderDate: "2026-11-13",
+      kgSold: "30.000",
+      locationId: "preview-kyiv",
+    },
+  ];
+}
+
+async function previewRepeat(): Promise<OrderTemplate | null> {
+  "use server";
+  return {
+    fromOrderId: "o1",
+    fromNumber: 3472,
+    locationId: "preview-kyiv",
+    iceTypeId: "ice-16",
+    kgSold: "30.000",
+    sourceId: "src-phone",
+    deliveryMethod: "np",
+    addressId: "ad2",
+    deliveryText: null,
+    timeWindow: "10:00-14:00",
+    recipientName: "Марія Петренко",
+    recipientPhone: "+380501234567",
+    boxTypeId: "box-46",
+    boxCount: 2,
+    boxOwnership: "ours",
+    paymentKind: "fop",
+    items: [
+      {
+        kind: "delivery",
+        title: "Доставка по Києву",
+        qty: "1.000",
+        unit: "послуга",
+        boxTypeId: null,
+      },
+    ],
+  };
 }
 
 async function previewCode(): Promise<string | null> {
@@ -116,7 +210,7 @@ const PREVIEW_SCREENS = [
  * які вимагають входу. Параметр `?screen=` показує екрани з вигаданими даними: `orders`
  * (за замовчуванням), `profile`, `users`, `new-user`, `user`, а також екрани клієнтів і прайсу
  * (`clients`, `client` з `&tab=contacts|addresses|prices`, `prices`, `merge` тощо) і замовлень
- * (`order-list`, `order` з `&status=draft|confirmed|in_production|packed|shipped|paid|closed|cancelled`).
+ * (`order-list`, `order`, `new-order`, `edit-order` з `&status=draft|confirmed|in_production|packed|shipped|paid|closed|cancelled`).
  */
 export default async function ShellPreviewPage({
   params,
@@ -188,6 +282,13 @@ export default async function ShellPreviewPage({
           status={status}
           action={previewFormAction}
           loadMore={previewLoadMoreOrders}
+          formActions={{
+            searchClients: previewSearchClients,
+            clientAddresses: previewAddresses,
+            pricing: previewPricing,
+            findDuplicates: previewDuplicates,
+            repeatLast: previewRepeat,
+          }}
         />
       ) : (
         <ShellPreviewContent />

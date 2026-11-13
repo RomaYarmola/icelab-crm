@@ -116,7 +116,7 @@ docs/                        план, рішення, докладні план
 
 Клієнти і ціни (B4): розділ «Клієнти» (пошук, картка з контактами, адресами й цінами, об'єднання дублів), екран «Прайс» у «Ще → Прайс». Код клієнта це область і номер («АА16»), його видає сервер (D42). Рішення D42–D50 у [docs/decisions.md](docs/decisions.md), ручна перевірка: [docs/blocks/B4-checklist.md](docs/blocks/B4-checklist.md).
 
-Живий каталог усіх компонентів: `npm run dev`, потім http://localhost:3000/ui-kit. Перегляд оболонки для будь-якої ролі: `/ui-kit/shell/manager` (`owner`, `manager`, `location_lead`, `production`, `accountant`). Екрани клієнтів і прайсу з вигаданими даними: `?screen=clients`, `client` (`&tab=contacts|addresses|prices`), `new-client`, `prices`, `merge`; замовлення: `order-list`, `order` (`&status=draft|confirmed|…|cancelled`). Обидва адреси відкриті лише в режимі розробки, у збірці закриті. Правила: [docs/decisions.md](docs/decisions.md), D37.
+Живий каталог усіх компонентів: `npm run dev`, потім http://localhost:3000/ui-kit. Перегляд оболонки для будь-якої ролі: `/ui-kit/shell/manager` (`owner`, `manager`, `location_lead`, `production`, `accountant`). Екрани клієнтів і прайсу з вигаданими даними: `?screen=clients`, `client` (`&tab=contacts|addresses|prices`), `new-client`, `prices`, `merge`; замовлення: `order-list`, `order`, `new-order`, `edit-order` (`&status=draft|confirmed|…|cancelled`). Ручна перевірка замовлень: [docs/blocks/B5-checklist.md](docs/blocks/B5-checklist.md). Обидва адреси відкриті лише в режимі розробки, у збірці закриті. Правила: [docs/decisions.md](docs/decisions.md), D37.
 
 ## База даних
 

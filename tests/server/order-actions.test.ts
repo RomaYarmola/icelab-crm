@@ -3,12 +3,15 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import {
   addOrderItemAction,
   cancelAsDuplicateAction,
+  clientAddressesAction,
   changeOrderPriceAction,
   createOrderAction,
   deleteDraftOrderAction,
   deleteOrderItemAction,
   findDuplicateOrdersAction,
   loadMoreOrdersAction,
+  orderPricingAction,
+  searchClientsForOrderAction,
   repeatLastOrderAction,
   transitionOrderAction,
   updateOrderAction,
@@ -253,6 +256,45 @@ describe("серверні дії розділу «Замовлення»", () =
         ok: false,
         message: "Недостатньо прав для цієї дії.",
       });
+    });
+
+    it("форма: пошук клієнта, адреси й ціна з надбавкою; помилки дають порожньо", async () => {
+      expect((await searchClientsForOrderAction("Кафе Тест")).map((c) => c.id)).toContain(
+        t.client.id,
+      );
+      expect(await searchClientsForOrderAction("х")).toEqual([]);
+      expect(await clientAddressesAction(t.client.id)).toBeInstanceOf(Array);
+      expect(await clientAddressesAction("ні")).toEqual([]);
+      expect(
+        await orderPricingAction({
+          clientId: t.client.id,
+          iceTypeId: t.ice16,
+          orderDate: ORDER_DATE,
+          deliveryMethod: "np",
+        }),
+      ).toMatchObject({ source: "default", pricePerKg: "75.00", markupPercent: 10 });
+      expect(await orderPricingAction({ clientId: "ні", orderDate: ORDER_DATE })).toBeNull();
+      as("accountant");
+      expect(await searchClientsForOrderAction("Кафе Тест")).toEqual([]);
+      expect(await orderPricingAction({ clientId: t.client.id, orderDate: ORDER_DATE })).toBeNull();
+    });
+
+    it("створення з додатковими позиціями з форми (itemsJson)", async () => {
+      const items = JSON.stringify([{ kind: "delivery", title: "Доставка", qty: 1, price: 150 }]);
+      const target = await redirectOf(
+        run(createOrderAction, { ...base(), comment: "З позиціями", itemsJson: items }),
+      );
+      const created = (
+        await t.db.select().from(orders).where(eq(orders.comment, "З позиціями"))
+      )[0]!;
+      expect(target).toBe(`/orders/${created.id}?created=1`);
+      expect(created.total).toBe("2400.00");
+      expect((await run(createOrderAction, { ...base(), itemsJson: "не json" })).message).toBe(
+        "Не вдалося прочитати додаткові позиції.",
+      );
+      expect((await run(createOrderAction, { ...base(), itemsJson: "{}" })).message).toBe(
+        "Не вдалося прочитати додаткові позиції.",
+      );
     });
 
     it("підказки: дублі й «як минулого разу», помилки дають порожній результат", async () => {

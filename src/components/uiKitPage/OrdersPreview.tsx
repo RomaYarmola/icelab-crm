@@ -2,7 +2,7 @@ import { ORDER_STATUS_ORDER } from "@/constants/orders";
 import type { OrderStatus } from "@/constants/constants";
 import type { LoadMoreOrdersResult } from "@/app/(app)/orders/actions";
 import type { orderItems, orderPriceChanges, orders, orderStatusHistory } from "@/db/schema";
-import { canDeleteDraft, transitionOptions } from "@/server/order-rules";
+import { canDeleteDraft, editPolicy, transitionOptions } from "@/server/order-rules";
 import {
   type OrderListItem,
   toOrderCardView,
@@ -14,6 +14,9 @@ import { can, type UserRole } from "@/server/permissions";
 import type { FormState } from "@/utils/formState";
 import { parseOrderListParams } from "@/utils/orderListParams";
 import OrderCardContent from "../ordersPage/OrderCardContent";
+import OrderFormContent from "../ordersPage/OrderFormContent";
+import { buildCreateDefaults, buildEditDefaults } from "../ordersPage/orderFormDefaults";
+import type { OrderFormActions, OrderFormOptions } from "../ordersPage/orderFormTypes";
 import OrdersPageContent from "../ordersPage/OrdersPageContent";
 
 /**
@@ -22,7 +25,13 @@ import OrdersPageContent from "../ordersPage/OrdersPageContent";
  * у справжньому застосунку: старший локації без грошей, внутрішній коментар лише в офісних ролей.
  */
 
-export const ORDER_PREVIEW_SCREENS = ["order-list", "order-list-empty", "order"] as const;
+export const ORDER_PREVIEW_SCREENS = [
+  "order-list",
+  "order-list-empty",
+  "order",
+  "new-order",
+  "edit-order",
+] as const;
 export type OrderPreviewScreen = (typeof ORDER_PREVIEW_SCREENS)[number];
 
 const TODAY = "2026-11-12";
@@ -216,6 +225,23 @@ function listItems(role: UserRole): OrderListItem[] {
   );
 }
 
+const FORM_OPTIONS: OrderFormOptions = {
+  locations: [
+    { id: "preview-kyiv", name: "Київ" },
+    { id: "preview-lviv", name: "Львів" },
+  ],
+  iceTypes: [
+    { id: "ice-3", name: "3 мм" },
+    { id: "ice-16", name: "16 мм" },
+    { id: "ice-19", name: "19 мм" },
+  ],
+  sources: [
+    { id: "src-phone", name: "Телефон" },
+    { id: "src-site", name: "Сайт" },
+  ],
+  boxTypes: [{ id: "box-46", name: "Наш довгий 46 л" }],
+};
+
 interface OrdersPreviewProps {
   role: UserRole;
   screen: OrderPreviewScreen;
@@ -223,6 +249,8 @@ interface OrdersPreviewProps {
   status: string | undefined;
   action: (previous: FormState, formData: FormData) => Promise<FormState>;
   loadMore: () => Promise<LoadMoreOrdersResult>;
+  /** Підказки форми замовлення (заглушки каталогу). */
+  formActions: Omit<OrderFormActions, "submit">;
 }
 
 export default function OrdersPreview({
@@ -231,6 +259,7 @@ export default function OrdersPreview({
   status,
   action,
   loadMore,
+  formActions,
 }: OrdersPreviewProps) {
   if (screen === "order-list" || screen === "order-list-empty") {
     return (
@@ -248,6 +277,22 @@ export default function OrdersPreview({
   }
 
   const current = ORDER_STATUS_ORDER.find((item) => item === status) ?? "draft";
+  const isOffice = role === "owner" || role === "manager";
+  const policy = editPolicy(current, role);
+
+  if (screen === "new-order") {
+    return (
+      <OrderFormContent
+        mode="create"
+        options={FORM_OPTIONS}
+        defaults={buildCreateDefaults({ today: TODAY, locationId: "preview-kyiv" })}
+        initialClient={null}
+        canSeeInternal={isOffice}
+        actions={{ submit: action, ...formActions }}
+      />
+    );
+  }
+
   const changesVisible = current !== "draft" && current !== "cancelled";
   const order = toOrderCardView(
     orderRow(current),
@@ -260,6 +305,23 @@ export default function OrdersPreview({
     role,
   );
 
+  if (screen === "edit-order") {
+    return (
+      <OrderFormContent
+        mode="edit"
+        orderId={order.id}
+        orderNumber={order.number}
+        options={FORM_OPTIONS}
+        defaults={buildEditDefaults(order)}
+        initialClient={{ id: order.clientId, code: order.clientCode, name: order.clientName }}
+        policy={policy}
+        currentPrice={order.pricePerKgSnapshot ?? order.items[0]?.price ?? null}
+        canSeeInternal={order.internalComment !== undefined}
+        actions={{ submit: action, ...formActions }}
+      />
+    );
+  }
+
   return (
     <OrderCardContent
       order={order}
@@ -267,9 +329,20 @@ export default function OrdersPreview({
       permissions={{
         canOverridePrice: can(role, "order_price_override", "write"),
         canDeleteDraft: canDeleteDraft(current, role),
+        canEdit:
+          policy.core !== "none" || policy.produce || policy.comment || policy.internalComment,
+        canEditItems: isOffice && policy.core !== "none",
+        itemsNeedNote: policy.core === "owner_note",
       }}
       notice={current === "draft" ? "created" : undefined}
-      actions={{ transition: action, changePrice: action, remove: action }}
+      actions={{
+        transition: action,
+        changePrice: action,
+        remove: action,
+        addItem: action,
+        updateItem: action,
+        deleteItem: action,
+      }}
     />
   );
 }

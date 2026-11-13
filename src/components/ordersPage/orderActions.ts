@@ -5,4 +5,7 @@ export interface OrderCardActions {
   transition: FormAction;
   changePrice: FormAction;
   remove: FormAction;
+  addItem: FormAction;
+  updateItem: FormAction;
+  deleteItem: FormAction;
 }
