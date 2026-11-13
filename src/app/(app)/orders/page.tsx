@@ -6,6 +6,7 @@ import { requireUser } from "@/server/auth";
 import { getClientFormOptions } from "@/server/client-options";
 import { getLocationFilter } from "@/server/location-filter";
 import { listOrders } from "@/server/orders";
+import { can } from "@/server/permissions";
 import { parseOrderListParams } from "@/utils/orderListParams";
 import { todayIso } from "@/utils/isoDate";
 
@@ -46,8 +47,10 @@ export default async function OrdersPage({
       filters={filters}
       managers={options.managers}
       locationId={locationId}
-      // Форма створення з'явиться в PR 3 разом із кнопкою «Нове замовлення».
-      canCreate={false}
+      // Створюють власник і менеджер (D58); решта бачить список без кнопки.
+      canCreate={
+        can(user.role, "orders", "write") && (user.role === "owner" || user.role === "manager")
+      }
       loadMore={loadMoreOrdersAction}
     />
   );

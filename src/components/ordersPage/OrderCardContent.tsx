@@ -4,6 +4,7 @@ import type { TransitionOption } from "@/server/order-rules";
 import { formatIsoDate } from "@/utils/isoDate";
 import DeleteRecordForm from "../clientsPage/DeleteRecordForm";
 import StatusChip from "../shared/chips/StatusChip";
+import ButtonLink from "../shared/buttons/ButtonLink";
 import BackLink from "../shared/links/BackLink";
 import MainLink from "../shared/links/MainLink";
 import Notification from "../shared/notification/Notification";
@@ -11,6 +12,7 @@ import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import type { OrderCardActions } from "./orderActions";
 import OrderHistory from "./OrderHistory";
+import OrderItemsEditor from "./OrderItemsEditor";
 import OrderItemsList from "./OrderItemsList";
 import OrderPriceForm from "./OrderPriceForm";
 import OrderSummary from "./OrderSummary";
@@ -25,6 +27,12 @@ interface OrderCardContentProps {
     canOverridePrice: boolean;
     /** Власник і менеджер видаляють чернетку (D58). */
     canDeleteDraft: boolean;
+    /** Роль може змінювати щось у замовленні (кнопка «Змінити»). */
+    canEdit: boolean;
+    /** Роль керує додатковими позиціями (власник і менеджер, поки основні поля відкриті). */
+    canEditItems: boolean;
+    /** Зміни позицій потребують причини: замовлення вже у виробництві. */
+    itemsNeedNote: boolean;
   };
   actions: OrderCardActions;
   /** Замовлення щойно створено: показуємо підтвердження. */
@@ -88,6 +96,11 @@ export default function OrderCardContent({
       </section>
 
       <OrderTransitions orderId={order.id} options={transitions} action={actions.transition} />
+      {permissions.canEdit ? (
+        <ButtonLink href={`/orders/${order.id}/edit`} variant="outline" fullWidth>
+          Змінити замовлення
+        </ButtonLink>
+      ) : null}
 
       <OrderSummary order={order} />
 
@@ -97,6 +110,14 @@ export default function OrderCardContent({
         lockedPrice={order.pricePerKgSnapshot}
         priceChanges={order.priceChanges}
       />
+      {permissions.canEditItems ? (
+        <OrderItemsEditor
+          orderId={order.id}
+          items={order.items.filter((item) => item.kind !== "ice")}
+          needsNote={permissions.itemsNeedNote}
+          actions={actions}
+        />
+      ) : null}
       {canChangePrice ? <OrderPriceForm orderId={order.id} action={actions.changePrice} /> : null}
 
       <OrderHistory history={order.history} />

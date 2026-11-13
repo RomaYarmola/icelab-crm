@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import {
+  addOrderItemAction,
   changeOrderPriceAction,
   deleteDraftOrderAction,
+  deleteOrderItemAction,
   transitionOrderAction,
+  updateOrderItemAction,
 } from "@/app/(app)/orders/actions";
 import OrderCardContent from "@/components/ordersPage/OrderCardContent";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
-import { canDeleteDraft, transitionOptions } from "@/server/order-rules";
+import { canDeleteDraft, editPolicy, transitionOptions } from "@/server/order-rules";
 import { getOrder } from "@/server/orders";
 import { can } from "@/server/permissions";
 
@@ -34,6 +37,9 @@ export default async function OrderPage({
   const [order, query] = await Promise.all([getOrder(getDb(), user, id), searchParams]);
   if (!order) notFound();
 
+  const policy = editPolicy(order.status, user.role);
+  const isOffice = user.role === "owner" || user.role === "manager";
+
   return (
     <OrderCardContent
       order={order}
@@ -41,12 +47,19 @@ export default async function OrderPage({
       permissions={{
         canOverridePrice: can(user.role, "order_price_override", "write"),
         canDeleteDraft: canDeleteDraft(order.status, user.role),
+        canEdit:
+          policy.core !== "none" || policy.produce || policy.comment || policy.internalComment,
+        canEditItems: isOffice && policy.core !== "none",
+        itemsNeedNote: policy.core === "owner_note",
       }}
       notice={query.created ? "created" : undefined}
       actions={{
         transition: transitionOrderAction,
         changePrice: changeOrderPriceAction,
         remove: deleteDraftOrderAction,
+        addItem: addOrderItemAction,
+        updateItem: updateOrderItemAction,
+        deleteItem: deleteOrderItemAction,
       }}
     />
   );

@@ -114,3 +114,67 @@ describe("екрани замовлень: гроші й права", () => {
     expect(form).toContain('name="note"');
   });
 });
+
+describe("форма замовлення (PR 3)", () => {
+  const form = read("src/components/ordersPage/OrderForm.tsx");
+
+  it("ціну й «виготовити» система підставляє сама: поле надсилається, лише якщо його виправили вручну", () => {
+    expect(form).toContain('name={toProduceTouched ? "kgToProduce" : ""}');
+    expect(form).toContain('name={price.trim() === "" ? "" : "price"}');
+  });
+
+  it("форма має підказки: ціна за прайсом, адреси клієнта, схожі замовлення, «як минулого разу»", () => {
+    expect(form).toMatch(/actions\s*\.pricing\(/);
+    expect(form).toMatch(/actions\s*\.clientAddresses\(/);
+    expect(form).toMatch(/actions\s*\.findDuplicates\(/);
+    expect(form).toMatch(/actions\s*\.repeatLast\(/);
+    expect(form).toContain("Схоже замовлення вже є");
+    expect(form).toContain("Як минулого разу");
+  });
+
+  it("відповіді підказок прив'язані до ключа запиту: застарілу відповідь не показуємо", () => {
+    expect(form).toContain("pricingResult?.key === pricingKey");
+    expect(form).toContain("duplicatesResult?.key === duplicatesKey");
+    expect(form).toContain("templateResult?.key === clientId");
+  });
+
+  it("зміна: поля, закриті правилами D58, вимкнені, у виробництві є поле причини", () => {
+    expect(form).toContain("disabled={isDisabled}");
+    expect(form).toContain('policy.core === "owner_note"');
+    expect(form).toContain('name="note"');
+    expect(form).toContain("disabled={!isCreate && !policy.produce}");
+  });
+
+  it("зберегти без клієнта не можна, нового клієнта створюють у сусідній вкладці", () => {
+    expect(form).toContain("disabled={isCreate && !client}");
+    expect(read("src/components/ordersPage/ClientPicker.tsx")).toContain("isExternal");
+  });
+
+  it("додаткові позиції передаються JSON-ом у прихованому полі, ціни в них можна дописати", () => {
+    expect(form).toContain('name="itemsJson"');
+    expect(read("src/components/ordersPage/OrderFormItems.tsx")).toContain("Ціна, ₴");
+  });
+
+  it("сторінки створення й зміни закриті за правами, а не лише прихованою кнопкою", () => {
+    const create = read("src/app/(app)/orders/new/page.tsx");
+    expect(create).toContain('redirect("/orders")');
+    expect(create).toContain('user.role !== "owner" && user.role !== "manager"');
+    const edit = read("src/app/(app)/orders/[id]/edit/page.tsx");
+    expect(edit).toContain("editPolicy(order.status, user.role)");
+    expect(edit).toContain("redirect(`/orders/${id}`)");
+    expect(edit).toContain("notFound()");
+  });
+
+  it("кнопка «Нове замовлення» лише для власника й менеджера", () => {
+    const list = read("src/app/(app)/orders/page.tsx");
+    expect(list).toContain('user.role === "owner" || user.role === "manager"');
+    expect(list).not.toContain("canCreate={false}");
+  });
+
+  it("керування позиціями на картці лише там, де основні поля відкриті, у виробництві з причиною", () => {
+    const page = read("src/app/(app)/orders/[id]/page.tsx");
+    expect(page).toContain('canEditItems: isOffice && policy.core !== "none"');
+    expect(page).toContain('itemsNeedNote: policy.core === "owner_note"');
+    expect(read("src/components/ordersPage/OrderItemsEditor.tsx")).toContain("needsNote");
+  });
+});
