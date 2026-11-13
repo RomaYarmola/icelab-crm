@@ -67,6 +67,11 @@ const CANCELLABLE_AFTER_SHIPPED: readonly OrderStatus[] = ["shipped", "paid"];
 
 /** Крок назад лише власник (з приміткою). */
 const BACK_PERFORMERS: readonly Performer[] = ["owner"];
+/**
+ * «Повернути в роботу» (з «Запаковано» в «У виробництві», ТЗ 5.1 і 6.4, D73): ще й старший локації.
+ * Виробництву цієї кнопки немає.
+ */
+const BACK_FROM_PACKED_PERFORMERS: readonly Performer[] = ["owner", "location_lead"];
 
 export type Transition = { from: OrderStatus; to: OrderStatus; kind: TransitionKind };
 
@@ -85,8 +90,8 @@ const NOT_FOR_ROLE = "Ця роль не може виконати цей пер
 
 /**
  * Чи можна перевести замовлення зі статусу `from` у `to`. Кроки вперед лише на один статус, без
- * пропусків; скасування з будь-якого незавершеного; назад лише власник. Повертає, чи потрібна
- * примітка.
+ * пропусків; скасування з будь-якого незавершеного; назад лише власник (з «Запаковано» ще й старший
+ * локації, D73). Повертає, чи потрібна примітка.
  */
 export function checkTransition(
   from: OrderStatus,
@@ -124,11 +129,15 @@ export function checkTransition(
   }
 
   if (previousStatus(from) === to && from !== "draft") {
-    return BACK_PERFORMERS.includes(performer)
+    const fromPacked = from === "packed";
+    const allowed = fromPacked ? BACK_FROM_PACKED_PERFORMERS : BACK_PERFORMERS;
+    return allowed.includes(performer)
       ? { ok: true, kind: "back", needsNote: true }
       : {
           ok: false,
-          reason: "Повернути замовлення на крок назад може лише власник.",
+          reason: fromPacked
+            ? "Повернути замовлення в роботу може лише власник або старший локації."
+            : "Повернути замовлення на крок назад може лише власник.",
           code: "forbidden",
         };
   }

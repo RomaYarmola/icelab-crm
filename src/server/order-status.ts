@@ -4,6 +4,7 @@ import { orderItems, orderPriceChanges, orders } from "@/db/schema";
 import type { OrderStatus } from "@/constants/constants";
 import type { AnyPgDatabase } from "@/db/types";
 import { parseDecimal } from "@/utils/orderMath";
+import { settleCashPayment } from "./cash-settlement";
 import { ValidationError } from "./errors";
 import { ForbiddenError, type AppUser, requirePermission } from "./guards";
 import { checkTransition, isReadyToClose, STATUS_TIMESTAMP_COLUMN } from "./order-rules";
@@ -52,7 +53,10 @@ export async function transitionOrder(
       : new ValidationError(check.reason);
   }
 
-  const isProductionStep = check.kind === "forward" && (to === "in_production" || to === "packed");
+  // «У виробництві», «Запаковано» і «Повернути в роботу» (з «Запаковано») це кроки цеху (D73).
+  const isProductionStep =
+    (check.kind === "forward" && (to === "in_production" || to === "packed")) ||
+    (check.kind === "back" && order.status === "packed");
   requirePermission(actor, isProductionStep ? "order_ready_status" : "orders", "write", {
     recordLocationId: order.locationId,
   });
@@ -60,6 +64,7 @@ export async function transitionOrder(
   const note = options.note?.trim() ?? "";
   if (check.needsNote && note === "") throw new ValidationError(NOTE_MESSAGES[check.kind]);
 
+  let settledByCash = false as boolean;
   await withActor(
     db,
     actor.id,
@@ -130,11 +135,22 @@ export async function transitionOrder(
       }
 
       await tx.update(orders).set(set).where(eq(orders.id, current.id));
+
+      // Готівку могли прийняти раніше, ніж замовлення відправили чи запакували (самовивіз):
+      // тоді «Оплачено» ставимо одразу після цього кроку (ТЗ 5.1, D67).
+      if (check.kind === "forward" && (to === "shipped" || to === "packed")) {
+        const [updated] = await tx.select().from(orders).where(eq(orders.id, current.id));
+        if (updated && (await settleCashPayment(tx, updated))) settledByCash = true;
+      }
     },
     { note: note || undefined },
   );
 
-  if (to === "paid") await closeIfDone(db, order.id);
+  // Автозакриття лише після кроку вперед до «Оплачено»: коли власник повертає замовлення з «Закрито»
+  // на «Оплачено» (щоб виправити касу, D69), воно не має одразу закритись знову.
+  if ((check.kind === "forward" && to === "paid") || settledByCash) {
+    await closeIfDone(db, order.id);
+  }
   const [latest] = await db
     .select({ status: orders.status })
     .from(orders)

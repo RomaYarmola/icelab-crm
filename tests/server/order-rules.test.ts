@@ -125,7 +125,7 @@ describe("скасування", () => {
 });
 
 describe("крок назад", () => {
-  it("лише власник, на один статус, з приміткою", () => {
+  it("лише власник, на один статус, з приміткою (крім «Повернути в роботу», D73)", () => {
     for (const from of [
       "confirmed",
       "in_production",
@@ -137,10 +137,25 @@ describe("крок назад", () => {
       const to = previousStatus(from)!;
       for (const role of USER_ROLES) {
         const check = checkTransition(from, to, role);
-        expect(check.ok, `${from} ${role}`).toBe(role === "owner");
+        const allowed = role === "owner" || (from === "packed" && role === "location_lead");
+        expect(check.ok, `${from} ${role}`).toBe(allowed);
         if (check.ok) expect(check).toEqual({ ok: true, kind: "back", needsNote: true });
       }
     }
+  });
+
+  it("«Повернути в роботу» з «Запаковано»: власник і старший локації, виробництво ні (D73)", () => {
+    for (const role of USER_ROLES) {
+      const check = checkTransition("packed", "in_production", role);
+      expect(check.ok, role).toBe(role === "owner" || role === "location_lead");
+      if (!check.ok) expect(check.reason).toContain("власник або старший локації");
+    }
+    expect(
+      allowedTransitions("packed", "location_lead").map((transition) => transition.to),
+    ).toEqual(["shipped", "in_production"]);
+    // Інші кроки назад старшому локації недоступні.
+    expect(checkTransition("in_production", "confirmed", "location_lead").ok).toBe(false);
+    expect(checkTransition("shipped", "packed", "location_lead").ok).toBe(false);
   });
 
   it("з чернетки і зі скасованого назад нікуди", () => {

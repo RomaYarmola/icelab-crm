@@ -33,6 +33,21 @@ describe("замовлення: переходи статусів і зміна 
       (h) => `${h.fromStatus ?? "∅"}>${h.toStatus}`,
     );
 
+  describe("крок назад на «Оплачено» (D69)", () => {
+    it("повернення з «Закрито» на «Оплачено» не закриває замовлення знову", async () => {
+      const id = await draft();
+      for (const to of ["confirmed", "in_production", "packed", "shipped"] as const) {
+        await transitionOrder(t.db, t.users.owner, id, to);
+      }
+      await transitionOrder(t.db, t.users.owner, id, "paid", { note: "Оплата" });
+      expect((await row(id)).status).toBe("closed");
+      await transitionOrder(t.db, t.users.owner, id, "paid", { note: "Виправляємо касу" });
+      expect((await row(id)).status).toBe("paid");
+      await transitionOrder(t.db, t.users.owner, id, "shipped", { note: "Ще крок назад" });
+      expect((await row(id)).status).toBe("shipped");
+    });
+  });
+
   describe("підтвердження фіксує ціну (D52)", () => {
     it("ціна за прайсом фіксується, час і автор підтвердження записані", async () => {
       const id = await draft();

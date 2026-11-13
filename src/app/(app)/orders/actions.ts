@@ -50,6 +50,9 @@ import type { FormState } from "@/utils/formState";
 
 function refresh() {
   revalidatePath("/orders", "layout");
+  // Статус замовлення видно й на екрані виробництва та в готівці (B6).
+  revalidatePath("/production", "layout");
+  revalidatePath("/more/cash");
 }
 
 function readId(formData: FormData, name = "id"): string {

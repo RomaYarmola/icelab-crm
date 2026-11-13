@@ -31,6 +31,7 @@ export const RESOURCES = [
   "production_screen", // екран виробництва
   "order_ready_status", // статус «готово/запаковано»
   "order_cash", // готівка по замовленню
+  "cash_reversal", // сторно запису готівки (не з ТЗ, рішення D69)
   "bank_payments", // безготівка, виписка, зіставлення
   "box_scan", // бокси: скан видачі й повернення
   "box_writeoff", // бокси: списання загубленого
@@ -82,6 +83,8 @@ const MATRIX: Record<Resource, Partial<Record<UserRole, Access>>> = {
     accountant: R,
     driver: { write: true, viaBotOnly: true },
   },
+  // D69: помилковий запис готівки виправляє лише власник (сторно з причиною).
+  cash_reversal: { owner: W },
   bank_payments: { owner: RW, accountant: RW },
   box_scan: { owner: W, location_lead: W_OWN, production: W_OWN },
   box_writeoff: { owner: W },
