@@ -96,14 +96,18 @@ export function clientSearchCondition(raw: string): SQL | undefined {
   return or(...parts);
 }
 
-/** Список клієнтів частинами (по 30). Видалених приховано; власник може їх увімкнути. */
+/**
+ * Список клієнтів частинами (по 30). Видалених приховано; власник може їх увімкнути. Для екрана
+ * одна частина не більша за 100; експорт (B8) передає `maxLimit`, щоб забрати все одним запитом.
+ */
 export async function listClients(
   db: AnyPgDatabase,
   actor: AppUser,
   query: ClientListQuery = {},
+  options: { maxLimit?: number } = {},
 ): Promise<ClientListPage> {
   requirePermission(actor, "clients", "read");
-  const limit = Math.min(Math.max(query.limit ?? CLIENTS_PAGE_SIZE, 1), 100);
+  const limit = Math.min(Math.max(query.limit ?? CLIENTS_PAGE_SIZE, 1), options.maxLimit ?? 100);
   const offset = Math.max(query.offset ?? 0, 0);
 
   const conditions: (SQL | undefined)[] = [];

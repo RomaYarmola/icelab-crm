@@ -37,6 +37,7 @@ export default async function ClientsPage({
       options={options}
       canCreate={can(user.role, "clients", "write")}
       canSeeDeleted={user.role === "owner"}
+      canExport={can(user.role, "excel_export", "write")}
       loadMore={loadMoreClientsAction}
     />
   );

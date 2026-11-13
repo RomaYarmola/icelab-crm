@@ -40,6 +40,7 @@ export const RESOURCES = [
   "bot_drafts", // чернетки з бота: підтвердження
   "analytics", // аналітика
   "excel_export", // експорт в Excel
+  "export_all", // «Експорт усього»: уся база одним файлом (не з ТЗ, рішення D94)
   "users", // користувачі й ролі
   "audit_log", // журнал змін
   "migration_settings", // міграція, налаштування інтеграцій
@@ -99,6 +100,7 @@ const MATRIX: Record<Resource, Partial<Record<UserRole, Access>>> = {
   bot_drafts: { owner: W, manager: W },
   analytics: { owner: R, manager: R, accountant: R },
   excel_export: { owner: W, manager: W, accountant: W },
+  export_all: { owner: W },
   users: { owner: RW },
   // У ТЗ рядок «Користувачі, ролі, журнал змін»: власник Ч/З, бухгалтер лише журнал.
   // Журнал редагувати не можна нікому, тому власнику тут лише читання.

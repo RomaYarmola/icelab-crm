@@ -615,14 +615,18 @@ export type OrderListQuery = {
 
 export type OrderListPage = { items: OrderListItem[]; hasMore: boolean };
 
-/** Список замовлень частинами (по 30): нові дати першими. Видалені чернетки приховано. */
+/**
+ * Список замовлень частинами (по 30): нові дати першими. Видалені чернетки приховано. Для екрана
+ * одна частина не більша за 100; експорт (B8) передає `maxLimit`, щоб забрати все одним запитом.
+ */
 export async function listOrders(
   db: AnyPgDatabase,
   actor: AppUser,
   query: OrderListQuery = {},
+  options: { maxLimit?: number } = {},
 ): Promise<OrderListPage> {
   requirePermission(actor, "orders", "read", { anyLocation: true });
-  const limit = Math.min(Math.max(query.limit ?? ORDERS_PAGE_SIZE, 1), 100);
+  const limit = Math.min(Math.max(query.limit ?? ORDERS_PAGE_SIZE, 1), options.maxLimit ?? 100);
   const offset = Math.max(query.offset ?? 0, 0);
 
   const conditions: (SQL | undefined)[] = [isNull(orders.deletedAt)];

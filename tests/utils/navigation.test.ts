@@ -138,11 +138,11 @@ describe("заголовки сторінок у шапці", () => {
   });
 });
 
-describe("екрани всередині «Ще» («Готівка», «Прайс», «Журнал змін», «Користувачі»)", () => {
+describe("екрани всередині «Ще» («Готівка», «Прайс», «Журнал змін», «Експорт усього», «Користувачі»)", () => {
   const ids = (role: UserRole) => accountNavItemsFor(role).map((item) => item.id);
 
-  it("власник бачить «Готівку», «Прайс», «Журнал змін» і «Користувачі», бухгалтер «Готівку», «Прайс» і «Журнал змін», менеджер «Готівку» та «Прайс»", () => {
-    expect(ids("owner")).toEqual(["cash", "prices", "audit", "users"]);
+  it("власник бачить «Готівку», «Прайс», «Журнал змін», «Експорт усього» і «Користувачі», бухгалтер «Готівку», «Прайс» і «Журнал змін», менеджер «Готівку» та «Прайс»", () => {
+    expect(ids("owner")).toEqual(["cash", "prices", "audit", "export", "users"]);
     expect(ids("manager")).toEqual(["cash", "prices"]);
     expect(ids("accountant")).toEqual(["cash", "prices", "audit"]);
   });
@@ -200,5 +200,23 @@ describe("журнал змін у меню (B8, D89)", () => {
     }
     expect(NAV_ITEMS.audit.href).toBe("/more/audit");
     expect(isActivePath("/more/audit", NAV_ITEMS.more.href)).toBe(true);
+  });
+});
+
+describe("«Експорт усього» у меню (B8, D94)", () => {
+  it("відкривається лише власнику, у меню «Ще»", () => {
+    for (const role of USER_ROLES) {
+      expect(canOpenPage(role, "export"), role).toBe(role === "owner");
+      expect(
+        navItemsFor(role, "bar").map((item) => item.id),
+        role,
+      ).not.toContain("export");
+      expect(
+        navItemsFor(role, "side").map((item) => item.id),
+        role,
+      ).not.toContain("export");
+    }
+    expect(NAV_ITEMS.export.href).toBe("/more/export");
+    expect(isActivePath("/more/export", NAV_ITEMS.more.href)).toBe(true);
   });
 });

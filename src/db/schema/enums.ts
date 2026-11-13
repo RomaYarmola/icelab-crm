@@ -48,3 +48,6 @@ export const paymentKind = pgEnum("payment_kind", ["cash", "fop", "company", "un
 export const cashEntryVia = pgEnum("cash_entry_via", ["web", "driver_bot"]);
 
 export const auditAction = pgEnum("audit_action", ["insert", "update", "delete"]);
+
+/** Що вивантажили в Excel: списки замовлень, клієнтів, готівки чи всі дані (B8, D95). */
+export const exportKind = pgEnum("export_kind", ["orders", "clients", "cash", "all"]);

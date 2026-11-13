@@ -273,6 +273,7 @@ export default function OrdersPreview({
         filters={parseOrderListParams({ day: "week" }, TODAY)}
         managers={[{ id: "mgr-1", name: "Олена Коваль" }]}
         canCreate={can(role, "orders", "write") && role !== "location_lead"}
+        canExport={can(role, "excel_export", "write")}
         loadMore={loadMore}
       />
     );

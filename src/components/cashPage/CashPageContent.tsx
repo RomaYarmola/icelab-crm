@@ -1,5 +1,6 @@
 import type { CashDay } from "@/server/cash";
 import EmptyState from "../shared/emptyState/EmptyState";
+import ExportButton from "../shared/export/ExportButton";
 import BackLink from "../shared/links/BackLink";
 import Notification from "../shared/notification/Notification";
 import SubTitle from "../shared/titles/SubTitle";
@@ -16,6 +17,8 @@ interface CashPageContentProps {
   canRecord: boolean;
   /** Сторно лише власник. */
   canReverse: boolean;
+  /** Є право на експорт у Excel (власник, менеджер, бухгалтер, D92). */
+  canExport: boolean;
   actions: CashActions;
 }
 
@@ -30,6 +33,7 @@ export default function CashPageContent({
   today,
   canRecord,
   canReverse,
+  canExport,
   actions,
 }: CashPageContentProps) {
   return (
@@ -37,6 +41,7 @@ export default function CashPageContent({
       <BackLink href="/more">Профіль</BackLink>
       <ProductionDayNav date={day.date} today={today} path="/more/cash" label="День готівки" />
       <CashSummary summary={day.summary} />
+      {canExport ? <ExportButton list="cash" className="w-full lg:w-auto" /> : null}
       {canRecord ? null : (
         <Notification variant="info">
           Готівку записують старший локації й власник. Тут її можна лише переглядати.

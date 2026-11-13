@@ -299,6 +299,7 @@ export default function ClientsPreview({
         options={OPTIONS}
         canCreate={canWrite}
         canSeeDeleted={role === "owner"}
+        canExport={can(role, "excel_export", "write")}
         loadMore={loadMore}
       />
     );

@@ -8,6 +8,7 @@ import {
 } from "@/utils/clientListParams";
 import ButtonLink from "../shared/buttons/ButtonLink";
 import EmptyState from "../shared/emptyState/EmptyState";
+import ExportButton from "../shared/export/ExportButton";
 import ClientsIcon from "../shared/icons/ClientsIcon";
 import SearchField from "../shared/search/SearchField";
 import ClientFilters from "./ClientFilters";
@@ -20,6 +21,8 @@ interface ClientsPageContentProps {
   /** Менеджер і власник створюють клієнтів, решта лише дивиться. */
   canCreate: boolean;
   canSeeDeleted: boolean;
+  /** Є право на експорт у Excel (власник, менеджер, бухгалтер, D92). */
+  canExport: boolean;
   loadMore: (query: {
     search?: string;
     statusId?: string;
@@ -37,6 +40,7 @@ export default function ClientsPageContent({
   options,
   canCreate,
   canSeeDeleted,
+  canExport,
   loadMore,
 }: ClientsPageContentProps) {
   const isFiltered = hasActiveSearch(filters);
@@ -62,6 +66,7 @@ export default function ClientsPageContent({
         activeCount={countActiveFilters(filters)}
         canSeeDeleted={canSeeDeleted}
       />
+      {canExport ? <ExportButton list="clients" className="w-full lg:w-auto" /> : null}
       <ClientsList
         // Новий пошук чи фільтр: список починається спочатку, довантажені раніше клієнти зникають.
         key={JSON.stringify(filters)}

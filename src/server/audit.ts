@@ -481,6 +481,11 @@ async function loadSubjects(db: AnyPgDatabase, rows: AuditRow[]): Promise<Map<st
       case "settings":
         subjects.set(row.id, { text: `Налаштування ${row.rowId}`, href: null });
         break;
+      case "exports": {
+        const file = valueOf(diff, "file_name");
+        subjects.set(row.id, { text: file ? `Файл ${file}` : "Експорт у Excel", href: null });
+        break;
+      }
       default:
         subjects.set(row.id, { text: row.tableName, href: null });
     }
