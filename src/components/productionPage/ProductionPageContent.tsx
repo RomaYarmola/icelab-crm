@@ -2,6 +2,7 @@ import { formatIsoDate } from "@/utils/isoDate";
 import type { ProductionQueue } from "@/server/production";
 import type { ProductionRealtimeConfig } from "@/server/production-signal";
 import { dayLabel } from "@/utils/productionView";
+import ButtonLink from "../shared/buttons/ButtonLink";
 import ProductionBoard from "./ProductionBoard";
 import ProductionDayNav from "./ProductionDayNav";
 import ProductionSummary from "./ProductionSummary";
@@ -79,8 +80,11 @@ export default function ProductionPageContent({
       <ProductionDayNav date={queue.date} today={today} />
       <ProductionSummary summary={queue.summary} />
       {canEdit ? (
-        <div className="flex">
+        <div className="flex flex-wrap gap-3">
           <WallModeButton />
+          <ButtonLink href="/more/cash" variant="outline" size="sm">
+            Готівка
+          </ButtonLink>
         </div>
       ) : null}
       {board}

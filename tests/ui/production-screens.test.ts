@@ -74,7 +74,9 @@ describe("екран виробництва: правила оформлення
 describe("екран виробництва: жодних цін і сум", () => {
   it("у компонентах немає форматування грошей, знака гривні й слів про ціну чи суму", () => {
     for (const file of screenFiles) {
-      const source = read(file);
+      // Єдиний виняток: посилання «Готівка» для старшого локації на екран готівки (D70). Це адреса,
+      // а не гроші на екрані цеху.
+      const source = read(file).replace('href="/more/cash"', 'href="/more/…"');
       expect(source, file).not.toContain("formatMoney");
       expect(source, file).not.toContain("₴");
       expect(source, file).not.toMatch(/\b(?:price|amount|total|cash|payment)\w*\b/i);

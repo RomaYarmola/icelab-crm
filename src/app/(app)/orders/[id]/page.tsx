@@ -15,6 +15,7 @@ import { requireUser } from "@/server/auth";
 import { canDeleteDraft, editPolicy, transitionOptions } from "@/server/order-rules";
 import { getOrder } from "@/server/orders";
 import { can } from "@/server/permissions";
+import { cashLinkFor } from "@/utils/cashLink";
 
 export const metadata: Metadata = { title: "Замовлення" };
 
@@ -52,6 +53,7 @@ export default async function OrderPage({
         canEditItems: isOffice && policy.core !== "none",
         itemsNeedNote: policy.core === "owner_note",
       }}
+      cashHref={cashLinkFor(user.role, order)}
       notice={query.created ? "created" : undefined}
       actions={{
         transition: transitionOrderAction,

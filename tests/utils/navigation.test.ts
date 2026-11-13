@@ -138,19 +138,29 @@ describe("заголовки сторінок у шапці", () => {
   });
 });
 
-describe("екрани всередині «Ще» («Прайс», «Користувачі»)", () => {
+describe("екрани всередині «Ще» («Готівка», «Прайс», «Користувачі»)", () => {
   const ids = (role: UserRole) => accountNavItemsFor(role).map((item) => item.id);
 
-  it("власник бачить «Прайс» і «Користувачі», менеджер і бухгалтер лише «Прайс»", () => {
-    expect(ids("owner")).toEqual(["prices", "users"]);
-    expect(ids("manager")).toEqual(["prices"]);
-    expect(ids("accountant")).toEqual(["prices"]);
+  it("власник бачить «Готівку», «Прайс» і «Користувачі», менеджер і бухгалтер «Готівку» та «Прайс»", () => {
+    expect(ids("owner")).toEqual(["cash", "prices", "users"]);
+    expect(ids("manager")).toEqual(["cash", "prices"]);
+    expect(ids("accountant")).toEqual(["cash", "prices"]);
   });
 
-  it("старший локації й виробництво не бачать цін, водій нічого не бачить", () => {
-    expect(ids("location_lead")).toEqual([]);
+  it("старший локації бачить лише «Готівку» (цін немає), виробництво й водій нічого", () => {
+    expect(ids("location_lead")).toEqual(["cash"]);
     expect(ids("production")).toEqual([]);
     expect(ids("driver")).toEqual([]);
+  });
+
+  it("сторінка готівки відкривається тим, кому вона в меню, і лише їм; адреса вкладена в «Ще»", () => {
+    for (const role of USER_ROLES) {
+      expect(canOpenPage(role, "cash"), role).toBe(ids(role).includes("cash"));
+      expect(navItemsFor(role, "bar").map((item) => item.id)).not.toContain("cash");
+      expect(navItemsFor(role, "side").map((item) => item.id)).not.toContain("cash");
+    }
+    expect(NAV_ITEMS.cash.href).toBe("/more/cash");
+    expect(isActivePath("/more/cash", NAV_ITEMS.more.href)).toBe(true);
   });
 
   it("сторінка прайсу відкривається тим, кому вона в меню, і лише їм", () => {

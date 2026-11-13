@@ -18,10 +18,15 @@ type RawParams = Record<string, string | string[] | undefined>;
 
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
-export function parseProductionParams(raw: RawParams, today: string): ProductionParams {
+/** День з адреси (`?date=`): некоректний чи відсутній дає сьогодні. Спільний для виробництва й готівки. */
+export function parseDayParam(raw: RawParams, today: string): string {
   const date = first(raw[PRODUCTION_PARAMS.date]);
+  return date !== undefined && isIsoDate(date) ? date : today;
+}
+
+export function parseProductionParams(raw: RawParams, today: string): ProductionParams {
   return {
-    date: date !== undefined && isIsoDate(date) ? date : today,
+    date: parseDayParam(raw, today),
     wall: first(raw[PRODUCTION_PARAMS.mode]) === WALL_MODE_VALUE,
   };
 }

@@ -35,6 +35,8 @@ interface OrderCardContentProps {
     itemsNeedNote: boolean;
   };
   actions: OrderCardActions;
+  /** Посилання «Готівка» на екран готівки (ролі, що читають готівку, по готівкових замовленнях). */
+  cashHref?: string | null;
   /** Замовлення щойно створено: показуємо підтвердження. */
   notice?: "created";
 }
@@ -48,6 +50,7 @@ export default function OrderCardContent({
   transitions,
   permissions,
   actions,
+  cashHref,
   notice,
 }: OrderCardContentProps) {
   const isCancelled = order.status === "cancelled";
@@ -96,6 +99,11 @@ export default function OrderCardContent({
       </section>
 
       <OrderTransitions orderId={order.id} options={transitions} action={actions.transition} />
+      {cashHref ? (
+        <ButtonLink href={cashHref} variant="outline" fullWidth>
+          Готівка
+        </ButtonLink>
+      ) : null}
       {permissions.canEdit ? (
         <ButtonLink href={`/orders/${order.id}/edit`} variant="outline" fullWidth>
           Змінити замовлення
