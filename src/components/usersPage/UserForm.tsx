@@ -2,6 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { MIN_PASSWORD_LENGTH } from "@/constants/constants";
+import { SCREEN_HINTS } from "@/constants/hints";
 import { isLocationBound, ROLE_LABELS, USER_ROLES, type UserRole } from "@/server/permissions";
 import { type FormState, INITIAL_FORM_STATE } from "@/utils/formState";
 import MainButton from "../shared/buttons/MainButton";
@@ -10,6 +11,7 @@ import GeneratePasswordField from "../shared/customizedInput/GeneratePasswordFie
 import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
 import Form from "../shared/form/Form";
 import FormMessage from "../shared/form/FormMessage";
+import ScreenHint from "../shared/hint/ScreenHint";
 import Text from "../shared/texts/Text";
 
 export interface UserFormDefaults {
@@ -86,6 +88,7 @@ export default function UserForm({
         defaultValue={values.role}
         onChange={(event) => setRole(event.target.value)}
       />
+      <ScreenHint hint={SCREEN_HINTS.roles} />
 
       {needsLocation ? (
         <CustomizedSelect

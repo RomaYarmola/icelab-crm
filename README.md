@@ -116,6 +116,8 @@ docs/                        план, рішення, докладні план
 
 Клієнти і ціни (B4): розділ «Клієнти» (пошук, картка з контактами, адресами й цінами, об'єднання дублів), екран «Прайс» у «Ще → Прайс». Код клієнта це область і номер («АА16»), його видає сервер (D42). Рішення D42–D50 у [docs/decisions.md](docs/decisions.md), ручна перевірка: [docs/blocks/B4-checklist.md](docs/blocks/B4-checklist.md).
 
+Журнал змін, експорт і підказки (B8): «Ще → Журнал змін» (власник і бухгалтер), «Історія змін» на картках замовлення й клієнта, кнопка «Експорт у Excel» на списках замовлень, клієнтів і готівки, «Ще → Експорт усього» (власник), журнал експортів у журналі змін. Файли XLSX збирає `src/server/export-xlsx.ts`, адреса `/api/export/<список>`. Короткі підказки на екранах: усі тексти в `src/constants/hints.ts`. Рішення D89–D103 у [docs/decisions.md](docs/decisions.md), що закрито й що ні для етапу 1: [docs/blocks/B8-acceptance.md](docs/blocks/B8-acceptance.md).
+
 Живий каталог усіх компонентів: `npm run dev`, потім http://localhost:3000/ui-kit. Перегляд оболонки для будь-якої ролі: `/ui-kit/shell/manager` (`owner`, `manager`, `location_lead`, `production`, `accountant`). Екрани клієнтів і прайсу з вигаданими даними: `?screen=clients`, `client` (`&tab=contacts|addresses|prices`), `new-client`, `prices`, `merge`; замовлення: `order-list`, `order`, `new-order`, `edit-order` (`&status=draft|confirmed|…|cancelled`). Ручна перевірка замовлень: [docs/blocks/B5-checklist.md](docs/blocks/B5-checklist.md). Обидва адреси відкриті лише в режимі розробки, у збірці закриті. Правила: [docs/decisions.md](docs/decisions.md), D37.
 
 ## База даних

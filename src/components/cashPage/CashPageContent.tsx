@@ -1,6 +1,8 @@
+import { INLINE_HINTS, SCREEN_HINTS } from "@/constants/hints";
 import type { CashDay } from "@/server/cash";
 import EmptyState from "../shared/emptyState/EmptyState";
 import ExportButton from "../shared/export/ExportButton";
+import ScreenHint from "../shared/hint/ScreenHint";
 import BackLink from "../shared/links/BackLink";
 import Notification from "../shared/notification/Notification";
 import SubTitle from "../shared/titles/SubTitle";
@@ -41,7 +43,10 @@ export default function CashPageContent({
       <BackLink href="/more">Профіль</BackLink>
       <ProductionDayNav date={day.date} today={today} path="/more/cash" label="День готівки" />
       <CashSummary summary={day.summary} />
-      {canExport ? <ExportButton list="cash" className="w-full lg:w-auto" /> : null}
+      <ScreenHint hint={SCREEN_HINTS.cash} />
+      {canExport ? (
+        <ExportButton list="cash" hint={INLINE_HINTS.exportCash} className="w-full lg:w-auto" />
+      ) : null}
       {canRecord ? null : (
         <Notification variant="info">
           Готівку записують старший локації й власник. Тут її можна лише переглядати.

@@ -6,6 +6,7 @@ import {
   countActiveFilters,
   hasActiveSearch,
 } from "@/utils/clientListParams";
+import { INLINE_HINTS } from "@/constants/hints";
 import ButtonLink from "../shared/buttons/ButtonLink";
 import EmptyState from "../shared/emptyState/EmptyState";
 import ExportButton from "../shared/export/ExportButton";
@@ -66,7 +67,13 @@ export default function ClientsPageContent({
         activeCount={countActiveFilters(filters)}
         canSeeDeleted={canSeeDeleted}
       />
-      {canExport ? <ExportButton list="clients" className="w-full lg:w-auto" /> : null}
+      {canExport ? (
+        <ExportButton
+          list="clients"
+          hint={INLINE_HINTS.exportClients}
+          className="w-full lg:w-auto"
+        />
+      ) : null}
       <ClientsList
         // Новий пошук чи фільтр: список починається спочатку, довантажені раніше клієнти зникають.
         key={JSON.stringify(filters)}

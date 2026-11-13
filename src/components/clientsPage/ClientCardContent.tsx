@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { CLIENT_TAB_LABELS, CLIENT_TABS, type ClientTab } from "@/constants/clients";
+import { INLINE_HINTS } from "@/constants/hints";
 import type { ClientFormOptions } from "@/server/client-options";
 import type { AuditPage } from "@/server/audit";
 import type { ClientCardView } from "@/server/client-views";
@@ -192,7 +193,11 @@ export default function ClientCardContent({
       ) : null}
 
       {activeTab === "history" && history ? (
-        <EntityHistory page={history} titleId="client-history" />
+        <EntityHistory
+          page={history}
+          titleId="client-history"
+          description={INLINE_HINTS.clientHistory}
+        />
       ) : null}
 
       {activeTab === "prices" && client.prices ? (

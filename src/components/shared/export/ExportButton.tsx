@@ -6,12 +6,15 @@ import type { ButtonSize, ButtonVariant } from "../buttons/buttonStyles";
 import MainButton from "../buttons/MainButton";
 import DownloadIcon from "../icons/DownloadIcon";
 import Notification from "../notification/Notification";
+import Text from "../texts/Text";
 
 interface ExportButtonProps {
   /** Який список вивантажуємо: адреса `/api/export/<список>`. */
   list: "orders" | "clients" | "cash" | "all";
   /** Текст кнопки. */
   children?: string;
+  /** Що потрапить у файл: короткий рядок під кнопкою (`INLINE_HINTS`). */
+  hint?: string;
   /** З фільтрами сторінки: додаємо до адреси поточні параметри (`?q=…&status=…`). */
   withPageFilters?: boolean;
   variant?: ButtonVariant;
@@ -40,6 +43,7 @@ function fileNameOf(response: Response): string {
 export default function ExportButton({
   list,
   children = "Експорт у Excel",
+  hint,
   withPageFilters = true,
   variant = "outline",
   size = "sm",
@@ -97,6 +101,7 @@ export default function ExportButton({
       >
         {children}
       </MainButton>
+      {hint && state.status === "idle" ? <Text variant="muted">{hint}</Text> : null}
       {state.status === "error" ? (
         <Notification variant="error">{state.message}</Notification>
       ) : null}

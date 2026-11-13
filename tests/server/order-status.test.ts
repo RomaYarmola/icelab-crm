@@ -10,7 +10,7 @@ import {
   transitionOrder,
 } from "@/server/order-status";
 import { getOrder, updateOrder } from "@/server/orders";
-import { changeDefaultPrice } from "@/server/prices";
+import { changeClientPrice, changeDefaultPrice } from "@/server/prices";
 import { USER_ROLES } from "@/server/permissions";
 import { makeClient } from "../db/helpers";
 import { type OrderTestContext, setupOrderTests } from "./order-helpers";
@@ -102,6 +102,32 @@ describe("замовлення: переходи статусів і зміна 
         pricePerKg: "75",
         validFrom: "2026-11-11",
       });
+    });
+
+    it("після підтвердження зміна ціни в картці клієнта замовлення не чіпає (ТЗ §13, критерій 3)", async () => {
+      const client = await makeClient(t.db, { name: "Клієнт із власною ціною" });
+      await changeClientPrice(t.db, t.users.manager, {
+        clientId: client.id,
+        iceTypeId: t.ice16,
+        pricePerKg: "60",
+        validFrom: "2026-11-10",
+      });
+      const id = await draft({ clientId: client.id });
+      await transitionOrder(t.db, t.users.manager, id, "confirmed");
+      expect(await row(id)).toMatchObject({ pricePerKgSnapshot: "60.00", total: "1800.00" });
+
+      await changeClientPrice(t.db, t.users.manager, {
+        clientId: client.id,
+        iceTypeId: t.ice16,
+        pricePerKg: "99",
+        validFrom: "2026-11-11",
+      });
+      expect(await row(id)).toMatchObject({ pricePerKgSnapshot: "60.00", total: "1800.00" });
+
+      // Нове замовлення цього клієнта вже за новою ціною: зміна справді подіяла.
+      const next = await draft({ clientId: client.id });
+      await transitionOrder(t.db, t.users.manager, next, "confirmed");
+      expect(await row(next)).toMatchObject({ pricePerKgSnapshot: "99.00", total: "2970.00" });
     });
 
     it("без ціни, типу льоду чи кг підтвердити не можна", async () => {
