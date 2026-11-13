@@ -1,7 +1,7 @@
 import { cn } from "@/utils/cn";
 
 export type ButtonVariant = "fill" | "accent" | "outline" | "ghost";
-export type ButtonSize = "md" | "sm";
+export type ButtonSize = "lg" | "md" | "sm";
 
 interface ButtonClassNameOptions {
   variant?: ButtonVariant;
@@ -25,6 +25,8 @@ const variants: Record<ButtonVariant, string> = {
 };
 
 const sizes: Record<ButtonSize, string> = {
+  // Екран виробництва: кнопка «Готово» на всю ширину, її легко натиснути в рукавичках (від 56 px).
+  lg: "min-h-14 px-6",
   md: "min-h-13 px-6",
   sm: "min-h-11 px-4",
 };

@@ -17,6 +17,11 @@
   --fs-nav: 0.6875rem;
   --fs-caption: 0.875rem;
   --fs-kpi: 1.625rem;
+  /* Екран виробництва: кілограми «виготовити» на картці крупно, а в режимі «планшет на стіні»
+     (D66) ще більше, щоб читалось здалеку. */
+  --fs-hero: 2.25rem;
+  --fs-wall: 3.5rem;
+  --fs-wall-title: 2rem;
 
   /* Єдина плавність для всього застосунку: наведення, натиснення, фокус, появи. Змінити
      швидкість чи криву можна лише тут. Утиліта `transition` у компонентах бере ці значення. */
@@ -37,6 +42,9 @@
     --fs-h2: 1.375rem;
     --fs-h3: 1.125rem;
     --fs-kpi: 1.875rem;
+    --fs-hero: 2.75rem;
+    --fs-wall: 4.5rem;
+    --fs-wall-title: 2.5rem;
     --fs-caption: 1rem;
   }
 }
@@ -107,6 +115,15 @@
   --text-kpi: var(--fs-kpi);
   --text-kpi--line-height: 1.15;
   --text-kpi--font-weight: 800;
+  --text-hero: var(--fs-hero);
+  --text-hero--line-height: 1.1;
+  --text-hero--font-weight: 800;
+  --text-wall: var(--fs-wall);
+  --text-wall--line-height: 1.05;
+  --text-wall--font-weight: 800;
+  --text-wall-title: var(--fs-wall-title);
+  --text-wall-title--line-height: 1.2;
+  --text-wall-title--font-weight: 700;
 
   /* Закруглення: кнопки і поля, картки. Плашки і фільтри: rounded-full. */
   --radius-field: 1rem;

@@ -22,6 +22,8 @@ interface OrderTransitionFormProps {
   noteLabel?: string;
   /** Основна (темна) кнопка чи контурна. */
   variant?: "fill" | "outline";
+  /** Розмір кнопки: на екрані виробництва `lg` (від 56 px). */
+  size?: "lg" | "md" | "sm";
 }
 
 /**
@@ -36,6 +38,7 @@ export default function OrderTransitionForm({
   needsNote,
   noteLabel = "Причина",
   variant = "outline",
+  size = "md",
 }: OrderTransitionFormProps) {
   const [state, formAction, isPending] = useActionState(action, INITIAL_FORM_STATE);
 
@@ -53,7 +56,13 @@ export default function OrderTransitionForm({
         />
       ) : null}
       <FormMessage state={state} />
-      <MainButton type="submit" variant={variant} isLoading={isPending} loadingText="Зберігаємо…">
+      <MainButton
+        type="submit"
+        variant={variant}
+        size={size}
+        isLoading={isPending}
+        loadingText="Зберігаємо…"
+      >
         {label}
       </MainButton>
     </Form>

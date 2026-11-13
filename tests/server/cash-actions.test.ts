@@ -1,7 +1,11 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { recordCashEntryAction, reverseCashEntryAction } from "@/app/(app)/more/cash/actions";
-import { markAllSeenAction, openProductionScreenAction } from "@/app/(app)/production/actions";
+import {
+  markAllSeenAction,
+  openProductionScreenAction,
+  updateProductionOrderAction,
+} from "@/app/(app)/production/actions";
 import { getDb } from "@/db/client";
 import { cashEntries, orders } from "@/db/schema";
 import { requireUser } from "@/server/auth";
@@ -182,6 +186,59 @@ describe("серверні дії готівки і екрана виробни�
       expect(
         await openProductionScreenAction({ date: todayIso(), seenOrderIds: ["не-ідентифікатор"] }),
       ).toMatchObject({ status: "error" });
+    });
+  });
+
+  describe("«виготовити» і коментар зі старшого локації", () => {
+    const confirmed = async () => {
+      const { id } = await t.create({ orderDate: "2031-07-07", kgSold: 30 });
+      await transitionOrder(t.db, t.users.owner, id, "confirmed");
+      return id;
+    };
+
+    it("старший локації міняє кг і коментар підтвердженого замовлення", async () => {
+      const id = await confirmed();
+      const state = await run(updateProductionOrderAction, {
+        id,
+        kgToProduce: "35",
+        comment: "Додати сухого льоду",
+      });
+      expect(state).toMatchObject({ status: "success", message: "Зміни збережено." });
+      expect(await row(id)).toMatchObject({
+        kgToProduce: "35.000",
+        comment: "Додати сухого льоду",
+      });
+    });
+
+    it("порожнє «виготовити» і поганий ввід повертають зрозумілу помилку з введеним", async () => {
+      const id = await confirmed();
+      expect(await run(updateProductionOrderAction, { id, kgToProduce: " " })).toMatchObject({
+        status: "error",
+        message: "Вкажіть, скільки кілограмів виготовити.",
+      });
+      const bad = await run(updateProductionOrderAction, { id, kgToProduce: "багато" });
+      expect(bad).toMatchObject({ status: "error", message: "Кілограми мають бути числом." });
+      expect(bad.values).toMatchObject({ kgToProduce: "багато" });
+      expect(await run(updateProductionOrderAction, { id: "xx", kgToProduce: "5" })).toMatchObject({
+        status: "error",
+        message: "Замовлення не знайдено.",
+      });
+    });
+
+    it("виробництво, чужа локація й бухгалтер змінити не можуть", async () => {
+      const id = await confirmed();
+      for (const role of ["production", "accountant", "driver"] as const) {
+        as(role);
+        expect(
+          await run(updateProductionOrderAction, { id, kgToProduce: "99" }),
+          role,
+        ).toMatchObject({ status: "error" });
+      }
+      vi.mocked(requireUser).mockResolvedValue(t.otherLead);
+      expect(await run(updateProductionOrderAction, { id, kgToProduce: "99" })).toMatchObject({
+        status: "error",
+      });
+      expect((await row(id)).kgToProduce).not.toBe("99.000");
     });
   });
 

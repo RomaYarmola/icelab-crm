@@ -11,6 +11,10 @@ import OrdersPreview, {
   ORDER_PREVIEW_SCREENS,
   type OrderPreviewScreen,
 } from "@/components/uiKitPage/OrdersPreview";
+import ProductionPreview, {
+  PRODUCTION_PREVIEW_SCREENS,
+  type ProductionPreviewScreen,
+} from "@/components/uiKitPage/ProductionPreview";
 import ShellPreviewContent from "@/components/uiKitPage/ShellPreviewContent";
 import UserDetailContent from "@/components/usersPage/UserDetailContent";
 import UsersPageContent from "@/components/usersPage/UsersPageContent";
@@ -43,6 +47,12 @@ async function previewSetLocation(): Promise<{ ok: boolean }> {
 async function previewFormAction(): Promise<FormState> {
   "use server";
   return { status: "success", message: "Приклад: у каталозі збереження вимкнено." };
+}
+
+/** Заглушка «екран виробництва відкрито»: у каталозі нічого не запускає й не позначає. */
+async function previewOpenScreen(): Promise<{ status: "ok"; started: number; marked: number }> {
+  "use server";
+  return { status: "ok", started: 0, marked: 0 };
 }
 
 /** Заглушки читання в каталозі: список без довантаження, підказка коду й схожі клієнти для прикладу. */
@@ -202,6 +212,7 @@ const PREVIEW_SCREENS = [
   "user",
   ...CLIENT_PREVIEW_SCREENS,
   ...ORDER_PREVIEW_SCREENS,
+  ...PRODUCTION_PREVIEW_SCREENS,
 ] as const;
 
 /**
@@ -210,7 +221,8 @@ const PREVIEW_SCREENS = [
  * які вимагають входу. Параметр `?screen=` показує екрани з вигаданими даними: `orders`
  * (за замовчуванням), `profile`, `users`, `new-user`, `user`, а також екрани клієнтів і прайсу
  * (`clients`, `client` з `&tab=contacts|addresses|prices`, `prices`, `merge` тощо) і замовлень
- * (`order-list`, `order`, `new-order`, `edit-order` з `&status=draft|confirmed|in_production|packed|shipped|paid|closed|cancelled`).
+ * (`order-list`, `order`, `new-order`, `edit-order` з `&status=draft|confirmed|in_production|packed|shipped|paid|closed|cancelled`)
+ * і виробництва (`production`, `production-empty`, `production-wall`: режим «на стіні» лише для старшого локації).
  */
 export default async function ShellPreviewPage({
   params,
@@ -288,6 +300,17 @@ export default async function ShellPreviewPage({
             pricing: previewPricing,
             findDuplicates: previewDuplicates,
             repeatLast: previewRepeat,
+          }}
+        />
+      ) : (PRODUCTION_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
+        <ProductionPreview
+          role={knownRole}
+          screen={screen as ProductionPreviewScreen}
+          actions={{
+            transition: previewFormAction,
+            updateOrder: previewFormAction,
+            markAllSeen: previewFormAction,
+            openScreen: previewOpenScreen,
           }}
         />
       ) : (
