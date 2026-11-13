@@ -1,8 +1,10 @@
+import { SCREEN_HINTS } from "@/constants/hints";
 import { formatIsoDate } from "@/utils/isoDate";
 import type { ProductionQueue } from "@/server/production";
 import type { ProductionRealtimeConfig } from "@/server/production-signal";
 import { dayLabel } from "@/utils/productionView";
 import ButtonLink from "../shared/buttons/ButtonLink";
+import ScreenHint from "../shared/hint/ScreenHint";
 import ProductionBoard from "./ProductionBoard";
 import ProductionDayNav from "./ProductionDayNav";
 import ProductionSummary from "./ProductionSummary";
@@ -87,6 +89,7 @@ export default function ProductionPageContent({
           </ButtonLink>
         </div>
       ) : null}
+      <ScreenHint hint={SCREEN_HINTS.production} access={{ work: canWork, edit: canEdit }} />
       {board}
     </div>
   );

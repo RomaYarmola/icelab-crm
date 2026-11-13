@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { INLINE_HINTS } from "@/constants/hints";
 import type { AuditPage } from "@/server/audit";
 import type { OrderCardView } from "@/server/order-views";
 import type { TransitionOption } from "@/server/order-rules";
@@ -134,7 +135,13 @@ export default function OrderCardContent({
       {canChangePrice ? <OrderPriceForm orderId={order.id} action={actions.changePrice} /> : null}
 
       <OrderHistory history={order.history} />
-      {changeHistory ? <EntityHistory page={changeHistory} titleId="order-change-history" /> : null}
+      {changeHistory ? (
+        <EntityHistory
+          page={changeHistory}
+          titleId="order-change-history"
+          description={INLINE_HINTS.orderChangeHistory}
+        />
+      ) : null}
 
       {permissions.canDeleteDraft ? (
         <DeleteRecordForm

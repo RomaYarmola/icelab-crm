@@ -97,7 +97,7 @@ describe("експорт: права", () => {
       ["src/app/(app)/more/cash/page.tsx", "src/components/cashPage/CashPageContent.tsx"],
     ] as const) {
       expect(read(page), page).toContain('canExport={can(user.role, "excel_export", "write")}');
-      expect(read(content), content).toMatch(/canExport \? <ExportButton list="\w+"/);
+      expect(read(content), content).toMatch(/canExport \? \(?\s*<ExportButton\s+list="\w+"/);
     }
   });
 

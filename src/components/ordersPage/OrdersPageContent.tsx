@@ -5,9 +5,11 @@ import {
   hasActiveSearch,
   type OrderListFilters,
 } from "@/utils/orderListParams";
+import { INLINE_HINTS, SCREEN_HINTS } from "@/constants/hints";
 import ButtonLink from "../shared/buttons/ButtonLink";
 import EmptyState from "../shared/emptyState/EmptyState";
 import ExportButton from "../shared/export/ExportButton";
+import ScreenHint from "../shared/hint/ScreenHint";
 import OrdersIcon from "../shared/icons/OrdersIcon";
 import SearchField from "../shared/search/SearchField";
 import DayChips from "./DayChips";
@@ -67,7 +69,10 @@ export default function OrdersPageContent({
       </div>
       <DayChips day={filters.day} dateFrom={filters.dateFrom} dateTo={filters.dateTo} />
       <OrderFilters managers={managers} activeCount={countActiveFilters(filters)} />
-      {canExport ? <ExportButton list="orders" className="w-full lg:w-auto" /> : null}
+      {canExport ? (
+        <ExportButton list="orders" hint={INLINE_HINTS.exportOrders} className="w-full lg:w-auto" />
+      ) : null}
+      <ScreenHint hint={SCREEN_HINTS.orderStatuses} />
       <OrdersList
         // Новий пошук чи фільтр: список починається спочатку, довантажені раніше замовлення зникають.
         key={JSON.stringify([filters, locationId])}

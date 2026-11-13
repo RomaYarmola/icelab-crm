@@ -9,6 +9,7 @@ import {
 import type { DuplicateOrder, OrderTemplate } from "@/server/order-duplicates";
 import type { ClientAddressOption, OrderPricing } from "@/server/order-form";
 import type { EditPolicy } from "@/server/order-rules";
+import { INLINE_HINTS } from "@/constants/hints";
 import { ORDER_STATUS_LABELS } from "@/constants/orders";
 import { INITIAL_FORM_STATE } from "@/utils/formState";
 import { formatMoney, formatNumber, formatPricePerKg } from "@/utils/formatNumber";
@@ -377,6 +378,7 @@ export default function OrderForm({
                 : "Підказка: без надбавки. Можна змінити."
           }
         />
+        <Text variant="muted">{INLINE_HINTS.orderKg}</Text>
       </fieldset>
 
       <fieldset
