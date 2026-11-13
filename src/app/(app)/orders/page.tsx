@@ -51,6 +51,7 @@ export default async function OrdersPage({
       canCreate={
         can(user.role, "orders", "write") && (user.role === "owner" || user.role === "manager")
       }
+      canExport={can(user.role, "excel_export", "write")}
       loadMore={loadMoreOrdersAction}
     />
   );

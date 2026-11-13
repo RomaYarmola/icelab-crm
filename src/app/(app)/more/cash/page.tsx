@@ -37,6 +37,7 @@ export default async function CashPage({
       today={today}
       canRecord={can(user.role, "order_cash", "write") && !isBotOnly(user.role, "order_cash")}
       canReverse={can(user.role, "cash_reversal", "write")}
+      canExport={can(user.role, "excel_export", "write")}
       actions={{ record: recordCashEntryAction, reverse: reverseCashEntryAction }}
     />
   );

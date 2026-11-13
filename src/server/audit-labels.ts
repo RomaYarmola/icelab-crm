@@ -21,6 +21,7 @@ export const AUDIT_SECTIONS = {
   prices: "Прайс",
   users: "Користувачі",
   settings: "Налаштування",
+  exports: "Експорт",
 } as const;
 
 export type AuditSection = keyof typeof AUDIT_SECTIONS;
@@ -53,7 +54,9 @@ export type AuditField =
         | "bool"
         | "date"
         | "timestamp"
-        | "json";
+        | "json"
+        /** Фільтри експорту: плоский об'єкт читається як «Ключ: значення; Ключ: значення». */
+        | "filters";
     }
   | { label: string; kind: "enum"; values: Record<string, string> }
   | { label: string; kind: "ref"; ref: AuditRef }
@@ -90,14 +93,21 @@ const SYSTEM_FIELDS = {
   updated_at: hidden("Змінено"),
 };
 
-const ITEM_KIND_LABELS = {
+export const ITEM_KIND_LABELS = {
   ice: "Лід",
   delivery: "Доставка",
   box_sale: "Продаж боксу",
   other: "Інше",
 };
 
-const ENTERED_VIA_LABELS = { web: "веб", driver_bot: "бот водія" };
+export const ENTERED_VIA_LABELS = { web: "веб", driver_bot: "бот водія" };
+
+export const EXPORT_KIND_LABELS = {
+  orders: "Замовлення",
+  clients: "Клієнти",
+  cash: "Готівка",
+  all: "Усі дані",
+};
 
 export const AUDIT_TABLES: Record<string, AuditTable> = {
   orders: {
@@ -308,6 +318,21 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       phone: text("Телефон"),
       is_active: bool("Активний"),
       ...SYSTEM_FIELDS,
+    },
+  },
+  exports: {
+    label: "Експорт у Excel",
+    section: "exports",
+    noun: "експорт у Excel",
+    fields: {
+      id: hidden("Ідентифікатор"),
+      kind: choice("Що вивантажено", EXPORT_KIND_LABELS),
+      params: { label: "Фільтри", kind: "filters" },
+      row_count: number("Рядків"),
+      file_name: text("Файл"),
+      file_url: hidden("Адреса файлу"),
+      created_by: hidden("Хто вивантажив"),
+      created_at: hidden("Створено"),
     },
   },
   settings: {

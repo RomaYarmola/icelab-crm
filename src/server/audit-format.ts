@@ -43,6 +43,18 @@ function clip(value: string): string {
   return value.length > MAX_TEXT ? `${value.slice(0, MAX_TEXT)}…` : value;
 }
 
+/** Плоский об'єкт читається як «Ключ: значення; Ключ: значення», решту лишаємо як JSON. */
+function describeFilters(raw: unknown): string {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    const entries = Object.entries(raw as Record<string, unknown>);
+    if (entries.length === 0) return "без фільтрів";
+    if (entries.every(([, value]) => value === null || typeof value !== "object")) {
+      return entries.map(([key, value]) => `${key}: ${String(value)}`).join("; ");
+    }
+  }
+  return JSON.stringify(raw);
+}
+
 /** Значення поля за його видом. `null` і порожній рядок показуємо як «порожньо». */
 export function formatAuditValue(field: AuditField, raw: unknown, names: AuditNames): string {
   if (raw === null || raw === undefined || raw === "") return EMPTY;
@@ -71,6 +83,8 @@ export function formatAuditValue(field: AuditField, raw: unknown, names: AuditNa
       return formatNumber(parseDecimal(String(raw)));
     case "json":
       return clip(typeof raw === "string" ? raw : JSON.stringify(raw));
+    case "filters":
+      return clip(typeof raw === "string" ? raw : describeFilters(raw));
     case "hidden":
       return "";
     default:
@@ -140,6 +154,10 @@ export function describeAuditEntry(
     if (deleted !== undefined && deleted !== null) {
       return { summary: "Видалено чернетку замовлення", changes: [] };
     }
+  }
+  if (table === "exports" && action === "insert") {
+    const what = changes.find((change) => change.label === "Що вивантажено")?.after;
+    return { summary: `Вивантажено в Excel${what ? `: ${what}` : ""}`, changes };
   }
   if (table === "cash_entries" && action === "update" && diff.reversed_at?.new) {
     return { summary: "Сторновано запис готівки", changes };

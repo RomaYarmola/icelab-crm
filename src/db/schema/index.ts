@@ -4,5 +4,6 @@ export * from "./cash";
 export * from "./clients";
 export * from "./enums";
 export * from "./errors";
+export * from "./exports";
 export * from "./orders";
 export * from "./reference";

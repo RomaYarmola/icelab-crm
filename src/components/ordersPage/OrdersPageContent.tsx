@@ -7,6 +7,7 @@ import {
 } from "@/utils/orderListParams";
 import ButtonLink from "../shared/buttons/ButtonLink";
 import EmptyState from "../shared/emptyState/EmptyState";
+import ExportButton from "../shared/export/ExportButton";
 import OrdersIcon from "../shared/icons/OrdersIcon";
 import SearchField from "../shared/search/SearchField";
 import DayChips from "./DayChips";
@@ -21,6 +22,8 @@ interface OrdersPageContentProps {
   locationId?: string;
   /** Власник і менеджер створюють замовлення. Кнопка з'являється разом із формою (PR 3). */
   canCreate: boolean;
+  /** Є право на експорт у Excel (власник, менеджер, бухгалтер, D92). */
+  canExport: boolean;
   loadMore: (query: {
     dateFrom?: string;
     dateTo?: string;
@@ -43,6 +46,7 @@ export default function OrdersPageContent({
   managers,
   locationId,
   canCreate,
+  canExport,
   loadMore,
 }: OrdersPageContentProps) {
   const isFiltered = hasActiveSearch(filters);
@@ -63,6 +67,7 @@ export default function OrdersPageContent({
       </div>
       <DayChips day={filters.day} dateFrom={filters.dateFrom} dateTo={filters.dateTo} />
       <OrderFilters managers={managers} activeCount={countActiveFilters(filters)} />
+      {canExport ? <ExportButton list="orders" className="w-full lg:w-auto" /> : null}
       <OrdersList
         // Новий пошук чи фільтр: список починається спочатку, довантажені раніше замовлення зникають.
         key={JSON.stringify([filters, locationId])}

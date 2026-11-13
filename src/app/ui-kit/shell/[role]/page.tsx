@@ -7,6 +7,7 @@ import AuditPreview, {
   AUDIT_PREVIEW_SCREENS,
   type AuditPreviewScreen,
 } from "@/components/uiKitPage/AuditPreview";
+import ExportAllContent from "@/components/exportPage/ExportAllContent";
 import CashPreview, {
   CASH_PREVIEW_SCREENS,
   type CashPreviewScreen,
@@ -28,7 +29,7 @@ import UserDetailContent from "@/components/usersPage/UserDetailContent";
 import UsersPageContent from "@/components/usersPage/UsersPageContent";
 import type { AppUser } from "@/server/guards";
 import { buildLocationFilter, type LocationOption } from "@/server/locations";
-import { isLocationBound, ROLE_LABELS, USER_ROLES, type UserRole } from "@/server/permissions";
+import { can, isLocationBound, ROLE_LABELS, USER_ROLES, type UserRole } from "@/server/permissions";
 import type { LoadMoreResult } from "@/app/(app)/clients/actions";
 import type { LoadMoreOrdersResult } from "@/app/(app)/orders/actions";
 import type { ClientListItem } from "@/server/client-views";
@@ -229,6 +230,7 @@ const PREVIEW_SCREENS = [
   ...PRODUCTION_PREVIEW_SCREENS,
   ...CASH_PREVIEW_SCREENS,
   ...AUDIT_PREVIEW_SCREENS,
+  "export",
 ] as const;
 
 /**
@@ -240,7 +242,8 @@ const PREVIEW_SCREENS = [
  * (`order-list`, `order`, `new-order`, `edit-order` з `&status=draft|confirmed|in_production|packed|shipped|paid|closed|cancelled`)
  * і виробництва (`production`, `production-empty`, `production-wall`: режим «на стіні» лише для старшого локації)
  * і готівки (`cash`, `cash-empty`) і журналу змін (`audit`, `audit-empty`; на картках замовлення й клієнта
- * («Історія») лише для ролей з грошима).
+ * («Історія») лише для ролей з грошима) і «Експорт усього» (`export`; кнопки «Експорт у Excel» на списках
+ * замовлень, клієнтів і готівки є лише ролям з правом на експорт).
  */
 export default async function ShellPreviewPage({
   params,
@@ -339,6 +342,8 @@ export default async function ShellPreviewPage({
         />
       ) : (AUDIT_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
         <AuditPreview screen={screen as AuditPreviewScreen} loadMore={previewLoadMoreAudit} />
+      ) : screen === "export" ? (
+        <ExportAllContent canSeeJournal={can(knownRole, "audit_log", "read")} />
       ) : (
         <ShellPreviewContent />
       )}

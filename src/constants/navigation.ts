@@ -8,6 +8,7 @@ export type NavItemId =
   | "cash"
   | "prices"
   | "audit"
+  | "export"
   | "users"
   | "more";
 
@@ -33,6 +34,8 @@ export const NAV_ITEMS: Record<NavItemId, NavItem> = {
   prices: { id: "prices", label: "Прайс", href: "/more/prices" },
   // Журнал змін: власник і бухгалтер (матриця `audit_log`), лише читання.
   audit: { id: "audit", label: "Журнал змін", href: "/more/audit" },
+  // «Експорт усього»: уся база одним файлом Excel, лише власник (D94).
+  export: { id: "export", label: "Експорт усього", href: "/more/export" },
   users: { id: "users", label: "Користувачі", href: "/more/users" },
   // У меню телефона пункт називається «Ще», а сама сторінка це профіль: у шапці так і пишемо.
   more: { id: "more", label: "Ще", title: "Профіль", href: "/more" },

@@ -1,5 +1,5 @@
 import type { CashDay, CashOrderView } from "@/server/cash";
-import type { UserRole } from "@/server/permissions";
+import { can, type UserRole } from "@/server/permissions";
 import CashPageContent from "../cashPage/CashPageContent";
 import type { CashActions } from "../cashPage/cashTypes";
 
@@ -141,6 +141,7 @@ export default function CashPreview({ role, screen, actions }: CashPreviewProps)
       today={TODAY}
       canRecord={role === "owner" || role === "location_lead"}
       canReverse={role === "owner"}
+      canExport={can(role, "excel_export", "write")}
       actions={actions}
     />
   );
