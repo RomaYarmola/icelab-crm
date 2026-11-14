@@ -27,6 +27,8 @@ export const locations = pgTable("locations", {
   npSenderAddressRef: text("np_sender_address_ref"),
   npSenderPhone: text("np_sender_phone"),
   addressText: text("address_text"),
+  /** Префікс кодів боксів локації: `K-0001` для Києва, `L-0001` для Львова (D104). */
+  boxPrefix: text("box_prefix").unique(),
   isActive: boolean("is_active").notNull().default(true),
   ...timestamps,
 }).enableRLS();

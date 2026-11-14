@@ -5,6 +5,7 @@ import {
   DELIVERY_METHOD_LABELS,
   PAYMENT_KIND_LABELS,
 } from "@/constants/orders";
+import { BOX_STATUS_LABELS } from "./box-rules";
 import { ROLE_LABELS } from "./permissions";
 
 /**
@@ -22,6 +23,7 @@ export const AUDIT_SECTIONS = {
   users: "Користувачі",
   settings: "Налаштування",
   exports: "Експорт",
+  boxes: "Бокси",
 } as const;
 
 export type AuditSection = keyof typeof AUDIT_SECTIONS;
@@ -101,6 +103,18 @@ export const ITEM_KIND_LABELS = {
 };
 
 export const ENTERED_VIA_LABELS = { web: "веб", driver_bot: "бот водія" };
+
+export const BOX_EVENT_LABELS = {
+  created: "створено",
+  label_printed: "наклейку надруковано",
+  issued: "видано",
+  returned: "повернено",
+  sold: "продано",
+  lost: "втрачено",
+  found: "знайдено",
+  transferred: "переміщено",
+  note: "примітка",
+};
 
 export const EXPORT_KIND_LABELS = {
   orders: "Замовлення",
@@ -317,6 +331,58 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       telegram_user_id: number("Telegram"),
       phone: text("Телефон"),
       is_active: bool("Активний"),
+      ...SYSTEM_FIELDS,
+    },
+  },
+  boxes: {
+    label: "Бокс",
+    section: "boxes",
+    noun: "бокс",
+    fields: {
+      id: hidden("Ідентифікатор"),
+      code: text("Код"),
+      box_type_id: ref("Тип бокса", "boxType"),
+      location_id: ref("Локація", "location"),
+      status: choice("Статус", BOX_STATUS_LABELS),
+      current_client_id: ref("Клієнт", "client"),
+      current_order_id: ref("Замовлення", "order"),
+      issued_at: timestamp("Видано"),
+      label_printed_at: timestamp("Наклейку надруковано"),
+      retired_at: timestamp("Списано"),
+      retire_reason: text("Причина списання"),
+      ...SYSTEM_FIELDS,
+    },
+  },
+  box_events: {
+    label: "Подія з боксом",
+    section: "boxes",
+    noun: "подію з боксом",
+    fields: {
+      id: hidden("Ідентифікатор"),
+      box_id: hidden("Бокс"),
+      event: choice("Подія", BOX_EVENT_LABELS),
+      order_id: ref("Замовлення", "order"),
+      client_id: ref("Клієнт", "client"),
+      location_id: ref("Локація", "location"),
+      actor_id: ref("Хто", "user"),
+      occurred_at: timestamp("Коли відскановано"),
+      recorded_at: timestamp("Коли записано"),
+      device_queue_id: hidden("Номер скана"),
+      note: text("Примітка"),
+    },
+  },
+  box_debts_legacy: {
+    label: "Старий борг по боксах",
+    section: "boxes",
+    noun: "старий борг по боксах",
+    fields: {
+      id: hidden("Ідентифікатор"),
+      client_id: ref("Клієнт", "client"),
+      box_type_id: ref("Тип бокса", "boxType"),
+      count: number("Кількість"),
+      since_date: date("З якого дня"),
+      source_row: text("Звідки"),
+      resolved_count: number("Закрито"),
       ...SYSTEM_FIELDS,
     },
   },

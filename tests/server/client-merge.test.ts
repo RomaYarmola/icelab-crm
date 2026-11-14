@@ -2,11 +2,16 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   auditLog,
+  boxDebtsLegacy,
+  boxEvents,
+  boxes,
+  boxTypes,
   clientAddresses,
   clientContacts,
   clientPrices,
   clients,
   iceTypes,
+  locations,
   orders,
 } from "@/db/schema";
 import { seedReferenceData } from "@/db/seed";
@@ -279,6 +284,49 @@ describe("об'єднання дублів (D46)", () => {
     );
     expect((moved.rows[0] as { n: number }).n).toBe(2);
     await db.execute(sql`drop table box_log_demo`);
+  });
+
+  it("бокси й старі борги переходять до головного клієнта, історія подій лишається (B9)", async () => {
+    const main = await newClient("Бокси головний");
+    const duplicate = await newClient("Бокси дубль");
+    const [type] = await db.insert(boxTypes).values({ code: "merge-t", name: "Тип" }).returning();
+    const location = (await db.select().from(locations))[0]!;
+    const [boxRow] = await db
+      .insert(boxes)
+      .values({
+        code: "M-0001",
+        boxTypeId: type!.id,
+        locationId: location.id,
+        status: "at_client",
+        currentClientId: duplicate,
+        issuedAt: new Date(),
+      })
+      .returning();
+    await db.insert(boxEvents).values({
+      boxId: boxRow!.id,
+      event: "issued",
+      clientId: duplicate,
+      locationId: location.id,
+      actorId: users.owner.id,
+      occurredAt: new Date(),
+    });
+    await db.insert(boxDebtsLegacy).values({ clientId: duplicate, boxTypeId: type!.id, count: 2 });
+
+    const preview = await previewMerge(db, users.owner, main, duplicate);
+    expect(preview.moves.references).toMatchObject({ boxes: 1, box_debts_legacy: 1 });
+    expect(preview.moves.references).not.toHaveProperty("box_events");
+    await mergeClients(db, users.owner, main, duplicate);
+
+    expect(
+      (await db.select().from(boxes).where(eq(boxes.id, boxRow!.id)))[0]!.currentClientId,
+    ).toBe(main);
+    expect(
+      await db.select().from(boxDebtsLegacy).where(eq(boxDebtsLegacy.clientId, main)),
+    ).toHaveLength(1);
+    // Подію не змінюємо: вона записана тоді, коли бокс видали дублю.
+    expect(
+      (await db.select().from(boxEvents).where(eq(boxEvents.boxId, boxRow!.id)))[0]!.clientId,
+    ).toBe(duplicate);
   });
 
   it("не можна об'єднати клієнта із самим собою, неіснуючого, службового, видаленого", async () => {

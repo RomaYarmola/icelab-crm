@@ -2,6 +2,7 @@ import { and, desc, eq, gte, inArray, lt, or, type SQL, sql } from "drizzle-orm"
 import { z } from "zod";
 import {
   auditLog,
+  boxes,
   cashEntries,
   clientAddresses,
   clientApplications,
@@ -371,6 +372,25 @@ async function loadSubjects(db: AnyPgDatabase, rows: AuditRow[]): Promise<Map<st
     : [];
   const clientMap = byId(clientRows);
 
+  // Бокси: код `K-0001` у заголовку (для подій код беремо за ідентифікатором бокса з диффа).
+  const boxIdsWanted = valid([
+    ...ids("boxes"),
+    ...rows
+      .filter((row) => row.tableName === "box_events")
+      .map((row) => valueOf(row.diff as AuditDiff, "box_id"))
+      .filter((id): id is string => !!id),
+  ]);
+  const boxCodeMap = new Map(
+    boxIdsWanted.length
+      ? (
+          await db
+            .select({ id: boxes.id, code: boxes.code })
+            .from(boxes)
+            .where(inArray(boxes.id, boxIdsWanted))
+        ).map((row) => [row.id, row.code] as const)
+      : [],
+  );
+
   const profileIds = valid(ids("profiles"));
   const profileRows = profileIds.length
     ? await db.select().from(profiles).where(inArray(profiles.id, profileIds))
@@ -481,6 +501,18 @@ async function loadSubjects(db: AnyPgDatabase, rows: AuditRow[]): Promise<Map<st
       case "settings":
         subjects.set(row.id, { text: `Налаштування ${row.rowId}`, href: null });
         break;
+      case "boxes":
+      case "box_events": {
+        const boxId = row.tableName === "boxes" ? row.rowId : valueOf(diff, "box_id");
+        const code = boxId ? boxCodeMap.get(boxId) : undefined;
+        subjects.set(row.id, { text: code ? `Бокс ${code}` : "Бокс", href: null });
+        break;
+      }
+      case "box_debts_legacy": {
+        const clientId = valueOf(diff, "client_id");
+        subjects.set(row.id, clientTitle(clientId, " · старий борг по боксах"));
+        break;
+      }
       case "exports": {
         const file = valueOf(diff, "file_name");
         subjects.set(row.id, { text: file ? `Файл ${file}` : "Експорт у Excel", href: null });

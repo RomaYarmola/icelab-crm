@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { withActor } from "@/db/actor";
-import { orderItems, orderPriceChanges, orders } from "@/db/schema";
+import { boxes, orderItems, orderPriceChanges, orders } from "@/db/schema";
 import type { OrderStatus } from "@/constants/constants";
 import type { AnyPgDatabase } from "@/db/types";
 import { parseDecimal } from "@/utils/orderMath";
@@ -166,14 +166,25 @@ export async function transitionOrder(
 export async function closeIfDone(
   db: AnyPgDatabase,
   orderId: string,
-  boxDebts = 0,
+  boxDebts?: number,
 ): Promise<boolean> {
   return withActor(
     db,
     null,
     async (tx) => {
       const [current] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update");
-      if (!current || current.deletedAt || !isReadyToClose(current, boxDebts)) return false;
+      if (!current || current.deletedAt) return false;
+      // Борг по боксах замовлення (D109): бокси, видані в цьому замовленні й ще «У клієнта».
+      const debts =
+        boxDebts ??
+        (
+          await tx
+            .select({ n: sql<number>`count(*)::int` })
+            .from(boxes)
+            .where(and(eq(boxes.currentOrderId, current.id), eq(boxes.status, "at_client")))
+        )[0]?.n ??
+        0;
+      if (!isReadyToClose(current, debts)) return false;
       await tx
         .update(orders)
         .set({ status: "closed", closedAt: new Date() })

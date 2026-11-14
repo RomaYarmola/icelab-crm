@@ -51,3 +51,19 @@ export const auditAction = pgEnum("audit_action", ["insert", "update", "delete"]
 
 /** Що вивантажили в Excel: списки замовлень, клієнтів, готівки чи всі дані (B8, D95). */
 export const exportKind = pgEnum("export_kind", ["orders", "clients", "cash", "all"]);
+
+/** Статус оборотного бокса (ТЗ 5.2): на складі, у клієнта, продано, втрачено, списано. */
+export const boxStatus = pgEnum("box_status", ["in_stock", "at_client", "sold", "lost", "retired"]);
+
+/** Подія з боксом (ТЗ 4.4). */
+export const boxEventKind = pgEnum("box_event_kind", [
+  "created",
+  "label_printed",
+  "issued",
+  "returned",
+  "sold",
+  "lost",
+  "found",
+  "transferred",
+  "note",
+]);
