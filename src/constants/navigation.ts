@@ -30,13 +30,13 @@ export const NAV_ITEMS: Record<NavItemId, NavItem> = {
   // Екрани всередині «Ще» («Готівка» для власника, менеджера, бухгалтера й старшого локації,
   // «Прайс» для власника, менеджера й бухгалтера, «Користувачі» для власника): у нижній панелі їх
   // немає, лише в меню «Ще».
-  cash: { id: "cash", label: "Готівка", href: "/more/cash" },
-  prices: { id: "prices", label: "Прайс", href: "/more/prices" },
+  cash: { id: "cash", label: "Готівка", href: "/cash" },
+  prices: { id: "prices", label: "Прайс", href: "/prices" },
   // Журнал змін: власник і бухгалтер (матриця `audit_log`), лише читання.
-  audit: { id: "audit", label: "Журнал змін", href: "/more/audit" },
+  audit: { id: "audit", label: "Журнал змін", href: "/audit" },
   // «Експорт усього»: уся база одним файлом Excel, лише власник (D94).
-  export: { id: "export", label: "Експорт усього", href: "/more/export" },
-  users: { id: "users", label: "Користувачі", href: "/more/users" },
+  export: { id: "export", label: "Експорт даних", href: "/export" },
+  users: { id: "users", label: "Користувачі", href: "/users" },
   // У меню телефона пункт називається «Ще», а сама сторінка це профіль: у шапці так і пишемо.
-  more: { id: "more", label: "Ще", title: "Профіль", href: "/more" },
+  more: { id: "more", label: "Ще", title: "Профіль", href: "/profile" },
 };

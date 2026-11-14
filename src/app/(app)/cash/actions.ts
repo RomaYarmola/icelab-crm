@@ -15,7 +15,7 @@ import type { FormState } from "@/utils/formState";
  */
 
 function refresh() {
-  revalidatePath("/more/cash");
+  revalidatePath("/cash");
   revalidatePath("/orders", "layout");
   revalidatePath("/production", "layout");
 }

@@ -201,7 +201,7 @@ describe("журнал змін: читання, фільтри, права (B8,
       const prices = await listAuditEntries(t.db, t.users.owner, { section: "prices" });
       expect(prices.items[0]).toMatchObject({
         summary: "Створено ціну прайсу",
-        href: "/more/prices",
+        href: "/prices",
       });
       expect(prices.items[0]!.subject).toContain("3 мм");
     });

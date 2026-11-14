@@ -78,7 +78,7 @@ describe("runFormAction: стан форми після дії", () => {
     await expect(
       runFormAction(
         async () => {
-          redirect("/more/users");
+          redirect("/users");
         },
         { success: "Готово." },
       ),

@@ -8,6 +8,7 @@ import {
   homePathFor,
   isActivePath,
   navItemsFor,
+  sideExtraNavItemsFor,
 } from "@/utils/navigation";
 
 const ids = (role: UserRole, placement: "bar" | "side") =>
@@ -19,18 +20,18 @@ describe("меню за ролями (ТЗ §6.1)", () => {
     { bar: NavItemId[]; side: NavItemId[]; home: string }
   > = {
     owner: {
-      bar: ["orders", "clients", "production", "boxes", "more"],
-      side: ["orders", "clients", "production", "payments", "boxes"],
+      bar: ["orders", "production", "payments", "cash", "more"],
+      side: ["orders", "production", "payments", "cash", "clients", "boxes"],
       home: "/orders",
     },
     manager: {
-      bar: ["orders", "clients", "production", "boxes", "more"],
-      side: ["orders", "clients", "production", "boxes"],
+      bar: ["orders", "production", "cash", "clients", "more"],
+      side: ["orders", "production", "cash", "clients", "boxes"],
       home: "/orders",
     },
     location_lead: {
-      bar: ["orders", "clients", "production", "boxes", "more"],
-      side: ["orders", "clients", "production", "boxes"],
+      bar: ["orders", "production", "cash", "clients", "more"],
+      side: ["orders", "production", "cash", "clients", "boxes"],
       home: "/production",
     },
     production: {
@@ -39,8 +40,8 @@ describe("меню за ролями (ТЗ §6.1)", () => {
       home: "/production",
     },
     accountant: {
-      bar: ["orders", "clients", "payments", "boxes", "more"],
-      side: ["orders", "clients", "payments", "boxes"],
+      bar: ["orders", "payments", "cash", "clients", "more"],
+      side: ["orders", "payments", "cash", "clients", "boxes"],
       home: "/payments",
     },
   };
@@ -102,7 +103,7 @@ describe("меню за ролями (ТЗ §6.1)", () => {
   it("активний пункт: сама адреса і вкладені сторінки, але не схожий префікс", () => {
     expect(isActivePath("/orders", "/orders")).toBe(true);
     expect(isActivePath("/orders/3472", "/orders")).toBe(true);
-    expect(isActivePath("/more/users", "/more")).toBe(true);
+    expect(isActivePath("/profile", "/profile")).toBe(true);
     expect(isActivePath("/orders-archive", "/orders")).toBe(false);
     expect(isActivePath("/clients", "/orders")).toBe(false);
     expect(isActivePath("/", "/orders")).toBe(false);
@@ -115,16 +116,23 @@ describe("меню за ролями (ТЗ §6.1)", () => {
   });
 
   it("розділи, яких немає в нижній панелі, потрапляють у меню «Ще»", () => {
-    expect(extraNavItemsFor("owner").map((item) => item.id)).toEqual(["payments"]);
-    for (const role of ["manager", "location_lead", "production", "accountant"] as const) {
-      expect(extraNavItemsFor(role)).toEqual([]);
+    // Порядок у «Ще» той самий, що й у бічній панелі комп'ютера.
+    expect(extraNavItemsFor("owner").map((item) => item.id)).toEqual(["clients", "boxes"]);
+    for (const role of ["manager", "location_lead", "accountant"] as const) {
+      expect(
+        extraNavItemsFor(role).map((item) => item.id),
+        role,
+      ).toEqual(["boxes"]);
     }
-    expect(extraNavItemsFor("driver")).toEqual([]);
+    expect(extraNavItemsFor("production")).toEqual([]);
   });
 
-  it("оплати власника переходять у «Ще» на телефоні, але є на комп'ютері", () => {
-    expect(ids("owner", "bar")).not.toContain("payments");
-    expect(ids("owner", "side")).toContain("payments");
+  it("нижня панель це перші чотири розділи бічної в тому ж порядку", () => {
+    for (const role of USER_ROLES) {
+      const side = ids(role, "side");
+      const bar = ids(role, "bar").filter((id) => id !== "more");
+      expect(bar, role).toEqual(side.slice(0, 4));
+    }
   });
 });
 
@@ -141,26 +149,26 @@ describe("заголовки сторінок у шапці", () => {
 describe("екрани всередині «Ще» («Готівка», «Прайс», «Журнал змін», «Експорт усього», «Користувачі»)", () => {
   const ids = (role: UserRole) => accountNavItemsFor(role).map((item) => item.id);
 
-  it("власник бачить «Готівку», «Прайс», «Журнал змін», «Експорт усього» і «Користувачі», бухгалтер «Готівку», «Прайс» і «Журнал змін», менеджер «Готівку» та «Прайс»", () => {
-    expect(ids("owner")).toEqual(["cash", "prices", "audit", "export", "users"]);
-    expect(ids("manager")).toEqual(["cash", "prices"]);
-    expect(ids("accountant")).toEqual(["cash", "prices", "audit"]);
+  it("власник бачить «Прайс», «Журнал змін», «Експорт даних» і «Користувачі», бухгалтер «Прайс» і «Журнал змін», менеджер «Прайс»", () => {
+    expect(ids("owner")).toEqual(["prices", "audit", "export", "users"]);
+    expect(ids("manager")).toEqual(["prices"]);
+    expect(ids("accountant")).toEqual(["prices", "audit"]);
   });
 
-  it("старший локації бачить лише «Готівку» (цін немає), виробництво й водій нічого", () => {
-    expect(ids("location_lead")).toEqual(["cash"]);
-    expect(ids("production")).toEqual([]);
-    expect(ids("driver")).toEqual([]);
-  });
-
-  it("сторінка готівки відкривається тим, кому вона в меню, і лише їм; адреса вкладена в «Ще»", () => {
-    for (const role of USER_ROLES) {
-      expect(canOpenPage(role, "cash"), role).toBe(ids(role).includes("cash"));
-      expect(navItemsFor(role, "bar").map((item) => item.id)).not.toContain("cash");
-      expect(navItemsFor(role, "side").map((item) => item.id)).not.toContain("cash");
+  it("старший локації, виробництво й водій цих екранів не мають", () => {
+    for (const role of ["location_lead", "production", "driver"] as const) {
+      expect(ids(role), role).toEqual([]);
     }
-    expect(NAV_ITEMS.cash.href).toBe("/more/cash");
-    expect(isActivePath("/more/cash", NAV_ITEMS.more.href)).toBe(true);
+  });
+
+  it("«Готівка» самостійний розділ: у бічній панелі перед «Клієнтами»", () => {
+    for (const role of USER_ROLES) {
+      const side = navItemsFor(role, "side").map((item) => item.id);
+      expect(canOpenPage(role, "cash"), role).toBe(side.includes("cash"));
+      if (side.includes("cash")) expect(side.indexOf("cash")).toBeLessThan(side.indexOf("clients"));
+    }
+    expect(NAV_ITEMS.cash.href).toBe("/cash");
+    expect(isActivePath("/cash", NAV_ITEMS.more.href)).toBe(false);
   });
 
   it("сторінка прайсу відкривається тим, кому вона в меню, і лише їм", () => {
@@ -174,12 +182,12 @@ describe("екрани всередині «Ще» («Готівка», «Пра
       expect(navItemsFor(role, "bar").map((item) => item.id)).not.toContain("prices");
       expect(navItemsFor(role, "side").map((item) => item.id)).not.toContain("prices");
     }
-    expect(NAV_ITEMS.prices.href).toBe("/more/prices");
+    expect(NAV_ITEMS.prices.href).toBe("/prices");
   });
 
   it("адреса прайсу вкладена в «Ще»: підсвічується «Ще», а заголовок бере власну назву", () => {
-    expect(isActivePath("/more/prices", NAV_ITEMS.more.href)).toBe(true);
-    expect(isActivePath("/more/prices", NAV_ITEMS.prices.href)).toBe(true);
+    expect(isActivePath("/prices", NAV_ITEMS.more.href)).toBe(false);
+    expect(isActivePath("/prices", NAV_ITEMS.prices.href)).toBe(true);
     expect(NAV_ITEMS.prices.title).toBeUndefined();
   });
 });
@@ -198,8 +206,8 @@ describe("журнал змін у меню (B8, D89)", () => {
         role,
       ).not.toContain("audit");
     }
-    expect(NAV_ITEMS.audit.href).toBe("/more/audit");
-    expect(isActivePath("/more/audit", NAV_ITEMS.more.href)).toBe(true);
+    expect(NAV_ITEMS.audit.href).toBe("/audit");
+    expect(isActivePath("/audit", NAV_ITEMS.more.href)).toBe(false);
   });
 });
 
@@ -216,7 +224,32 @@ describe("«Експорт усього» у меню (B8, D94)", () => {
         role,
       ).not.toContain("export");
     }
-    expect(NAV_ITEMS.export.href).toBe("/more/export");
-    expect(isActivePath("/more/export", NAV_ITEMS.more.href)).toBe(true);
+    expect(NAV_ITEMS.export.href).toBe("/export");
+    expect(isActivePath("/export", NAV_ITEMS.more.href)).toBe(false);
+  });
+});
+
+describe("екрани в бічній панелі комп'ютера після розділів", () => {
+  const ids = (role: UserRole) => sideExtraNavItemsFor(role).map((item) => item.id);
+
+  it("власник: «Прайс», «Журнал змін», «Експорт даних», «Користувачі»", () => {
+    expect(ids("owner")).toEqual(["prices", "audit", "export", "users"]);
+  });
+
+  it("бухгалтер лише «Журнал змін», решта ролей нічого", () => {
+    expect(ids("accountant")).toEqual(["audit"]);
+    for (const role of ["manager", "location_lead", "production", "driver"] as const) {
+      expect(ids(role), role).toEqual([]);
+    }
+  });
+
+  it("на телефоні вони лишаються в меню «Ще» власника", () => {
+    expect(accountNavItemsFor("owner").map((item) => item.id)).toEqual(
+      expect.arrayContaining(["prices", "audit", "export", "users"]),
+    );
+  });
+
+  it("екран називається «Експорт даних»", () => {
+    expect(NAV_ITEMS.export.label).toBe("Експорт даних");
   });
 });

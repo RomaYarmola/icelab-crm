@@ -86,15 +86,15 @@ describe("експорт: права", () => {
   });
 
   it("екран «Експорт усього» закритий і в layout, і на самій сторінці", () => {
-    expect(read("src/app/(app)/more/export/layout.tsx")).toContain('requirePageUser("export")');
-    expect(read("src/app/(app)/more/export/page.tsx")).toContain('requirePageUser("export")');
+    expect(read("src/app/(app)/export/layout.tsx")).toContain('requirePageUser("export")');
+    expect(read("src/app/(app)/export/page.tsx")).toContain('requirePageUser("export")');
   });
 
   it("кнопка на списках лише для тих, хто має право на експорт", () => {
     for (const [page, content] of [
       ["src/app/(app)/orders/page.tsx", "src/components/ordersPage/OrdersPageContent.tsx"],
       ["src/app/(app)/clients/page.tsx", "src/components/clientsPage/ClientsPageContent.tsx"],
-      ["src/app/(app)/more/cash/page.tsx", "src/components/cashPage/CashPageContent.tsx"],
+      ["src/app/(app)/cash/page.tsx", "src/components/cashPage/CashPageContent.tsx"],
     ] as const) {
       expect(read(page), page).toContain('canExport={can(user.role, "excel_export", "write")}');
       expect(read(content), content).toMatch(/canExport \? \(?\s*<ExportButton\s+list="\w+"/);

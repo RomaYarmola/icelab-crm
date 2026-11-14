@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { recordCashEntryAction, reverseCashEntryAction } from "@/app/(app)/more/cash/actions";
+import { recordCashEntryAction, reverseCashEntryAction } from "@/app/(app)/cash/actions";
 import {
   markAllSeenAction,
   openProductionScreenAction,

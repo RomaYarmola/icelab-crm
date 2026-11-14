@@ -170,7 +170,7 @@ export default function UiKitContent() {
               { value: "location_lead", label: "Старший локації" },
               { value: "accountant", label: "Бухгалтер" },
             ]}
-            hint="Нативний список: на телефоні відкривається системним вибирачем"
+            hint="Список відкривається попапом під полем"
           />
           <CustomizedSelect
             name="demo-role-error"

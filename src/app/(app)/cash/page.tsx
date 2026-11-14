@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { recordCashEntryAction, reverseCashEntryAction } from "@/app/(app)/more/cash/actions";
+import { recordCashEntryAction, reverseCashEntryAction } from "@/app/(app)/cash/actions";
 import CashPageContent from "@/components/cashPage/CashPageContent";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";

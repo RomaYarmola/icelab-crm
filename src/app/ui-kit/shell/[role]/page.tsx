@@ -287,8 +287,6 @@ export default async function ShellPreviewPage({
           email={user.email}
           roleLabel={ROLE_LABELS[user.role]}
           locationLabel={user.locationName ?? "Усі локації"}
-          canManageUsers
-          canViewPrices
         />
       ) : screen === "users" ? (
         <UsersPageContent users={PREVIEW_USERS} />

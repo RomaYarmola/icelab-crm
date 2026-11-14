@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { loadMoreAuditAction } from "@/app/(app)/more/audit/actions";
+import { loadMoreAuditAction } from "@/app/(app)/audit/actions";
 import AuditPageContent from "@/components/auditPage/AuditPageContent";
 import { getDb } from "@/db/client";
 import { listAuditActors, listAuditEntries } from "@/server/audit";

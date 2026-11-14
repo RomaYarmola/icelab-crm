@@ -11,9 +11,9 @@ export type NavPlacement = "bar" | "side";
 /** Порядок розділів у меню. «Ще» завжди останній. */
 const SECTION_ORDER: readonly NavItemId[] = [
   "orders",
-  "clients",
   "production",
   "payments",
+  "clients",
   "boxes",
 ];
 
@@ -57,7 +57,7 @@ function canSeeSection(role: UserRole, id: NavItemId): boolean {
   }
 }
 
-/** Чи відкрита сторінка цього розділу (сама адреса або будь-яка вкладена, наприклад /more/users). */
+/** Чи відкрита сторінка цього розділу (сама адреса або будь-яка вкладена, наприклад /users). */
 export function isActivePath(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
@@ -74,31 +74,48 @@ export function canOpenPage(role: UserRole, id: NavItemId): boolean {
 }
 
 /**
- * Пункти меню для ролі. `bar`: нижня панель телефона (до п'яти пунктів, останній «Ще» відкриває
- * попап). `side`: бічна панель комп'ютера, усі доступні розділи без «Ще» (профіль відкривається
- * з блока користувача). Якщо розділів більше чотирьох, «Оплати» на телефоні переходять у «Ще».
+ * Пункти меню для ролі. Порядок один для всіх екранів, орієнтир бічна панель комп'ютера (`side`):
+ * розділи, потім «Прайс», «Журнал змін», «Експорт даних», «Користувачі». Нижня панель телефона
+ * (`bar`) бере перші чотири розділи в тому ж порядку й «Ще»; решта розділів і ці екрани стоять у
+ * «Ще» в тому ж порядку. «Готівка» стоїть перед «Клієнтами» (після «Оплат», а без них після
+ * «Виробництва»).
  */
 export function navItemsFor(role: UserRole, placement: NavPlacement): NavItem[] {
   if (!canUseWeb(role)) return [];
 
-  let sections = SECTION_ORDER.filter((id) => canSeeSection(role, id));
+  const sections = SECTION_ORDER.filter((id) => canSeeSection(role, id)) as NavItemId[];
+  if (canSeeSection(role, "cash")) {
+    const at = sections.indexOf("clients");
+    sections.splice(at === -1 ? sections.length : at, 0, "cash");
+  }
   if (placement === "side") return sections.map((id) => NAV_ITEMS[id]);
 
-  if (sections.length > BAR_SECTION_LIMIT) {
-    sections = sections.filter((id) => id !== "payments").slice(0, BAR_SECTION_LIMIT);
-  }
-  return [...sections, "more" as const].map((id) => NAV_ITEMS[id]);
+  return [...sections.slice(0, BAR_SECTION_LIMIT), "more" as const].map((id) => NAV_ITEMS[id]);
 }
 
 /**
- * Екрани всередині «Ще» («Готівка», «Прайс», «Журнал змін», «Експорт усього», «Користувачі»): не розділи нижньої панелі, лише
- * пункти меню «Ще» для ролей, які мають на них право.
+ * Самостійні екрани («Готівка», «Прайс», «Журнал змін», «Експорт даних», «Користувачі»): не розділи
+ * нижньої панелі, на телефоні їх відкриває меню «Ще», на комп'ютері бічна панель. Мають власні адреси
+ * (`/cash`, `/prices`…), до профілю не належать.
  */
 export function accountNavItemsFor(role: UserRole): NavItem[] {
   if (!canUseWeb(role)) return [];
-  return (["cash", "prices", "audit", "export", "users"] as const)
+  return (["prices", "audit", "export", "users"] as const)
     .filter((id) => canSeeSection(role, id))
     .map((id) => NAV_ITEMS[id]);
+}
+
+/**
+ * Екрани бічної панелі комп'ютера після розділів: «Прайс» і «Користувачі» лише власнику, «Журнал
+ * змін» і «Експорт даних» тим, хто має на них право. На телефоні вони в меню «Ще»
+ * (`accountNavItemsFor`). «Готівка» і «Прайс» менеджера та бухгалтера лишаються в меню профілю.
+ */
+export function sideExtraNavItemsFor(role: UserRole): NavItem[] {
+  if (!canUseWeb(role)) return [];
+  const ids = (["prices", "audit", "export", "users"] as const).filter(
+    (id) => id !== "prices" || role === "owner",
+  );
+  return ids.filter((id) => canSeeSection(role, id)).map((id) => NAV_ITEMS[id]);
 }
 
 /** Розділи, які доступні ролі, але не вмістились у нижню панель телефона: вони в меню «Ще». */

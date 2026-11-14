@@ -76,7 +76,7 @@ describe("екран виробництва: жодних цін і сум", () 
     for (const file of screenFiles) {
       // Єдиний виняток: посилання «Готівка» для старшого локації на екран готівки (D70). Це адреса,
       // а не гроші на екрані цеху.
-      const source = read(file).replace('href="/more/cash"', 'href="/more/…"');
+      const source = read(file).replace('href="/cash"', 'href="/more/…"');
       expect(source, file).not.toContain("formatMoney");
       expect(source, file).not.toContain("₴");
       expect(source, file).not.toMatch(/\b(?:price|amount|total|cash|payment)\w*\b/i);

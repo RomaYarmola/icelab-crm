@@ -1,12 +1,12 @@
 import { eq, sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { changePasswordAction } from "@/app/(app)/more/actions";
+import { changePasswordAction } from "@/app/(app)/profile/actions";
 import {
   createUserAction,
   resetPasswordAction,
   setUserActiveAction,
   updateUserAction,
-} from "@/app/(app)/more/users/actions";
+} from "@/app/(app)/users/actions";
 import { getDb } from "@/db/client";
 import { profiles } from "@/db/schema";
 import { createSupabaseAuthAdmin } from "@/lib/supabase/admin";
@@ -107,7 +107,7 @@ describe("серверні дії користувачів і пароля", () 
           password: GOOD_PASSWORD,
         }),
       ).rejects.toMatchObject({
-        digest: expect.stringMatching(/NEXT_REDIRECT.*\/more\/users\/.*created=1/),
+        digest: expect.stringMatching(/NEXT_REDIRECT.*\/users\/.*created=1/),
       });
 
       expect(log.created).toHaveLength(1);

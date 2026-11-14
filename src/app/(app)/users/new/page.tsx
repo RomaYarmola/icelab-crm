@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { createUserAction } from "@/app/(app)/more/users/actions";
+import { createUserAction } from "@/app/(app)/users/actions";
 import NewUserContent from "@/components/usersPage/NewUserContent";
 import { getDb } from "@/db/client";
 import { listActiveLocations } from "@/server/locations";

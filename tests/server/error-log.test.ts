@@ -36,7 +36,7 @@ describe("describeError і cleanPath", () => {
 
   it("з адреси прибирає параметри й фрагмент", () => {
     expect(cleanPath("/orders?email=a@b.c&token=1#top")).toBe("/orders");
-    expect(cleanPath("/more/users/[id]")).toBe("/more/users/[id]");
+    expect(cleanPath("/users/[id]")).toBe("/users/[id]");
     expect(cleanPath(undefined)).toBeNull();
     expect(cleanPath("")).toBeNull();
   });

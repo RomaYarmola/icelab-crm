@@ -29,7 +29,7 @@ export async function changeDefaultPriceAction(
         pricePerKg: values.pricePerKg,
         validFrom: values.validFrom,
       });
-      revalidatePath("/more/prices");
+      revalidatePath("/prices");
       revalidatePath("/clients", "layout");
     },
     { success: "Нову ціну збережено.", values },

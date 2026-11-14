@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useState, useTransition } from "react";
-import type { LoadMoreAuditResult } from "@/app/(app)/more/audit/actions";
+import type { LoadMoreAuditResult } from "@/app/(app)/audit/actions";
 import type { AuditEntryView } from "@/server/audit";
 import { type AuditListFilters, toAuditQuery } from "@/utils/auditParams";
 import LoadMoreButton from "../shared/buttons/LoadMoreButton";

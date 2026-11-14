@@ -19,6 +19,11 @@ interface PopupProps {
    * `ANCHOR_GAP` нижче, правий край до правого краю кнопки), а не на типовому місці `placement`.
    */
   anchorRef?: RefObject<HTMLElement | null>;
+  /**
+   * Разом з `anchorRef`: попап такої ж ширини, як кнопка, і лівим краєм до її лівого краю (список
+   * вибору в полі форми). Якщо знизу не вистачає місця, відкривається над кнопкою.
+   */
+  matchAnchorWidth?: boolean;
   className?: string;
 }
 
@@ -46,6 +51,7 @@ export default function Popup({
   children,
   placement = "bottom",
   anchorRef,
+  matchAnchorWidth = false,
   className,
 }: PopupProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -57,18 +63,34 @@ export default function Popup({
       // Положення рахуємо в момент відкриття за справжнім місцем кнопки, тож воно не залежить від
       // висоти шапки чи розміру екрана. Інлайн-стиль сильніший за клас `placement`.
       const anchor = anchorRef?.current?.getBoundingClientRect();
-      if (anchor) {
+      if (anchor && matchAnchorWidth) {
+        dialog.style.left = `${anchor.left}px`;
+        dialog.style.width = `${anchor.width}px`;
+        dialog.style.right = "auto";
+        const below = window.innerHeight - anchor.bottom - ANCHOR_GAP;
+        // Під кнопкою менше за 15 rem (240 px) і зверху місця більше: відкриваємо над нею.
+        if (below < 240 && anchor.top > below) {
+          dialog.style.top = "auto";
+          dialog.style.bottom = `${window.innerHeight - anchor.top + ANCHOR_GAP}px`;
+          dialog.style.maxHeight = `${anchor.top - ANCHOR_GAP * 2}px`;
+        } else {
+          dialog.style.top = `${anchor.bottom + ANCHOR_GAP}px`;
+          dialog.style.bottom = "auto";
+          dialog.style.maxHeight = `${Math.max(below - ANCHOR_GAP, 120)}px`;
+        }
+      } else if (anchor) {
         dialog.style.top = `${anchor.bottom + ANCHOR_GAP}px`;
         // clientWidth без смуги прокрутки: саме від неї рахує `right` фіксований елемент.
         dialog.style.right = `${document.documentElement.clientWidth - anchor.right}px`;
       } else {
-        dialog.style.removeProperty("top");
-        dialog.style.removeProperty("right");
+        for (const property of ["top", "right", "bottom", "left", "width", "max-height"]) {
+          dialog.style.removeProperty(property);
+        }
       }
       dialog.showModal();
     }
     if (!isOpen && dialog.open) dialog.close();
-  }, [isOpen, anchorRef]);
+  }, [isOpen, anchorRef, matchAnchorWidth]);
 
   return (
     <dialog
@@ -82,7 +104,7 @@ export default function Popup({
       }}
       className={cn(
         "fixed m-0 max-h-[calc(100dvh-8rem)] w-[min(11.25rem,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-card border border-grey-border bg-white p-0 text-navy shadow-floating backdrop:bg-navy/20",
-        PLACEMENT_CLASS_NAMES[placement],
+        matchAnchorWidth ? "animate-popup-fade" : PLACEMENT_CLASS_NAMES[placement],
         className,
       )}
     >

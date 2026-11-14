@@ -29,7 +29,7 @@ export default function UserDetailContent({
 }: UserDetailContentProps) {
   return (
     <div className="flex max-w-md flex-col gap-8">
-      <BackLink href="/more/users">Користувачі</BackLink>
+      <BackLink href="/users">Користувачі</BackLink>
 
       {isJustCreated ? (
         <Notification variant="success">

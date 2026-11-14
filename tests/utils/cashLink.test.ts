@@ -14,7 +14,7 @@ describe("кнопка «Готівка» на картці замовлення
     for (const role of USER_ROLES) {
       const link = cashLinkFor(role, order);
       if (["owner", "manager", "accountant", "location_lead"].includes(role)) {
-        expect(link, role).toBe("/more/cash?date=2026-11-13#order-o1");
+        expect(link, role).toBe("/cash?date=2026-11-13#order-o1");
       } else {
         expect(link, role).toBeNull();
       }

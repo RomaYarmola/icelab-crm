@@ -12,7 +12,7 @@ export const onRequestError: Instrumentation.onRequestError = async (error, requ
   await reportError({
     source: context.routeType,
     error,
-    // Шлях маршруту (`/more/users/[id]`), а не адреса запиту: без ідентифікаторів і групує помилки.
+    // Шлях маршруту (`/users/[id]`), а не адреса запиту: без ідентифікаторів і групує помилки.
     path: context.routePath || request.path,
     method: request.method,
   });

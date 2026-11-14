@@ -1,5 +1,4 @@
 import ExportButton from "../shared/export/ExportButton";
-import BackLink from "../shared/links/BackLink";
 import MainLink from "../shared/links/MainLink";
 import Notification from "../shared/notification/Notification";
 import Text from "../shared/texts/Text";
@@ -16,8 +15,7 @@ interface ExportAllContentProps {
  */
 export default function ExportAllContent({ canSeeJournal }: ExportAllContentProps) {
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
-      <BackLink href="/more">Профіль</BackLink>
+    <div className="flex flex-col gap-4">
       <Text variant="muted">
         Уся база одним файлом Excel: окремий аркуш для клієнтів, контактів, адрес, цін, замовлень,
         позицій, історії статусів, змін цін, готівки, боксів (бокси, події, старі борги), довідників
@@ -30,14 +28,14 @@ export default function ExportAllContent({ canSeeJournal }: ExportAllContentProp
       <div className="flex flex-col gap-2">
         <SectionTitle>Вивантажити</SectionTitle>
         <ExportButton list="all" withPageFilters={false} variant="fill" size="md">
-          Експорт усього в Excel
+          Експорт даних в Excel
         </ExportButton>
         <Text variant="muted">
           Файл готується кілька секунд. Кожне вивантаження записується в журнал.
         </Text>
       </div>
       {canSeeJournal ? (
-        <MainLink href="/more/audit?section=exports">Хто й коли вивантажував</MainLink>
+        <MainLink href="/audit?section=exports">Хто й коли вивантажував</MainLink>
       ) : null}
     </div>
   );

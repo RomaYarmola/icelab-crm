@@ -52,13 +52,13 @@ describe("журнал змін: правила оформлення", () => {
 
 describe("журнал змін: права", () => {
   it("розділ закрито за правами, а дані читає лише listAuditEntries", () => {
-    expect(read("src/app/(app)/more/audit/layout.tsx")).toContain('requirePageUser("audit")');
-    const page = read("src/app/(app)/more/audit/page.tsx");
+    expect(read("src/app/(app)/audit/layout.tsx")).toContain('requirePageUser("audit")');
+    const page = read("src/app/(app)/audit/page.tsx");
     // Layout і сторінка рендеряться паралельно, тож сторінка теж перенаправляє заборонену роль.
     expect(page).toContain('requirePageUser("audit")');
     expect(page).toContain("listAuditEntries");
     expect(page).not.toMatch(/auditLog|from\("audit_log"\)/);
-    const actions = read("src/app/(app)/more/audit/actions.ts");
+    const actions = read("src/app/(app)/audit/actions.ts");
     expect(actions).toContain("listAuditEntries");
   });
 

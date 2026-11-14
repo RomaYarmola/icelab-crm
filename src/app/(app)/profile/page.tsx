@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import { ALL_LOCATIONS_LABEL } from "@/constants/constants";
 import { requireUser } from "@/server/auth";
-import { can, ROLE_LABELS } from "@/server/permissions";
+import { ROLE_LABELS } from "@/server/permissions";
 
 export const metadata: Metadata = { title: "Профіль" };
 
@@ -16,8 +16,6 @@ export default async function MorePage() {
       email={user.email}
       roleLabel={ROLE_LABELS[user.role]}
       locationLabel={user.locationName ?? ALL_LOCATIONS_LABEL}
-      canManageUsers={can(user.role, "users", "read")}
-      canViewPrices={can(user.role, "default_prices", "read")}
     />
   );
 }

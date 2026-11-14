@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { changePasswordAction } from "@/app/(app)/more/actions";
+import { changePasswordAction } from "@/app/(app)/profile/actions";
 import { MIN_PASSWORD_LENGTH } from "@/constants/constants";
 import { INITIAL_FORM_STATE } from "@/utils/formState";
 import MainButton from "../shared/buttons/MainButton";
