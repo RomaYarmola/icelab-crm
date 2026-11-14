@@ -5,7 +5,10 @@ import { createTestDb } from "./harness";
 
 const EXPECTED_TABLES = [
   "audit_log",
+  "box_debts_legacy",
+  "box_events",
   "box_types",
+  "boxes",
   "cash_entries",
   "client_addresses",
   "client_applications",
@@ -39,7 +42,7 @@ describe("структура бази", () => {
     await ctx.client.close();
   });
 
-  it("містить усі 17 таблиць блоку B1, невдалі входи з B2, журнал помилок з B3, області з B4 зміни цін замовлень з B5, готівку з B6 і журнал експортів з B8", async () => {
+  it("містить усі 17 таблиць блоку B1, невдалі входи з B2, журнал помилок з B3, області з B4 зміни цін замовлень з B5, готівку з B6, журнал експортів з B8 і бокси з B9", async () => {
     const result = await ctx.db.execute(
       sql`select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );

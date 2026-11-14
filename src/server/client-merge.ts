@@ -21,7 +21,15 @@ const uuid = z.uuid("Некоректний ідентифікатор.");
 const ZERO_UUID = "00000000-0000-0000-0000-000000000000";
 
 /** Таблиці, які об'єднання переносить окремою логікою (прапорці «основний», «за замовчуванням», ціни). */
-const SPECIAL_TABLES = new Set(["client_contacts", "client_addresses", "client_prices", "clients"]);
+// `box_events` це незмінна історія (тригер забороняє правку): події лишаються з клієнтом, яким були
+// записані, а бокси й старі борги (`boxes`, `box_debts_legacy`) переходять до головного (B9).
+const SPECIAL_TABLES = new Set([
+  "client_contacts",
+  "client_addresses",
+  "client_prices",
+  "clients",
+  "box_events",
+]);
 
 type Executor = AnyPgDatabase;
 
@@ -91,7 +99,7 @@ async function countReferences(db: Executor, duplicateId: string) {
       sql`select count(*)::int as n from ${sql.identifier(table)} where ${sql.identifier(column)} = ${duplicateId}`,
     );
     const n = rowsOf<{ n: number }>(result)[0]?.n ?? 0;
-    references[table] = (references[table] ?? 0) + n;
+    if (n > 0) references[table] = (references[table] ?? 0) + n;
   }
   return references;
 }

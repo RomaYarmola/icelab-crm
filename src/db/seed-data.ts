@@ -4,8 +4,8 @@
 // Це лише дані: їх можна змінити в налаштуваннях або оновленням цього файлу, міграції не потрібні.
 
 export const LOCATIONS = [
-  { code: "kyiv", name: "Київ" },
-  { code: "lviv", name: "Львів" },
+  { code: "kyiv", name: "Київ", boxPrefix: "K" },
+  { code: "lviv", name: "Львів", boxPrefix: "L" },
 ];
 
 export const ICE_TYPES = [
