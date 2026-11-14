@@ -9,3 +9,6 @@ export const LABEL_FORMAT_NAMES: Record<LabelFormat, string> = {
 
 /** Скільки наклейок на сторінці формату. */
 export const LABELS_PER_PAGE: Record<LabelFormat, number> = { sheet_3x8: 24, single_100: 1 };
+
+/** Назва кешу service worker з оболонкою сканера (має збігатися з `public/sw.js`). */
+export const SCAN_CACHE_NAME = "icelab-scan-v1";

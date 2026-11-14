@@ -197,6 +197,30 @@ describe("service worker", () => {
     }
   });
 
+  it("сторінку сканера /scan кешує після відкриття з мережею й віддає без мережі (D112)", async () => {
+    await worker.request("/scan?order=abc", { mode: "navigate" });
+    expect(worker.cachedUrls()).toContain("/scan");
+    worker.network.online = false;
+    const offline = await worker.request("/scan", { mode: "navigate" });
+    expect(await offline?.text()).toContain("/scan");
+    // Без збереженої копії показуємо «Немає зв'язку».
+    const fresh = loadWorker();
+    await fresh.run("install");
+    fresh.network.online = false;
+    const none = await fresh.request("/scan", { mode: "navigate" });
+    expect(await none?.text()).toContain("/offline.html");
+  });
+
+  it("інші сторінки навіть поруч зі сканером не кешуються; помилку й редірект у кеш не кладемо", async () => {
+    await worker.request("/boxes", { mode: "navigate" });
+    await worker.request("/scanner", { mode: "navigate" });
+    expect(worker.cachedUrls()).not.toContain("/boxes");
+    expect(worker.cachedUrls()).not.toContain("/scanner");
+    worker.network.status = 500;
+    await worker.request("/scan", { mode: "navigate" });
+    expect(worker.cachedUrls()).not.toContain("/scan");
+  });
+
   it("команда очистити кеш (наприклад, при виході) порожнить усе сховище", async () => {
     await worker.request("/_next/static/chunks/x.js");
     await worker.run("message", { data: { type: "CLEAR_CACHES" } });

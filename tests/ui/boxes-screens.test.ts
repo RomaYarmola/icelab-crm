@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { SCAN_CACHE_NAME } from "@/constants/boxes";
 
 /**
  * Охоронні перевірки екранів боксів (B9, PR 2): складені зі спільних цеглинок, без серверних бібліотек
@@ -103,11 +104,65 @@ describe("сканер боксів (B9, PR 3)", () => {
     expect(route).toContain("notifyOrderChange");
   });
 
-  it("сторінка сканера закрита за ролями, а продаж бокса лише власнику й старшому локації", () => {
-    const page = read("src/app/(app)/boxes/scan/page.tsx");
-    for (const role of ['"owner"', '"location_lead"', '"production"']) expect(page).toContain(role);
+  it("продаж бокса лише власнику й старшому локації, лічильник боксів на картці цеху", () => {
     const order = read("src/app/(app)/orders/[id]/page.tsx");
     expect(order).toContain('user.role === "owner" || user.role === "location_lead"');
     expect(read("src/components/productionPage/ProductionCard.tsx")).toContain("boxesIssued");
+  });
+});
+
+describe("сканер офлайн (B9, PR 4, D112)", () => {
+  it("сторінка /scan нейтральна: без даних користувача, лише оболонка й сканер", () => {
+    const page = read("src/app/scan/page.tsx");
+    expect(page).toContain("<BoxScanner />");
+    expect(page).not.toMatch(/requireUser|requirePageUser|getDb|listBox/);
+    const layout = read("src/app/scan/layout.tsx");
+    expect(layout).not.toMatch(/requireUser|getDb|cookies|headers/);
+  });
+
+  it("замовлення для видачі віддає лише API з перевіркою входу й ролі, а стара адреса веде на /scan", () => {
+    const api = read("src/app/api/boxes/orders/route.ts");
+    expect(api).toContain("requireUser()");
+    expect(api).toContain("status: 403");
+    expect(api).toContain("no-store");
+    expect(api).toContain("listBoxIssueOrders");
+    expect(read("src/app/(app)/boxes/scan/page.tsx")).toContain('"/scan');
+    expect(read("src/components/productionPage/ProductionCard.tsx")).toContain("/scan?order=");
+  });
+
+  it("скан спершу пишеться в чергу, потім відправляється; є індикатор мережі й «Відправити зараз»", () => {
+    const source = read("src/components/boxesPage/BoxScanner.tsx");
+    expect(source.indexOf("store.queue.put(item)")).toBeGreaterThan(-1);
+    expect(source.indexOf("store.queue.put(item)")).toBeLessThan(source.indexOf("await sync()"));
+    for (const text of [
+      "Немає зв'язку",
+      "Не відправлено",
+      "Відправити зараз",
+      "Потребують уваги",
+      "Повторити",
+      "Видалити",
+    ]) {
+      expect(source, text).toContain(text);
+    }
+    expect(source).toContain('addEventListener("online"');
+    // Запасний варіант, якщо IndexedDB недоступний.
+    expect(source).toContain("memoryQueue");
+  });
+
+  it("сервіс-воркер кешує лише /scan серед сторінок, і це записано в коментарі", () => {
+    const sw = read("public/sw.js");
+    expect(sw).toContain('const SCAN_PATH = "/scan"');
+    expect(sw.match(/mode === "navigate"/g)).toHaveLength(2);
+    expect(sw).toContain("!response.redirected");
+    // Назва кешу в коді сканера збігається з тією, що в service worker.
+    expect(sw).toContain(`"${SCAN_CACHE_NAME}"`);
+  });
+
+  it("на сторінці входу прибираємо збережену оболонку й список замовлень, але не невідправлені скани", () => {
+    expect(read("src/app/login/page.tsx")).toContain("<ClearScanData />");
+    const clear = read("src/components/loginPage/ClearScanData.tsx");
+    expect(clear).toContain("caches.delete(SCAN_CACHE_NAME)");
+    expect(clear).not.toContain("queue.clear");
+    expect(clear).not.toContain(".clear()");
   });
 });

@@ -43,7 +43,7 @@ export default function BoxesPageContent({
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 lg:flex-row-reverse lg:items-start">
         <div className="flex flex-col gap-3 lg:flex-row">
-          <ButtonLink href="/boxes/scan" className="w-full lg:w-auto">
+          <ButtonLink href="/scan" className="w-full lg:w-auto">
             Сканер
           </ButtonLink>
           <ButtonLink href="/boxes/new" variant="outline" className="w-full lg:w-auto">

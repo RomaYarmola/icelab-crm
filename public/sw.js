@@ -7,9 +7,14 @@
   Сторінки з даними, відповіді серверних дій і `/api` НЕ кешуються і не перехоплюються: інакше
   наступний користувач того ж телефона міг би побачити дані попереднього. Тому кешувати можна
   тільки адреси з білого списку нижче, а запити навігації завжди йдуть у мережу.
+  Єдиний виняток: сторінка сканера боксів `/scan` (B9, D112). Це нейтральна оболонка без даних
+  користувача (замовлення й скани беруться з API та IndexedDB), її кешуємо, щоб сканер відкривався
+  без мережі. Мережа в неї на першому місці, кеш лише коли мережі немає.
   Тест: tests/pwa/service-worker.test.ts.
 */
 const CACHE_NAME = "icelab-static-v1";
+const SCAN_CACHE_NAME = "icelab-scan-v1";
+const SCAN_PATH = "/scan";
 const OFFLINE_URL = "/offline.html";
 const PRECACHE_URLS = [
   OFFLINE_URL,
@@ -44,11 +49,26 @@ self.addEventListener("activate", (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+        Promise.all(keys.filter((key) => key !== CACHE_NAME && key !== SCAN_CACHE_NAME).map((key) => caches.delete(key))),
       )
       .then(() => self.clients.claim()),
   );
 });
+
+/** Оболонка сканера: мережа, а без мережі остання збережена. Редірект на вхід у кеш не кладемо. */
+async function scanShell(request, url) {
+  const key = url.origin + SCAN_PATH;
+  const cache = await caches.open(SCAN_CACHE_NAME);
+  try {
+    const response = await fetch(request);
+    if (response.ok && !response.redirected && response.type === "basic") {
+      await cache.put(key, response.clone());
+    }
+    return response;
+  } catch {
+    return (await cache.match(key)) || (await caches.match(OFFLINE_URL)) || Response.error();
+  }
+}
 
 async function cacheFirst(request) {
   const cache = await caches.open(CACHE_NAME);
@@ -67,6 +87,10 @@ self.addEventListener("fetch", (event) => {
 
   // Сторінка завжди з мережі; лише коли зв'язку немає, показуємо «Немає зв'язку». Саму сторінку
   // в кеш не кладемо.
+  if (request.mode === "navigate" && url.pathname === SCAN_PATH) {
+    event.respondWith(scanShell(request, url));
+    return;
+  }
   if (request.mode === "navigate") {
     event.respondWith(
       fetch(request).catch(async () => (await caches.match(OFFLINE_URL)) || Response.error()),
