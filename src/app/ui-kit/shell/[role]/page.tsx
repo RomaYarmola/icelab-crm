@@ -3,6 +3,10 @@ import { notFound } from "next/navigation";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
+import BoxesPreview, {
+  BOX_PREVIEW_SCREENS,
+  type BoxPreviewScreen,
+} from "@/components/uiKitPage/BoxesPreview";
 import AuditPreview, {
   AUDIT_PREVIEW_SCREENS,
   type AuditPreviewScreen,
@@ -230,6 +234,7 @@ const PREVIEW_SCREENS = [
   ...PRODUCTION_PREVIEW_SCREENS,
   ...CASH_PREVIEW_SCREENS,
   ...AUDIT_PREVIEW_SCREENS,
+  ...BOX_PREVIEW_SCREENS,
   "export",
 ] as const;
 
@@ -342,6 +347,12 @@ export default async function ShellPreviewPage({
         />
       ) : (AUDIT_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
         <AuditPreview screen={screen as AuditPreviewScreen} loadMore={previewLoadMoreAudit} />
+      ) : (BOX_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
+        <BoxesPreview
+          screen={screen as BoxPreviewScreen}
+          isOwner={knownRole === "owner"}
+          formAction={previewFormAction}
+        />
       ) : screen === "export" ? (
         <ExportAllContent canSeeJournal={can(knownRole, "audit_log", "read")} />
       ) : (

@@ -1,10 +1,10 @@
-import { desc, eq, inArray, like, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, like, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "@/db/actor";
 import { boxEvents, boxes, boxTypes, clients, locations, orders, profiles } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { parseInput, ValidationError } from "./errors";
-import { ForbiddenError, type AppUser, requirePermission } from "./guards";
+import { ForbiddenError, type AppUser, locationScope, requirePermission } from "./guards";
 import {
   applyBoxAction,
   BOX_STATUS_LABELS,
@@ -470,4 +470,92 @@ export async function getBoxByCode(
     labelPrintedAt: row.box.labelPrintedAt?.toISOString() ?? null,
     history: history.map((h) => ({ ...h, occurredAt: h.occurredAt.toISOString() })),
   };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Реєстр: список боксів
+// ---------------------------------------------------------------------------------------------
+
+export const BOXES_PAGE_SIZE = 30;
+
+export type BoxListQuery = {
+  locationId?: string;
+  status?: BoxStatus;
+  boxTypeId?: string;
+  /** Частина коду бокса. */
+  search?: string;
+  limit?: number;
+};
+
+export type BoxListItem = {
+  id: string;
+  code: string;
+  boxTypeName: string;
+  locationName: string;
+  status: BoxStatus;
+  statusLabel: string;
+  clientName: string | null;
+  issuedAt: string | null;
+};
+
+/** Реєстр (ТЗ 6.7): власник і старший локації; старший бачить лише свою локацію. Нові коди першими. */
+export async function listBoxes(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  query: BoxListQuery = {},
+): Promise<{ items: BoxListItem[]; hasMore: boolean }> {
+  if (actor.role !== "owner" && actor.role !== "location_lead") throw new ForbiddenError();
+  requirePermission(actor, "box_scan", "write", { anyLocation: true });
+  const limit = Math.min(Math.max(query.limit ?? BOXES_PAGE_SIZE, 1), 300);
+  const own = locationScope(actor);
+  if (actor.role === "location_lead" && !own) return { items: [], hasMore: false };
+
+  const conditions: (SQL | undefined)[] = [];
+  const locationId = own ?? query.locationId;
+  if (locationId) conditions.push(eq(boxes.locationId, parseInput(z.string().uuid(), locationId)));
+  if (query.status) conditions.push(eq(boxes.status, query.status));
+  if (query.boxTypeId)
+    conditions.push(eq(boxes.boxTypeId, parseInput(z.string().uuid(), query.boxTypeId)));
+  const search = query.search
+    ?.trim()
+    .toUpperCase()
+    .replace(/[%_\\]/g, "");
+  if (search) conditions.push(like(boxes.code, `%${search}%`));
+
+  const rows = await db
+    .select({
+      id: boxes.id,
+      code: boxes.code,
+      boxTypeName: boxTypes.name,
+      locationName: locations.name,
+      status: boxes.status,
+      clientName: clients.name,
+      issuedAt: boxes.issuedAt,
+    })
+    .from(boxes)
+    .innerJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
+    .innerJoin(locations, eq(locations.id, boxes.locationId))
+    .leftJoin(clients, eq(clients.id, boxes.currentClientId))
+    .where(and(...conditions))
+    .orderBy(desc(boxes.createdAt), desc(boxes.code))
+    .limit(limit + 1);
+  return {
+    items: rows.slice(0, limit).map((row) => ({
+      ...row,
+      statusLabel: BOX_STATUS_LABELS[row.status],
+      issuedAt: row.issuedAt?.toISOString() ?? null,
+    })),
+    hasMore: rows.length > limit,
+  };
+}
+
+/** Типи тари, з яких створюють бокси: активні й не «бокс клієнта». */
+export async function listBoxTypeOptions(
+  db: AnyPgDatabase,
+): Promise<{ id: string; name: string }[]> {
+  return db
+    .select({ id: boxTypes.id, name: boxTypes.name })
+    .from(boxTypes)
+    .where(and(eq(boxTypes.isActive, true), eq(boxTypes.isClientOwned, false)))
+    .orderBy(asc(boxTypes.sort));
 }

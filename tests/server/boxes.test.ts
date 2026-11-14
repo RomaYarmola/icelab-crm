@@ -6,6 +6,8 @@ import {
   createBoxes,
   daysAtClient,
   getBoxByCode,
+  listBoxes,
+  listBoxTypeOptions,
   markLabelsPrinted,
   recordBoxEvent,
 } from "@/server/boxes";
@@ -434,6 +436,54 @@ describe("бокси: створення, події, закриття замо�
         i.changes.some((c) => c.label === "Статус" && c.after === "У клієнта"),
       );
       expect(update).toBeDefined();
+    });
+  });
+
+  describe("реєстр: список і фільтри", () => {
+    it("власник бачить усі локації, старший лише свою; нові коди першими", async () => {
+      await batch(2);
+      await batch(1, owner(), t.otherLocation);
+      const all = await listBoxes(t.db, owner(), { limit: 300 });
+      expect(new Set(all.items.map((i) => i.locationName)).size).toBeGreaterThan(1);
+      const mine = await listBoxes(t.db, lead(), { limit: 300 });
+      expect(mine.items.length).toBeGreaterThan(0);
+      expect(mine.items.every((i) => i.code.startsWith("T-"))).toBe(true);
+      // Усередині локації новіші створені коди йдуть раніше.
+      const codes = mine.items.map((i) => i.code);
+      expect(codes.indexOf(codes.at(0)!)).toBe(0);
+      const one = await listBoxes(t.db, owner(), { locationId: t.otherLocation, limit: 300 });
+      // Переміщений бокс зберігає старий код, але стоїть у новій локації.
+      expect(new Set(one.items.map((i) => i.locationName)).size).toBe(1);
+      expect(one.items.some((i) => i.code.startsWith("U-"))).toBe(true);
+    });
+
+    it("фільтри за статусом, типом і кодом; сторінки з «ще»", async () => {
+      const [code] = await batch(1);
+      const orderId = await orderInProduction();
+      await recordBoxEvent(t.db, lead(), { code: code!, action: "issue", orderId });
+      const atClient = await listBoxes(t.db, owner(), { status: "at_client", limit: 300 });
+      expect(atClient.items.map((i) => i.code)).toContain(code);
+      expect(atClient.items.find((i) => i.code === code)).toMatchObject({
+        statusLabel: "У клієнта",
+        clientName: "Кафе Тест",
+      });
+      expect((await listBoxes(t.db, owner(), { search: code!.toLowerCase() })).items).toHaveLength(
+        1,
+      );
+      expect((await listBoxes(t.db, owner(), { search: "%" })).items.length).toBeGreaterThan(0);
+      expect((await listBoxes(t.db, owner(), { boxTypeId: otherType })).items).toHaveLength(0);
+      const page = await listBoxes(t.db, owner(), { limit: 2 });
+      expect(page).toMatchObject({ hasMore: true });
+      expect(page.items).toHaveLength(2);
+    });
+
+    it("реєстр бачать лише власник і старший локації; типи для створення без «боксу клієнта»", async () => {
+      for (const role of ["manager", "production", "accountant", "driver"] as const) {
+        await expect(listBoxes(t.db, t.users[role]), role).rejects.toBeInstanceOf(ForbiddenError);
+      }
+      const types = await listBoxTypeOptions(t.db);
+      expect(types.map((x) => x.id)).not.toContain(clientOwnedType);
+      expect(types.length).toBeGreaterThan(1);
     });
   });
 
