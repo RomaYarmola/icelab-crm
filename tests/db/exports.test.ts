@@ -64,7 +64,7 @@ describe("журнал експортів: таблиця exports (міграц�
   });
 
   it("не приймає невідомий вид експорту, порожню назву файлу й автора", async () => {
-    expect(await pgErrorCode(insertExport({ kind: "boxes" as never }))).toBe(INVALID_ENUM);
+    expect(await pgErrorCode(insertExport({ kind: "nonsense" as never }))).toBe(INVALID_ENUM);
     expect(await pgErrorCode(insertExport({ fileName: null as never }))).toBe(NOT_NULL_VIOLATION);
     expect(
       await pgErrorCode(insertExport({ createdBy: "00000000-0000-4000-8000-000000000000" })),

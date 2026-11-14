@@ -10,7 +10,7 @@ import Text from "../texts/Text";
 
 interface ExportButtonProps {
   /** Який список вивантажуємо: адреса `/api/export/<список>`. */
-  list: "orders" | "clients" | "cash" | "all";
+  list: "orders" | "clients" | "cash" | "all" | "boxes" | "box-debts" | "box-stock";
   /** Текст кнопки. */
   children?: string;
   /** Що потрапить у файл: короткий рядок під кнопкою (`INLINE_HINTS`). */

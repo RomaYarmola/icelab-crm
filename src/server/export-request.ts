@@ -5,6 +5,9 @@ import { todayIso } from "@/utils/isoDate";
 import { parseOrderListParams } from "@/utils/orderListParams";
 import { parseDayParam } from "@/utils/productionParams";
 import {
+  exportBoxDebts,
+  exportBoxes,
+  exportBoxStock,
   exportCash,
   exportClients,
   exportEverything,
@@ -19,7 +22,15 @@ import type { AppUser } from "./guards";
  * файл збігається з тим, що користувач бачить на екрані. Локацію з вибору в шапці передає викликач.
  */
 
-export const EXPORT_LISTS = ["orders", "clients", "cash", "all"] as const;
+export const EXPORT_LISTS = [
+  "orders",
+  "clients",
+  "cash",
+  "all",
+  "boxes",
+  "box-debts",
+  "box-stock",
+] as const;
 export type ExportList = (typeof EXPORT_LISTS)[number];
 
 export function isExportList(value: string): value is ExportList {
@@ -61,6 +72,12 @@ export async function runExport(
     }
     case "cash":
       return exportCash(db, actor, { date: parseDayParam(params, todayIso()), locationId });
+    case "boxes":
+      return exportBoxes(db, actor, { locationId });
+    case "box-debts":
+      return exportBoxDebts(db, actor);
+    case "box-stock":
+      return exportBoxStock(db, actor, { locationId });
     case "all":
       return exportEverything(db, actor);
   }

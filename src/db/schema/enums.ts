@@ -50,7 +50,15 @@ export const cashEntryVia = pgEnum("cash_entry_via", ["web", "driver_bot"]);
 export const auditAction = pgEnum("audit_action", ["insert", "update", "delete"]);
 
 /** Що вивантажили в Excel: списки замовлень, клієнтів, готівки чи всі дані (B8, D95). */
-export const exportKind = pgEnum("export_kind", ["orders", "clients", "cash", "all"]);
+export const exportKind = pgEnum("export_kind", [
+  "orders",
+  "clients",
+  "cash",
+  "all",
+  "boxes",
+  "box_debts",
+  "box_stock",
+]);
 
 /** Статус оборотного бокса (ТЗ 5.2): на складі, у клієнта, продано, втрачено, списано. */
 export const boxStatus = pgEnum("box_status", ["in_stock", "at_client", "sold", "lost", "retired"]);
