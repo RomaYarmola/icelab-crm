@@ -70,10 +70,15 @@ describe("готівка: правила (D67)", () => {
       expect(result).toMatchObject({ received: 40000, remaining: 50000, paid: false });
     });
 
-    it("допуск: не вистачає 5 грн вважається сплаченим, 5,01 ще ні", () => {
-      expect(summarizeCash("900", [entry("895")]).paid).toBe(true);
-      expect(summarizeCash("900", [entry("894.99")]).paid).toBe(false);
+    it("за замовчуванням допуску немає: не вистачає навіть 5 грн, ще не сплачено (Роман, D117)", () => {
+      expect(summarizeCash("900", [entry("895")]).paid).toBe(false);
       expect(summarizeCash("900", [entry("895")]).remaining).toBe(500);
+      expect(summarizeCash("900", [entry("900")]).paid).toBe(true);
+    });
+
+    it("допуск у 5 грн, якщо його ввімкнути в налаштуваннях: 5,01 ще не сплачено", () => {
+      expect(summarizeCash("900", [entry("895")], 5).paid).toBe(true);
+      expect(summarizeCash("900", [entry("894.99")], 5).paid).toBe(false);
     });
 
     it("допуск береться з налаштувань", () => {

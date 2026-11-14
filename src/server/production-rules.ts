@@ -163,8 +163,33 @@ export type DeliveryPlaceSource = {
 };
 
 /**
+ * Що шукати на карті (D118): адреса доставки з містом, для Нової Пошти «відділення №N» з містом.
+ * Самовивіз і замовлення без адреси дають `null`: кнопок карти там немає.
+ */
+export function describeMapQuery(source: DeliveryPlaceSource): string | null {
+  if (source.deliveryMethod === "pickup") return null;
+  const city = source.address?.cityText?.trim() ?? "";
+  const free = source.deliveryText?.trim() ?? "";
+  const parts: string[] = [];
+  if (source.deliveryMethod === "np") {
+    const warehouse = source.address?.npWarehouseNumber?.trim();
+    if (!warehouse && !free && !city) return null;
+    parts.push("Нова Пошта");
+    if (warehouse) parts.push(`відділення №${warehouse}`);
+    if (free) parts.push(free);
+    if (city && !free.includes(city)) parts.push(city);
+  } else {
+    const street = free || (source.address?.addressText?.trim() ?? "");
+    if (!street) return null;
+    parts.push(street);
+    if (city && !street.includes(city)) parts.push(city);
+  }
+  return parts.join(", ");
+}
+
+/**
  * Куди їде замовлення: «Самовивіз», для Нової Пошти місто й відділення, для доставки адреса. Телефон
- * отримувача цеху не показуємо (D63).
+ * отримувача цеху показуємо окремим рядком із кнопкою дзвінка (D118).
  */
 export function describeDeliveryPlace(source: DeliveryPlaceSource): string {
   if (source.deliveryMethod === "pickup") return "Самовивіз";

@@ -255,8 +255,12 @@ describe("контакти й адреси клієнта", () => {
 
     it("видалення адреси за замовчуванням робить такою найстарішу з решти", async () => {
       const id = await newClient();
+      // Порядок «найстарішої» йде за часом створення: між записами пауза, щоб час не збігся в мілісекунді.
+      const pause = () => new Promise((resolve) => setTimeout(resolve, 5));
       const a = await addAddress(db, users.manager, id, { kind: "delivery", addressText: "А" });
+      await pause();
       await addAddress(db, users.manager, id, { kind: "delivery", addressText: "Б" });
+      await pause();
       await addAddress(db, users.manager, id, { kind: "delivery", addressText: "В" });
       await deleteAddress(db, users.manager, a.id);
       expect((await addressesOf(id)).map((x) => [x.addressText, x.isDefault])).toEqual([

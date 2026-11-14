@@ -8,8 +8,8 @@ import { formatMoney } from "@/utils/formatNumber";
  * дробами, щоб `0,1 + 0,2` не давало `0,30000000000000004`.
  */
 
-/** Допуск за замовчуванням: `payment.amount_tolerance_uah` у налаштуваннях (ТЗ 4.1, 6.6). */
-export const DEFAULT_CASH_TOLERANCE_UAH = 5;
+/** Допуск за замовчуванням: `payment.amount_tolerance_uah` у налаштуваннях (ТЗ 4.1, 6.6). Роман 14.11.2026: допуску немає (D117). */
+export const DEFAULT_CASH_TOLERANCE_UAH = 0;
 
 /** Найбільша сума поля `numeric(10,2)`: 99 999 999,99 ₴. */
 const MAX_KOPECKS = 9_999_999_999;

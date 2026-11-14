@@ -22,7 +22,7 @@ export const CASH_TOLERANCE_KEY = "payment.amount_tolerance_uah";
 /** Примітка в історії статусів, коли «Оплачено» поставила готівка. */
 export const CASH_PAID_NOTE = "Оплачено автоматично: готівку прийнято повністю";
 
-/** Допуск суми, грн (`payment.amount_tolerance_uah`, за замовчуванням 5). */
+/** Допуск суми, грн (`payment.amount_tolerance_uah`, за замовчуванням 0, D117). */
 export async function loadCashTolerance(db: AnyPgDatabase): Promise<number> {
   const [row] = await db
     .select({ value: settings.value })
