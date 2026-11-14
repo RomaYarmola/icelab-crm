@@ -4,6 +4,7 @@ import { boxTypes, clientAddresses, clients, iceTypes, locations, orders } from 
 import type { OrderStatus } from "@/constants/constants";
 import type { AnyPgDatabase } from "@/db/types";
 import { isIsoDate } from "@/utils/isoDate";
+import { countIssuedBoxes } from "./boxes";
 import { ValidationError } from "./errors";
 import { type AppUser, locationScope, requirePermission } from "./guards";
 import { transitionOrder } from "./order-status";
@@ -56,6 +57,9 @@ export type ProductionCard = {
   recipientPhone: string | null;
   /** Що шукати на карті; `null` для самовивозу й замовлень без адреси. */
   mapQuery: string | null;
+  /** Скільки боксів потрібно видати (наша тара) і скільки вже відскановано (B9, D116). */
+  boxesNeeded: number;
+  boxesIssued: number;
 };
 
 export type ProductionQueue = {
@@ -140,6 +144,10 @@ export async function listProductionQueue(
     .where(and(...conditions))
     .orderBy(asc(orders.number));
 
+  const issued = await countIssuedBoxes(
+    db,
+    rows.map((row) => row.id),
+  );
   const cards: ProductionCard[] = rows.map((row) => ({
     id: row.id,
     number: row.number,
@@ -173,6 +181,8 @@ export async function listProductionQueue(
     comment: row.comment,
     recipientName: row.recipientName,
     recipientPhone: row.recipientPhone,
+    boxesNeeded: row.boxOwnership === "ours" ? row.boxCount : 0,
+    boxesIssued: issued.get(row.id) ?? 0,
     mapQuery: describeMapQuery({
       deliveryMethod: row.deliveryMethod,
       deliveryText: row.deliveryText,

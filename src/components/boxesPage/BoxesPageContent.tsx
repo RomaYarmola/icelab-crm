@@ -42,9 +42,14 @@ export default function BoxesPageContent({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-3 lg:flex-row-reverse lg:items-start">
-        <ButtonLink href="/boxes/new" className="w-full lg:w-auto">
-          Згенерувати бокси
-        </ButtonLink>
+        <div className="flex flex-col gap-3 lg:flex-row">
+          <ButtonLink href="/boxes/scan" className="w-full lg:w-auto">
+            Сканер
+          </ButtonLink>
+          <ButtonLink href="/boxes/new" variant="outline" className="w-full lg:w-auto">
+            Згенерувати бокси
+          </ButtonLink>
+        </div>
         <div className="flex-1">
           <SearchField label="Пошук боксів" placeholder="Код бокса, наприклад K-0012" />
         </div>

@@ -13,6 +13,8 @@ import OrderCardContent from "@/components/ordersPage/OrderCardContent";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { canDeleteDraft, editPolicy, transitionOptions } from "@/server/order-rules";
+import { sellBoxAction } from "@/app/(app)/boxes/actions";
+import { listOrderBoxes } from "@/server/boxes";
 import { getOrder } from "@/server/orders";
 import { can } from "@/server/permissions";
 import { listEntityHistory } from "@/server/audit";
@@ -44,6 +46,11 @@ export default async function OrderPage({
   const changeHistory = can(user.role, "order_money", "read")
     ? await listEntityHistory(getDb(), user, { kind: "order", id })
     : null;
+  // Бокси замовлення (B9): ролі, що бачать бокси; продати бокс можуть власник і старший локації.
+  const boxes = can(user.role, "box_debts_stock", "read")
+    ? await listOrderBoxes(getDb(), id)
+    : null;
+  const canSellBox = user.role === "owner" || user.role === "location_lead";
   const isOffice = user.role === "owner" || user.role === "manager";
 
   return (
@@ -60,6 +67,8 @@ export default async function OrderPage({
       }}
       cashHref={cashLinkFor(user.role, order)}
       changeHistory={changeHistory}
+      boxes={boxes}
+      sellBoxAction={canSellBox ? sellBoxAction : null}
       notice={query.created ? "created" : undefined}
       actions={{
         transition: transitionOrderAction,

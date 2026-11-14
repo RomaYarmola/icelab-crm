@@ -6,6 +6,7 @@ import { getDb } from "@/db/client";
 import { listBoxes, listBoxTypeOptions } from "@/server/boxes";
 import { getLocationFilter } from "@/server/location-filter";
 import { requirePageUser } from "@/server/page-access";
+import { redirect } from "next/navigation";
 import { parseBoxListParams } from "@/utils/boxListParams";
 
 export const metadata: Metadata = { title: "Бокси" };
@@ -20,6 +21,8 @@ export default async function BoxesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const user = await requirePageUser("boxes");
+  // Виробництво працює зі сканером; реєстр лише для власника й старшого локації.
+  if (user.role === "production") redirect("/boxes/scan");
   if (user.role !== "owner" && user.role !== "location_lead") {
     return <PlaceholderPage icon={<BoxIcon />} title="Тут буде облік боксів" />;
   }
