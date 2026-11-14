@@ -9,7 +9,11 @@ import {
   type BoxListFilters,
 } from "@/utils/boxListParams";
 import { formatIsoDate } from "@/utils/isoDate";
+import { INLINE_HINTS, SCREEN_HINTS } from "@/constants/hints";
+import ExportButton from "../shared/export/ExportButton";
+import ScreenHint from "../shared/hint/ScreenHint";
 import BoxIcon from "../shared/icons/BoxIcon";
+import BoxesTabs from "./BoxesTabs";
 import ButtonLink from "../shared/buttons/ButtonLink";
 import EmptyState from "../shared/emptyState/EmptyState";
 import Disclosure from "../shared/disclosure/Disclosure";
@@ -25,6 +29,7 @@ interface BoxesPageContentProps {
   types: { id: string; name: string }[];
   /** Показувати локацію в рядках (власник бачить усі локації). */
   showLocation: boolean;
+  canExport: boolean;
 }
 
 /**
@@ -37,10 +42,16 @@ export default function BoxesPageContent({
   filters,
   types,
   showLocation,
+  canExport,
 }: BoxesPageContentProps) {
   const active = countActiveBoxFilters(filters);
   return (
     <div className="flex flex-col gap-4">
+      <BoxesTabs active="registry" showRegistry />
+      <ScreenHint hint={SCREEN_HINTS.boxStatuses} />
+      {canExport ? (
+        <ExportButton list="boxes" hint={INLINE_HINTS.exportBoxes} className="w-full lg:w-auto" />
+      ) : null}
       <div className="flex flex-col gap-3 lg:flex-row-reverse lg:items-start">
         <div className="flex flex-col gap-3 lg:flex-row">
           <ButtonLink href="/scan" className="w-full lg:w-auto">

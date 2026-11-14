@@ -23,9 +23,10 @@ describe("експорт за адресою сторінки: параметр�
     await t.ctx.client.close();
   });
 
-  it("знає лише чотири списки", () => {
-    for (const list of ["orders", "clients", "cash", "all"]) expect(isExportList(list)).toBe(true);
-    for (const list of ["boxes", "", "ORDERS", "../etc", "orders/1"]) {
+  it("знає лише сім списків", () => {
+    for (const list of ["orders", "clients", "cash", "all", "boxes", "box-debts", "box-stock"])
+      expect(isExportList(list)).toBe(true);
+    for (const list of ["box", "", "ORDERS", "../etc", "orders/1"]) {
       expect(isExportList(list), list).toBe(false);
     }
   });

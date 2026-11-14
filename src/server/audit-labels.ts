@@ -121,6 +121,9 @@ export const EXPORT_KIND_LABELS = {
   clients: "Клієнти",
   cash: "Готівка",
   all: "Усі дані",
+  boxes: "Реєстр боксів",
+  box_debts: "Борги по боксах",
+  box_stock: "Склад боксів",
 };
 
 export const AUDIT_TABLES: Record<string, AuditTable> = {

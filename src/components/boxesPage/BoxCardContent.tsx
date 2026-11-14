@@ -1,4 +1,7 @@
 import Link from "next/link";
+import TransferBoxForm from "./TransferBoxForm";
+import Disclosure from "../shared/disclosure/Disclosure";
+import type { FormAction } from "../clientsPage/clientActions";
 import { BOX_EVENT_LABELS } from "@/server/audit-labels";
 import type { BoxCard } from "@/server/boxes";
 import { formatDateTime } from "@/utils/formatDate";
@@ -14,10 +17,12 @@ interface BoxCardContentProps {
   box: BoxCard;
   /** Старший локації й власник можуть надрукувати наклейку цього бокса. */
   canPrint: boolean;
+  /** Власник може перемістити бокс «На складі» в іншу локацію: тоді є локації й дія. */
+  transfer?: { locations: { id: string; name: string }[]; action: FormAction };
 }
 
 /** Картка бокса (ТЗ 6.7): код, тип, де він і в кого, історія подій від нових до старих. */
-export default function BoxCardContent({ box, canPrint }: BoxCardContentProps) {
+export default function BoxCardContent({ box, canPrint, transfer }: BoxCardContentProps) {
   return (
     <div className="flex max-w-3xl flex-col gap-5">
       <BackLink href="/boxes">Бокси</BackLink>
@@ -62,6 +67,16 @@ export default function BoxCardContent({ box, canPrint }: BoxCardContentProps) {
         >
           Наклейка в PDF
         </ButtonLink>
+      ) : null}
+
+      {transfer && box.status === "in_stock" ? (
+        <Disclosure summary="Перемістити в іншу локацію">
+          <TransferBoxForm
+            action={transfer.action}
+            code={box.code}
+            locations={transfer.locations.filter((l) => l.id !== box.locationId)}
+          />
+        </Disclosure>
       ) : null}
 
       <section aria-labelledby="box-history" className="flex flex-col gap-3">

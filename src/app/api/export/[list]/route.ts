@@ -23,7 +23,10 @@ export async function GET(request: NextRequest, context: { params: Promise<{ lis
   }
   const user = await requireUser();
   // Вибір локації в шапці діє на замовлення й готівку так само, як на екранах.
-  const location = list === "orders" || list === "cash" ? await getLocationFilter() : null;
+  const location =
+    list === "orders" || list === "cash" || list === "boxes" || list === "box-stock"
+      ? await getLocationFilter()
+      : null;
 
   try {
     const file = await runExport(

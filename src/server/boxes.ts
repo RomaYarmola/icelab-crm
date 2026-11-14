@@ -414,6 +414,7 @@ export type BoxCard = {
   id: string;
   code: string;
   boxTypeName: string;
+  locationId: string;
   locationName: string;
   status: BoxStatus;
   statusLabel: string;
@@ -471,6 +472,7 @@ export async function getBoxByCode(
     id: row.box.id,
     code: row.box.code,
     boxTypeName: row.boxTypeName,
+    locationId: row.box.locationId,
     locationName: row.locationName,
     status: row.box.status,
     statusLabel: BOX_STATUS_LABELS[row.box.status],

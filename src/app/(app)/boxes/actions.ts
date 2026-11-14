@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
-import { createBoxes, markLabelsPrinted, sellBoxToOrder } from "@/server/boxes";
+import { addLegacyDebt, resolveLegacyDebt } from "@/server/box-debts";
+import { createBoxes, markLabelsPrinted, recordBoxEvent, sellBoxToOrder } from "@/server/boxes";
 import { readText, runFormAction } from "@/server/form-state";
 import type { FormState } from "@/utils/formState";
 
@@ -76,5 +77,70 @@ export async function sellBoxAction(_previous: FormState, formData: FormData): P
       success: "Бокс продано, позицію додано в замовлення. Перевірте ціну в позиціях.",
       values: {},
     },
+  );
+}
+
+/** «Додати борг за таблицею» (D114): клієнт, тип, кількість, з якого дня. */
+export async function addLegacyDebtAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const values = {
+    clientId: readText(formData, "clientId"),
+    boxTypeId: readText(formData, "boxTypeId"),
+    count: readText(formData, "count"),
+    sinceDate: readText(formData, "sinceDate"),
+    note: readText(formData, "note"),
+  };
+  return runFormAction(
+    async () => {
+      await addLegacyDebt(getDb(), actor, {
+        clientId: values.clientId,
+        boxTypeId: values.boxTypeId,
+        count: Number(values.count),
+        sinceDate: values.sinceDate || null,
+        note: values.note.trim() || null,
+      });
+      revalidatePath("/boxes/debts");
+      revalidatePath(`/clients/${values.clientId}`);
+    },
+    { success: "Борг додано.", values: values.clientId ? values : {} },
+  );
+}
+
+/** «Закрити N шт.» у старому боргу: клієнт повернув бокси без наклейки. */
+export async function resolveLegacyDebtAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const id = readText(formData, "id");
+  const count = readText(formData, "count");
+  return runFormAction(
+    async () => {
+      await resolveLegacyDebt(getDb(), actor, { id, count: Number(count) });
+      revalidatePath("/boxes/debts");
+      revalidatePath("/clients", "layout");
+    },
+    { success: "Закрито.", values: { id, count } },
+  );
+}
+
+/** «Перемістити в іншу локацію» на картці бокса (лише власник, бокс «На складі»). */
+export async function transferBoxAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const code = readText(formData, "code");
+  const toLocationId = readText(formData, "toLocationId");
+  return runFormAction(
+    async () => {
+      await recordBoxEvent(getDb(), actor, { code, action: "transfer", toLocationId });
+      revalidatePath(`/boxes/${code}`);
+      revalidatePath("/boxes", "layout");
+    },
+    { success: "Бокс переміщено.", values: { toLocationId } },
   );
 }

@@ -19,6 +19,9 @@ import { CLIENT_TABS, type ClientTab } from "@/constants/clients";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { listEntityHistory } from "@/server/audit";
+import { addLegacyDebtAction, resolveLegacyDebtAction } from "@/app/(app)/boxes/actions";
+import { listBoxDebts, listClientBoxes, listLegacyDebts } from "@/server/box-debts";
+import { listBoxTypeOptions } from "@/server/boxes";
 import { getClientFormOptions } from "@/server/client-options";
 import { getClient } from "@/server/clients";
 import { can } from "@/server/permissions";
@@ -64,6 +67,15 @@ export default async function ClientPage({
       ? await listEntityHistory(db, user, { kind: "client", id })
       : null;
 
+  // Вкладка «Бокси»: борги клієнта бачать усі, крім виробництва (D113); дані вантажимо лише з нею.
+  const canSeeBoxes = can(user.role, "box_debts_stock", "read") && user.role !== "production";
+  const boxes =
+    canSeeBoxes && query.tab === "boxes"
+      ? await loadBoxesTab(db, user, id)
+      : canSeeBoxes
+        ? EMPTY_BOXES
+        : null;
+
   return (
     <ClientCardContent
       client={client}
@@ -72,6 +84,7 @@ export default async function ClientPage({
       defaultPrices={defaultPrices}
       canSeeHistory={canSeeHistory}
       history={history}
+      boxes={boxes}
       today={todayIso()}
       notice={query.created ? "created" : query.merged ? "merged" : undefined}
       permissions={{
@@ -94,4 +107,38 @@ export default async function ClientPage({
       }}
     />
   );
+}
+
+const canManageLegacy = (role: string) => role === "owner" || role === "location_lead";
+
+const EMPTY_BOXES = {
+  debts: [],
+  boxes: [],
+  legacy: [],
+  types: [],
+  canManageLegacy: false,
+  addLegacy: addLegacyDebtAction,
+  resolveLegacy: resolveLegacyDebtAction,
+};
+
+async function loadBoxesTab(
+  db: ReturnType<typeof getDb>,
+  user: Awaited<ReturnType<typeof requireUser>>,
+  clientId: string,
+) {
+  const [debts, boxes, legacy, types] = await Promise.all([
+    listBoxDebts(db, user, { clientId }),
+    listClientBoxes(db, user, clientId),
+    listLegacyDebts(db, user, { clientId }),
+    listBoxTypeOptions(db),
+  ]);
+  return {
+    debts,
+    boxes,
+    legacy,
+    types,
+    canManageLegacy: canManageLegacy(user.role),
+    addLegacy: addLegacyDebtAction,
+    resolveLegacy: resolveLegacyDebtAction,
+  };
 }

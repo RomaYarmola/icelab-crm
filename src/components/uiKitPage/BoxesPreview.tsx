@@ -44,6 +44,7 @@ const CARD: BoxCard = {
   id: "b14",
   code: "K-0014",
   boxTypeName: "Наш довгий 46 л",
+  locationId: "l1",
   locationName: "Київ",
   status: "at_client",
   statusLabel: "У клієнта",
@@ -116,6 +117,7 @@ export default function BoxesPreview({ screen, isOwner, formAction }: BoxesPrevi
       filters={parseBoxListParams({})}
       types={TYPES}
       showLocation={isOwner}
+      canExport={isOwner}
     />
   );
 }

@@ -1,6 +1,9 @@
-import { asc } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { withActor } from "@/db/actor";
 import {
+  boxDebtsLegacy,
+  boxEvents,
+  boxes,
   boxTypes,
   cashEntries,
   clientAddresses,
@@ -31,13 +34,15 @@ import {
 } from "@/constants/orders";
 import type { AnyPgDatabase } from "@/db/types";
 import { formatIsoDate, todayIso } from "@/utils/isoDate";
-import { ENTERED_VIA_LABELS, ITEM_KIND_LABELS } from "./audit-labels";
+import { BOX_EVENT_LABELS, ENTERED_VIA_LABELS, ITEM_KIND_LABELS } from "./audit-labels";
+import { listBoxDebts, listBoxStock } from "./box-debts";
+import { BOX_STATUS_LABELS } from "./box-rules";
 import { listCashDay, type CashDay } from "./cash";
 import { listClients, type ClientListQuery } from "./clients";
 import { ValidationError } from "./errors";
 import { buildWorkbook, sheetOf, type ExportColumn, type ExportSheet } from "./export-xlsx";
 import { can } from "./permissions";
-import { type AppUser, requirePermission } from "./guards";
+import { ForbiddenError, type AppUser, locationScope, requirePermission } from "./guards";
 import { listOrders, type OrderListQuery } from "./orders";
 
 /**
@@ -364,6 +369,111 @@ export async function exportCash(
 }
 
 // ---------------------------------------------------------------------------------------------
+// Бокси: реєстр, борги, склад (B9, D115)
+// ---------------------------------------------------------------------------------------------
+
+/** Реєстр боксів: код, тип, локація, статус, клієнт. Старший локації бачить лише свою локацію. */
+export async function exportBoxes(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  scope: { locationId?: string | null } = {},
+): Promise<ExportFile> {
+  requirePermission(actor, "excel_export", "write");
+  requirePermission(actor, "box_scan", "write", { anyLocation: true });
+  if (actor.role !== "owner" && actor.role !== "location_lead") throw new ForbiddenError();
+  const own = locationScope(actor);
+  const locationId = own ?? scope.locationId ?? null;
+  const rows = await db
+    .select({
+      code: boxes.code,
+      boxTypeName: boxTypes.name,
+      locationName: locations.name,
+      status: boxes.status,
+      clientName: clients.name,
+      issuedAt: boxes.issuedAt,
+      labelPrintedAt: boxes.labelPrintedAt,
+    })
+    .from(boxes)
+    .innerJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
+    .innerJoin(locations, eq(locations.id, boxes.locationId))
+    .leftJoin(clients, eq(clients.id, boxes.currentClientId))
+    .where(locationId ? eq(boxes.locationId, locationId) : undefined)
+    .orderBy(asc(boxes.code))
+    .limit(EXPORT_MAX_ROWS + 1);
+  if (rows.length > EXPORT_MAX_ROWS) throw new ValidationError(TOO_MANY(EXPORT_MAX_ROWS));
+  const params: ExportParams = {
+    Локація: locationId ? await nameOf(db, locations, locationId, "name") : "усі",
+  };
+  return finish(db, actor, {
+    kind: "boxes",
+    params,
+    fileName: fileNameFor("boxes"),
+    sheets: [
+      sheet("Бокси", rows, (c) => [
+        c.text("Код", (r) => r.code),
+        c.text("Тип", (r) => r.boxTypeName),
+        c.text("Локація", (r) => r.locationName),
+        c.text("Статус", (r) => label(BOX_STATUS_LABELS, r.status)),
+        c.text("Клієнт", (r) => r.clientName),
+        c.moment("Видано", (r) => r.issuedAt),
+        c.moment("Наклейку надруковано", (r) => r.labelPrintedAt),
+      ]),
+    ],
+  });
+}
+
+/** Борги по боксах за клієнтами й типами (D113). Виробництво боргів не бачить. */
+export async function exportBoxDebts(db: AnyPgDatabase, actor: AppUser): Promise<ExportFile> {
+  requirePermission(actor, "excel_export", "write");
+  const rows = await listBoxDebts(db, actor);
+  return finish(db, actor, {
+    kind: "box_debts",
+    params: {},
+    fileName: fileNameFor("box-debts"),
+    sheets: [
+      sheet("Борги по боксах", rows, (c) => [
+        c.text("Код клієнта", (r) => r.clientCode),
+        c.text("Клієнт", (r) => r.clientName),
+        c.text("Тип бокса", (r) => r.boxTypeName),
+        c.num("Усього", (r) => r.total),
+        c.num("З наклейками", (r) => r.qrCount),
+        c.num("За таблицею", (r) => r.legacyCount),
+        c.day("Найдавніший з", (r) => r.oldestDay),
+        c.num("Днів", (r) => r.days),
+      ]),
+    ],
+  });
+}
+
+/** Склад боксів по локаціях і типах; вибір локації в шапці звужує вивантаження. */
+export async function exportBoxStock(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  scope: { locationId?: string | null } = {},
+): Promise<ExportFile> {
+  requirePermission(actor, "excel_export", "write");
+  const rows = await listBoxStock(db, actor, { locationId: scope.locationId ?? undefined });
+  const params: ExportParams = {
+    Локація: scope.locationId ? await nameOf(db, locations, scope.locationId, "name") : "усі",
+  };
+  return finish(db, actor, {
+    kind: "box_stock",
+    params,
+    fileName: fileNameFor("box-stock"),
+    sheets: [
+      sheet("Склад боксів", rows, (c) => [
+        c.text("Локація", (r) => r.locationName),
+        c.text("Тип бокса", (r) => r.boxTypeName),
+        c.num("На складі", (r) => r.inStock),
+        c.num("У клієнтів", (r) => r.atClient),
+        c.num("Продано", (r) => r.sold),
+        c.num("Втрачено", (r) => r.lost),
+      ]),
+    ],
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
 // Експорт усього
 // ---------------------------------------------------------------------------------------------
 
@@ -420,6 +530,9 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
     regionRows,
     settingRows,
     profileRows,
+    boxUnitRows,
+    boxEventRows,
+    legacyDebtRows,
   ] = await Promise.all([
     loadAll(db.select().from(clients).orderBy(asc(clients.code)), "Клієнти"),
     loadAll(db.select().from(clientContacts).orderBy(asc(clientContacts.createdAt)), "Контакти"),
@@ -450,6 +563,9 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
     loadAll(db.select().from(settings).orderBy(asc(settings.key)), "Налаштування"),
     // Лише імена: щоб підставити їх замість ідентифікаторів, самі акаунти в файл не потрапляють.
     loadAll(db.select({ id: profiles.id, name: profiles.fullName }).from(profiles), "Користувачі"),
+    loadAll(db.select().from(boxes).orderBy(asc(boxes.code)), "Бокси"),
+    loadAll(db.select().from(boxEvents).orderBy(asc(boxEvents.occurredAt)), "Події боксів"),
+    loadAll(db.select().from(boxDebtsLegacy).orderBy(asc(boxDebtsLegacy.createdAt)), "Старі борги"),
   ]);
 
   const by = <T extends { id: string }>(rows: T[], name: (row: T) => string) =>
@@ -466,6 +582,7 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
     status: by(statusRows, (s) => s.name),
     order: by(orderRows, (o) => (o.number === null ? "чернетка" : `№ ${o.number}`)),
   };
+  const boxCodes = new Map(boxUnitRows.map((b) => [b.id, b.code]));
   const name = (kind: keyof Lookups, id: string | null | undefined) =>
     id ? (lookups[kind].get(id) ?? "—") : null;
 
@@ -622,6 +739,37 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
       c.flag("Клієнтський", (r) => r.isClientOwned),
       c.money("Ціна продажу, ₴", (r) => r.salePrice),
       c.flag("Активний", (r) => r.isActive),
+    ]),
+    sheet("Бокси", boxUnitRows, (c) => [
+      c.text("Код", (r) => r.code),
+      c.text("Тип", (r) => name("boxType", r.boxTypeId)),
+      c.text("Локація", (r) => name("location", r.locationId)),
+      c.text("Статус", (r) => label(BOX_STATUS_LABELS, r.status)),
+      c.text("Клієнт", (r) => name("client", r.currentClientId)),
+      c.text("Замовлення", (r) => name("order", r.currentOrderId)),
+      c.moment("Видано", (r) => r.issuedAt),
+      c.moment("Наклейку надруковано", (r) => r.labelPrintedAt),
+      c.moment("Списано", (r) => r.retiredAt),
+      c.text("Причина списання", (r) => r.retireReason),
+    ]),
+    sheet("Події боксів", boxEventRows, (c) => [
+      c.text("Бокс", (r) => boxCodes.get(r.boxId) ?? "—"),
+      c.text("Подія", (r) => label(BOX_EVENT_LABELS, r.event)),
+      c.text("Клієнт", (r) => name("client", r.clientId)),
+      c.text("Замовлення", (r) => name("order", r.orderId)),
+      c.text("Локація", (r) => name("location", r.locationId)),
+      c.text("Хто", (r) => name("user", r.actorId)),
+      c.moment("Коли відсканували", (r) => r.occurredAt),
+      c.moment("Коли записано", (r) => r.recordedAt),
+      c.text("Примітка", (r) => r.note),
+    ]),
+    sheet("Старі борги", legacyDebtRows, (c) => [
+      c.text("Клієнт", (r) => name("client", r.clientId)),
+      c.text("Тип бокса", (r) => name("boxType", r.boxTypeId)),
+      c.num("Кількість", (r) => r.count),
+      c.num("Закрито", (r) => r.resolvedCount),
+      c.day("З дати", (r) => r.sinceDate),
+      c.text("Примітка", (r) => r.sourceRow),
     ]),
     sheet("Джерела замовлень", sourceRows, (c) => [
       c.text("Код", (r) => r.code),

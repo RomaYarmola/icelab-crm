@@ -18,6 +18,7 @@ import type { ClientCardActions } from "./clientActions";
 import ClientForm from "./ClientForm";
 import ClientOwnerActions from "./ClientOwnerActions";
 import ClientSummary from "./ClientSummary";
+import ClientBoxesTab, { type ClientBoxesData } from "./ClientBoxesTab";
 import ContactsTab from "./ContactsTab";
 import PricesTab from "./PricesTab";
 
@@ -39,6 +40,8 @@ interface ClientCardContentProps {
   history: AuditPage | null;
   /** Прайс для порівняння на вкладці «Ціни» (лише ролям з правом на ціни). */
   defaultPrices: DefaultPriceHistoryItem[] | null;
+  /** Дані вкладки «Бокси»; `null`, якщо роль боргів не бачить (виробництво). */
+  boxes?: ClientBoxesData | null;
   /** Сьогоднішня дата `YYYY-MM-DD`. */
   today: string;
   /** Клієнта щойно створено або об'єднано: показуємо підтвердження. */
@@ -61,6 +64,7 @@ export default function ClientCardContent({
   defaultPrices,
   canSeeHistory,
   history,
+  boxes = null,
   today,
   notice,
   tabHref = (id) => (id === "main" ? `/clients/${client.id}` : `/clients/${client.id}?tab=${id}`),
@@ -68,7 +72,10 @@ export default function ClientCardContent({
   const canSeePrices = client.prices !== undefined;
   const canEdit = permissions.canWrite && !client.isDeleted;
   const tabs = CLIENT_TABS.filter(
-    (id) => (id !== "prices" || canSeePrices) && (id !== "history" || canSeeHistory),
+    (id) =>
+      (id !== "prices" || canSeePrices) &&
+      (id !== "history" || canSeeHistory) &&
+      (id !== "boxes" || boxes !== null),
   );
   const activeTab = tabs.includes(tab) ? tab : "main";
   const details = [client.statusName, client.managerName].filter(Boolean).join(" · ");
@@ -190,6 +197,10 @@ export default function ClientCardContent({
           actions={actions}
           canEdit={canEdit}
         />
+      ) : null}
+
+      {activeTab === "boxes" && boxes ? (
+        <ClientBoxesTab clientId={client.id} data={boxes} readOnly={client.isDeleted} />
       ) : null}
 
       {activeTab === "history" && history ? (

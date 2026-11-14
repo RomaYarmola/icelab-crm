@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import BoxCardContent from "@/components/boxesPage/BoxCardContent";
 import { getDb } from "@/db/client";
+import { transferBoxAction } from "@/app/(app)/boxes/actions";
+import { listLocationOptions } from "@/server/box-debts";
 import { getBoxByCode } from "@/server/boxes";
 import { requirePageUser } from "@/server/page-access";
 
@@ -15,7 +17,15 @@ export default async function BoxPage({ params }: { params: Promise<{ code: stri
     redirect("/boxes"),
   );
   if (!box) notFound();
+  const transfer =
+    user.role === "owner"
+      ? { locations: await listLocationOptions(getDb()), action: transferBoxAction }
+      : undefined;
   return (
-    <BoxCardContent box={box} canPrint={user.role === "owner" || user.role === "location_lead"} />
+    <BoxCardContent
+      box={box}
+      canPrint={user.role === "owner" || user.role === "location_lead"}
+      transfer={transfer}
+    />
   );
 }

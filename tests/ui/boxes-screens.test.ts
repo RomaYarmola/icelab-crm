@@ -166,3 +166,31 @@ describe("сканер офлайн (B9, PR 4, D112)", () => {
     expect(clear).not.toContain(".clear()");
   });
 });
+
+describe("екрани боксів: борги, склад, клієнт (B9, PR 5)", () => {
+  it("борги й склад закриті для виробництва, реєстр лише для власника й старшого локації", () => {
+    for (const page of ["debts", "stock"]) {
+      const source = read(`src/app/(app)/boxes/${page}/page.tsx`);
+      expect(source).toContain('requirePageUser("boxes")');
+      expect(source).toContain('user.role === "production"');
+      expect(source).toContain('redirect("/scan")');
+    }
+    expect(read("src/app/(app)/boxes/page.tsx")).toContain('redirect("/boxes/debts")');
+  });
+
+  it("вкладка «Бокси» на картці клієнта є лише тим, хто бачить борги, і не для виробництва", () => {
+    const page = read("src/app/(app)/clients/[id]/page.tsx");
+    expect(page).toContain('"box_debts_stock", "read"');
+    expect(page).toContain('user.role !== "production"');
+    expect(read("src/components/clientsPage/ClientCardContent.tsx")).toContain(
+      'id !== "boxes" || boxes !== null',
+    );
+  });
+
+  it("старі борги вносять і закривають лише власник і старший локації, переміщує лише власник", () => {
+    const server = read("src/server/box-debts.ts");
+    expect(server).toContain("assertCanManageLegacy(actor)");
+    expect(server).toMatch(/owner.*location_lead|location_lead.*owner/s);
+    expect(read("src/app/(app)/boxes/[code]/page.tsx")).toContain('user.role === "owner"');
+  });
+});
