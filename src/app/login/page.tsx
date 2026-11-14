@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import ClearScanData from "@/components/loginPage/ClearScanData";
 import LoginForm from "@/components/loginPage/LoginForm";
 import Logo from "@/components/shared/logo/Logo";
 import Text from "@/components/shared/texts/Text";
@@ -19,6 +20,7 @@ export default async function LoginPage({
 
   return (
     <main className="flex min-h-dvh flex-col items-center justify-center px-4 py-10">
+      <ClearScanData />
       <div className="flex w-full max-w-sm flex-col gap-8">
         <div className="flex flex-col items-center gap-3 text-center">
           <Logo priority className="w-36" />

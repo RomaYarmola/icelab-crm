@@ -126,7 +126,7 @@ export default function ProductionCard({
             Бокси: {card.boxesIssued} з {card.boxesNeeded}
           </Text>
           {!wall && canWork && !packed ? (
-            <ButtonLink href={`/boxes/scan?order=${card.id}`} variant="outline" size="sm">
+            <ButtonLink href={`/scan?order=${card.id}`} variant="outline" size="sm">
               Сканувати
             </ButtonLink>
           ) : null}
