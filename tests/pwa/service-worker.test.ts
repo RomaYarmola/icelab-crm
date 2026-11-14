@@ -155,7 +155,7 @@ describe("service worker", () => {
   it("не перехоплює дані: серверні запити RSC, /api, не-GET і чужі сайти", async () => {
     expect(await worker.request("/orders?_rsc=abc123")).toBeUndefined();
     expect(await worker.request("/api/health")).toBeUndefined();
-    expect(await worker.request("/more/users/1", { method: "POST" })).toBeUndefined();
+    expect(await worker.request("/users/1", { method: "POST" })).toBeUndefined();
     expect(await worker.request("https://other.example/_next/static/a.js")).toBeUndefined();
     expect(
       worker.network.requests.filter(
@@ -186,7 +186,7 @@ describe("service worker", () => {
   });
 
   it("у кеші лишаються тільки адреси з білого списку, що б не відкривав користувач", async () => {
-    for (const path of ["/orders", "/clients", "/more", "/more/users", "/api/health", "/login"]) {
+    for (const path of ["/orders", "/clients", "/more", "/users", "/api/health", "/login"]) {
       await worker.request(path, { mode: "navigate" });
       await worker.request(`${path}?_rsc=1`);
     }

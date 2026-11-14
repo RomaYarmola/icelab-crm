@@ -1,4 +1,4 @@
-import type { LoadMoreAuditResult } from "@/app/(app)/more/audit/actions";
+import type { LoadMoreAuditResult } from "@/app/(app)/audit/actions";
 import type { AuditPage } from "@/server/audit";
 import {
   type AuditListFilters,
@@ -8,7 +8,6 @@ import {
 } from "@/utils/auditParams";
 import EmptyState from "../shared/emptyState/EmptyState";
 import HistoryIcon from "../shared/icons/HistoryIcon";
-import BackLink from "../shared/links/BackLink";
 import SearchField from "../shared/search/SearchField";
 import Text from "../shared/texts/Text";
 import AuditFilters from "./AuditFilters";
@@ -36,8 +35,7 @@ export default function AuditPageContent({
 }: AuditPageContentProps) {
   const isFiltered = hasActiveAuditSearch(filters);
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
-      <BackLink href="/more">Профіль</BackLink>
+    <div className="flex flex-col gap-4">
       <Text variant="muted">
         Усі зміни в системі: хто, коли й що змінив. Шукайте за номером замовлення чи кодом клієнта.
         Журнал веде сама база, його не можна ні змінити, ні стерти.

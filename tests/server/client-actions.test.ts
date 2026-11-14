@@ -14,7 +14,7 @@ import {
   restoreClientAction,
   updateClientAction,
 } from "@/app/(app)/clients/actions";
-import { changeDefaultPriceAction } from "@/app/(app)/more/prices/actions";
+import { changeDefaultPriceAction } from "@/app/(app)/prices/actions";
 import { getDb } from "@/db/client";
 import {
   clientAddresses,

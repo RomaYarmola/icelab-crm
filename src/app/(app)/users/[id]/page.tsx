@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
-import { updateUserAction } from "@/app/(app)/more/users/actions";
+import { updateUserAction } from "@/app/(app)/users/actions";
 import UserDetailContent from "@/components/usersPage/UserDetailContent";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";

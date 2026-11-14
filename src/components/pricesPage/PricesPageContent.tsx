@@ -5,7 +5,6 @@ import { effectivePriceFor, groupDefaultPrices } from "@/utils/priceView";
 import type { FormAction } from "../clientsPage/clientActions";
 import Card from "../shared/cards/Card";
 import Disclosure from "../shared/disclosure/Disclosure";
-import BackLink from "../shared/links/BackLink";
 import Notification from "../shared/notification/Notification";
 import Text from "../shared/texts/Text";
 import SubTitle from "../shared/titles/SubTitle";
@@ -36,15 +35,14 @@ export default function PricesPageContent({
   action,
 }: PricesPageContentProps) {
   return (
-    <div className="flex max-w-xl flex-col gap-6">
-      <BackLink href="/more">Профіль</BackLink>
-      <Text variant="muted">
+    <div className="flex flex-col gap-6">
+      <Text variant="muted" className="max-w-xl">
         Ціна за кілограм для кожного типу льоду. Вона однакова для всіх клієнтів, поки в клієнта
         немає своєї ціни.
       </Text>
       {canEdit ? null : <Notification variant="info">Прайс змінює власник.</Notification>}
 
-      <ul className="flex flex-col gap-4">
+      <ul className="grid items-start gap-4 lg:grid-cols-2">
         {iceTypes.map((iceType) => {
           const own = prices.filter((price) => price.iceTypeId === iceType.id);
           const effective = effectivePriceFor(iceType.id, [], own, today);

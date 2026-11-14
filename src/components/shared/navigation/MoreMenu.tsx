@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Fragment } from "react";
 import { usePathname } from "next/navigation";
 import { NAV_ITEMS, NavItem as NavItemData } from "@/constants/navigation";
 import { cn } from "@/utils/cn";
@@ -24,7 +25,7 @@ interface MoreMenuProps {
  * Вміст меню «Ще»: хто увійшов, розділи, яких немає в нижній панелі, і вихід. Підписи пунктів
  * мають той самий розмір і кольори, що й нижня панель (NavItem, NavAction, `variant="popup"`).
  * Показується в попапі «Ще» на телефоні (BottomNav), у попапі мітки користувача в шапці на ширшому
- * екрані (UserMenu, без розділів) і на сторінці `/more` (прямий перехід).
+ * екрані (UserMenu, без розділів) і на сторінці `/profile` (прямий перехід).
  */
 export default function MoreMenu({
   fullName,
@@ -48,7 +49,7 @@ export default function MoreMenu({
         )}
       >
         {/* На телефоні (до sm) текст профілю дрібніший, від sm звичайного розміру. */}
-        <Text variant="label" className="truncate text-caption sm:text-body">
+        <Text variant="label" className="truncate text-nav sm:text-body">
           {fullName}
         </Text>
         <Text variant="muted" className="truncate text-nav sm:text-body">
@@ -64,12 +65,11 @@ export default function MoreMenu({
       <hr className="my-1 border-grey-border" />
 
       {extraItems.map((item) => (
-        <NavItem
-          key={item.id}
-          item={item}
-          variant="popup"
-          isActive={isActivePath(pathname, item.href)}
-        />
+        <Fragment key={item.id}>
+          {/* Перед «Журналом змін» починається службова частина меню: відділяємо її рискою, як у бічній панелі. */}
+          {item.id === "audit" ? <hr className="my-1 border-grey-border" /> : null}
+          <NavItem item={item} variant="popup" isActive={isActivePath(pathname, item.href)} />
+        </Fragment>
       ))}
 
       <form action={signOutAction}>

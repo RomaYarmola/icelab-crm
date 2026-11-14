@@ -64,7 +64,7 @@ describe("файли застосунку не перекидаються на �
   });
 
   it("сторінки застосунку, як і раніше, проходять перевірку входу", () => {
-    for (const path of ["/", "/orders", "/more/users", "/api/health", "/login"]) {
+    for (const path of ["/", "/orders", "/users", "/api/health", "/login"]) {
       expect(matcher.test(path), path).toBe(true);
     }
   });

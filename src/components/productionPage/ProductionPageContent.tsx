@@ -84,7 +84,7 @@ export default function ProductionPageContent({
       {canEdit ? (
         <div className="flex flex-wrap gap-3">
           <WallModeButton />
-          <ButtonLink href="/more/cash" variant="outline" size="sm">
+          <ButtonLink href="/cash" variant="outline" size="sm">
             Готівка
           </ButtonLink>
         </div>

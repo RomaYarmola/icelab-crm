@@ -461,7 +461,7 @@ async function loadSubjects(db: AnyPgDatabase, rows: AuditRow[]): Promise<Map<st
         const orderRow = order ? orderMap.get(order) : undefined;
         subjects.set(row.id, {
           text: base.text,
-          href: orderRow ? `/more/cash?date=${orderRow.orderDate}#order-${orderRow.id}` : null,
+          href: orderRow ? `/cash?date=${orderRow.orderDate}#order-${orderRow.id}` : null,
         });
         break;
       }
@@ -486,7 +486,7 @@ async function loadSubjects(db: AnyPgDatabase, rows: AuditRow[]): Promise<Map<st
         const iceId = valueOf(diff, "ice_type_id");
         subjects.set(row.id, {
           text: `Прайс${iceId && iceMap.get(iceId) ? ` · ${iceMap.get(iceId)}` : ""}`,
-          href: "/more/prices",
+          href: "/prices",
         });
         break;
       }
@@ -494,7 +494,7 @@ async function loadSubjects(db: AnyPgDatabase, rows: AuditRow[]): Promise<Map<st
         const profile = profileMap.get(row.rowId);
         subjects.set(row.id, {
           text: `Користувач ${profile?.fullName ?? valueOf(diff, "full_name") ?? ""}`.trim(),
-          href: profile ? `/more/users/${profile.id}` : null,
+          href: profile ? `/users/${profile.id}` : null,
         });
         break;
       }

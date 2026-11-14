@@ -57,7 +57,7 @@ function refresh(orderId?: string) {
   revalidatePath("/orders", "layout");
   // Статус замовлення видно й на екрані виробництва та в готівці (B6).
   revalidatePath("/production", "layout");
-  revalidatePath("/more/cash");
+  revalidatePath("/cash");
   if (orderId) notifyOrderChange(getDb(), orderId);
 }
 

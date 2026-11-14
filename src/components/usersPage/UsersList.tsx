@@ -12,23 +12,25 @@ interface UsersListProps {
   users: UserListItem[];
 }
 
-/** Список користувачів: картка веде на екран користувача. Вимкнені позначені й стоять у кінці. */
+/** Список користувачів (на комп'ютері в дві колонки): картка веде на екран користувача. Вимкнені позначені й стоять у кінці. */
 export default function UsersList({ users }: UsersListProps) {
   if (users.length === 0) {
     return <EmptyState icon={<UsersIcon className="size-10" />} title="Користувачів ще немає" />;
   }
 
   return (
-    <ul className="flex flex-col gap-3">
+    <ul className="grid gap-3 lg:grid-cols-2">
       {users.map((user) => (
         <li key={user.id}>
           <Link
-            href={`/more/users/${user.id}`}
+            href={`/users/${user.id}`}
             className="flex flex-col gap-1 rounded-card border border-grey-border bg-grey-light p-4 transition active:scale-[98%] lg:hover:border-grey-field"
           >
             <div className="flex items-start justify-between gap-3">
               <SubTitle className="min-w-0 truncate">{user.fullName}</SubTitle>
-              {user.isActive ? null : <Tag className="shrink-0">Вимкнено</Tag>}
+              {user.isActive ? null : (
+                <Tag className="min-h-0 shrink-0 px-2 py-0.5 lg:min-h-0 lg:px-2">Вимкнено</Tag>
+              )}
             </div>
             <Text variant="muted">
               {ROLE_LABELS[user.role]} · {user.locationName ?? ALL_LOCATIONS_LABEL}

@@ -74,8 +74,8 @@ export async function createUserAction(
   );
 
   if (createdId) {
-    revalidatePath("/more", "layout");
-    redirect(`/more/users/${createdId}?created=1`);
+    revalidatePath("/profile", "layout");
+    redirect(`/users/${createdId}?created=1`);
   }
   return state;
 }
@@ -95,7 +95,7 @@ export async function updateUserAction(
         locationId: orNull(values.locationId),
         phone: orNull(values.phone),
       });
-      revalidatePath("/more", "layout");
+      revalidatePath("/profile", "layout");
     },
     { success: "Зміни збережено.", values },
   );
@@ -111,7 +111,7 @@ export async function setUserActiveAction(
   return runFormAction(
     async () => {
       await setUserActive(deps(), actor, readUserId(formData), active);
-      revalidatePath("/more", "layout");
+      revalidatePath("/profile", "layout");
     },
     { success: active ? "Користувача увімкнено." : "Користувача вимкнено." },
   );

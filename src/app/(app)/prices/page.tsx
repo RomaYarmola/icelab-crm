@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { changeDefaultPriceAction } from "@/app/(app)/more/prices/actions";
+import { changeDefaultPriceAction } from "@/app/(app)/prices/actions";
 import PricesPageContent from "@/components/pricesPage/PricesPageContent";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";

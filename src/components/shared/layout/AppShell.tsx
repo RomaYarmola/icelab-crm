@@ -7,7 +7,12 @@ import type { AppUser } from "@/server/guards";
 import type { LocationFilter } from "@/server/locations";
 import { ROLE_LABELS } from "@/server/permissions";
 import { getInitial } from "@/utils/initials";
-import { accountNavItemsFor, extraNavItemsFor, navItemsFor } from "@/utils/navigation";
+import {
+  accountNavItemsFor,
+  extraNavItemsFor,
+  navItemsFor,
+  sideExtraNavItemsFor,
+} from "@/utils/navigation";
 import Tag from "../chips/Tag";
 import Container from "../container/Container";
 import Header from "../header/Header";
@@ -59,14 +64,13 @@ export default function AppShell({
   return (
     <div className="min-h-dvh bg-white lg:pl-72">
       <SideNav
-        items={sections}
+        items={[...sections, ...sideExtraNavItemsFor(user.role)]}
         userName={user.fullName}
         userDescription={`${roleLabel} · ${locationLabel}`}
         signOutAction={signOutAction}
       />
       {/* Сторінка «Ще» не в меню комп'ютера, але має заголовок у шапці. */}
       <Header
-        // «Користувачі» перед «Ще»: адреса /more/users теж починається з /more, а заголовок береться з першого збігу.
         items={[...sections, ...accountItems, NAV_ITEMS.more]}
         location={
           // Власник, менеджер і бухгалтер вибирають локацію, решта бачить лише підпис своєї.

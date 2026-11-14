@@ -57,16 +57,16 @@ describe("екран «Готівка»: гроші й права", () => {
   });
 
   it("сторінка читає готівку лише через listCashDay, а не через список чи картку замовлення", () => {
-    const page = read("src/app/(app)/more/cash/page.tsx");
+    const page = read("src/app/(app)/cash/page.tsx");
     expect(page).toContain("listCashDay");
     expect(page).not.toContain("listOrders");
     expect(page).not.toContain("getOrder(");
   });
 
   it("розділ закрито за правами; запис для власника й старшого локації, сторно лише для власника", () => {
-    const layout = read("src/app/(app)/more/cash/layout.tsx");
+    const layout = read("src/app/(app)/cash/layout.tsx");
     expect(layout).toContain('requirePageUser("cash")');
-    const page = read("src/app/(app)/more/cash/page.tsx");
+    const page = read("src/app/(app)/cash/page.tsx");
     expect(page).toContain('can(user.role, "order_cash", "write")');
     expect(page).toContain("isBotOnly");
     expect(page).toContain('can(user.role, "cash_reversal", "write")');
@@ -92,7 +92,7 @@ describe("екран «Готівка»: гроші й права", () => {
   it("картка замовлення веде на готівку, а екран виробництва для старшого локації теж", () => {
     expect(read("src/components/ordersPage/OrderCardContent.tsx")).toContain("cashHref");
     expect(read("src/components/productionPage/ProductionPageContent.tsx")).toContain(
-      'href="/more/cash"',
+      'href="/cash"',
     );
   });
 });

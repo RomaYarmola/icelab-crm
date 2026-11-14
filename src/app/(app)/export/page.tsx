@@ -3,7 +3,7 @@ import ExportAllContent from "@/components/exportPage/ExportAllContent";
 import { can } from "@/server/permissions";
 import { requirePageUser } from "@/server/page-access";
 
-export const metadata: Metadata = { title: "Експорт усього" };
+export const metadata: Metadata = { title: "Експорт даних" };
 
 /**
  * «Експорт усього»: уся база одним файлом Excel. Лише власник. Сам файл готує адреса

@@ -165,7 +165,8 @@ describe("курсор і фокус", () => {
     const popup = readFileSync(join(ROOT, "src/components/shared/popup/Popup.tsx"), "utf8");
     expect(popup).toContain("w-[min(11.25rem,");
     const more = readFileSync(join(ROOT, "src/components/shared/navigation/MoreMenu.tsx"), "utf8");
-    expect(more).toContain("text-caption sm:text-body");
+    // Ім'я, роль і пошта в попапі «Ще» на телефоні мають той самий розмір, що й нижнє меню.
+    expect(more).not.toContain("text-caption");
     expect(more).toContain("text-nav sm:text-body");
   });
 
@@ -210,7 +211,7 @@ describe("курсор і фокус", () => {
     // Висота від 44 px (вимога ТЗ) і наведення лише від lg.
     expect(back).toContain("min-h-11");
     expect(back).toContain("lg:hover:");
-    for (const file of ["UsersPageContent.tsx", "NewUserContent.tsx", "UserDetailContent.tsx"]) {
+    for (const file of ["NewUserContent.tsx", "UserDetailContent.tsx"]) {
       const source = readFileSync(join(ROOT, "src/components/usersPage", file), "utf8");
       expect(source, file).toContain("<BackLink");
       expect(source, file).not.toContain("←");

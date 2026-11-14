@@ -17,5 +17,5 @@ export function cashLinkFor(
   if (!can(role, "order_cash", "read")) return null;
   if (order.paymentKind !== "cash") return null;
   if (order.status === "draft" || order.status === "cancelled") return null;
-  return `/more/cash?date=${order.orderDate}#order-${order.id}`;
+  return `/cash?date=${order.orderDate}#order-${order.id}`;
 }

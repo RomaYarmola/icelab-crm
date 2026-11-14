@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { setUserActiveAction } from "@/app/(app)/more/users/actions";
+import { setUserActiveAction } from "@/app/(app)/users/actions";
 import { INITIAL_FORM_STATE } from "@/utils/formState";
 import MainButton from "../shared/buttons/MainButton";
 import Form from "../shared/form/Form";

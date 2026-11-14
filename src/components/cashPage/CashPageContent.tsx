@@ -3,7 +3,6 @@ import type { CashDay } from "@/server/cash";
 import EmptyState from "../shared/emptyState/EmptyState";
 import ExportButton from "../shared/export/ExportButton";
 import ScreenHint from "../shared/hint/ScreenHint";
-import BackLink from "../shared/links/BackLink";
 import Notification from "../shared/notification/Notification";
 import SubTitle from "../shared/titles/SubTitle";
 import ProductionDayNav from "../productionPage/ProductionDayNav";
@@ -39,9 +38,8 @@ export default function CashPageContent({
   actions,
 }: CashPageContentProps) {
   return (
-    <div className="flex max-w-3xl flex-col gap-6">
-      <BackLink href="/more">Профіль</BackLink>
-      <ProductionDayNav date={day.date} today={today} path="/more/cash" label="День готівки" />
+    <div className="flex flex-col gap-6">
+      <ProductionDayNav date={day.date} today={today} path="/cash" label="День готівки" />
       <CashSummary summary={day.summary} />
       <ScreenHint hint={SCREEN_HINTS.cash} />
       {canExport ? (

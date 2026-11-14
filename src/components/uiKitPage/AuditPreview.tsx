@@ -1,4 +1,4 @@
-import type { LoadMoreAuditResult } from "@/app/(app)/more/audit/actions";
+import type { LoadMoreAuditResult } from "@/app/(app)/audit/actions";
 import type { AuditEntryView, AuditPage } from "@/server/audit";
 import { parseAuditParams } from "@/utils/auditParams";
 import AuditPageContent from "../auditPage/AuditPageContent";
@@ -53,7 +53,7 @@ export const PREVIEW_AUDIT_ENTRIES: AuditEntryView[] = [
     subject: "Замовлення № 3469 · Склад №4",
     sectionLabel: "Готівка",
     tableLabel: "Запис готівки",
-    href: "/more/cash?date=2026-11-13#order-o4",
+    href: "/cash?date=2026-11-13#order-o4",
     changes: [
       { label: "Сума", before: null, after: "1 000 ₴" },
       { label: "Дата прийому", before: null, after: "13.11.2026" },

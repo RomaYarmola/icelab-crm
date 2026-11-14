@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { resetPasswordAction } from "@/app/(app)/more/users/actions";
+import { resetPasswordAction } from "@/app/(app)/users/actions";
 import { MIN_PASSWORD_LENGTH } from "@/constants/constants";
 import { INITIAL_FORM_STATE } from "@/utils/formState";
 import MainButton from "../shared/buttons/MainButton";

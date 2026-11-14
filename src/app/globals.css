@@ -258,6 +258,11 @@
   animation: popup-in var(--transition-duration) var(--transition-easing);
 }
 
+/* Список вибору в полі форми: лише плавно проявляється, без руху. */
+@utility animate-popup-fade {
+  animation: fade-in var(--transition-duration) var(--transition-easing);
+}
+
 /* Попап під шапкою (меню користувача): з'являється згори вниз від правого верхнього кута. */
 @utility animate-popup-in-top {
   transform-origin: top right;

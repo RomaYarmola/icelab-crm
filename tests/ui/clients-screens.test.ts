@@ -130,9 +130,9 @@ describe("екрани клієнтів: права і ціни", () => {
   });
 
   it("прайс змінює лише власник: на екрані форма за правом default_prices", () => {
-    const page = read("src/app/(app)/more/prices/page.tsx");
+    const page = read("src/app/(app)/prices/page.tsx");
     expect(page).toContain('can(user.role, "default_prices", "write")');
-    expect(read("src/app/(app)/more/prices/layout.tsx")).toContain('requirePageUser("prices")');
+    expect(read("src/app/(app)/prices/layout.tsx")).toContain('requirePageUser("prices")');
   });
 
   it("нового клієнта створюють лише ті, хто може змінювати клієнтів", () => {

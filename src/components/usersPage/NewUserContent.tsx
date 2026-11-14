@@ -12,7 +12,7 @@ interface NewUserContentProps {
 export default function NewUserContent({ locations, action }: NewUserContentProps) {
   return (
     <div className="flex max-w-md flex-col gap-6">
-      <BackLink href="/more/users">Користувачі</BackLink>
+      <BackLink href="/users">Користувачі</BackLink>
       <SectionTitle>Новий користувач</SectionTitle>
       <UserForm
         mode="create"

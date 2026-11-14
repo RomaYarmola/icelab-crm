@@ -30,6 +30,8 @@ export default function SideNav({ items, userName, userDescription, signOutActio
         <ul className="flex flex-col gap-1">
           {items.map((item) => (
             <li key={item.id}>
+              {/* Перед «Журналом змін» починається службова частина меню: відділяємо її рискою. */}
+              {item.id === "audit" ? <hr className="my-2 border-grey-border" /> : null}
               <NavItem item={item} isActive={isActivePath(pathname, item.href)} variant="side" />
             </li>
           ))}
@@ -40,12 +42,10 @@ export default function SideNav({ items, userName, userDescription, signOutActio
         <Link
           href={NAV_ITEMS.more.href}
           aria-label={`Профіль: ${userName}`}
-          aria-current={isActivePath(pathname, NAV_ITEMS.more.href) ? "page" : undefined}
+          aria-current={pathname === NAV_ITEMS.more.href ? "page" : undefined}
           className={cn(
             "-mx-2 flex flex-col rounded-field px-2 py-1 transition",
-            isActivePath(pathname, NAV_ITEMS.more.href)
-              ? "bg-grey-light"
-              : "lg:hover:bg-grey-light",
+            pathname === NAV_ITEMS.more.href ? "bg-grey-light" : "lg:hover:bg-grey-light",
           )}
         >
           <Text variant="label">{userName}</Text>
