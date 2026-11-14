@@ -1,7 +1,16 @@
-import { and, asc, desc, eq, inArray, like, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, like, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "@/db/actor";
-import { boxEvents, boxes, boxTypes, clients, locations, orders, profiles } from "@/db/schema";
+import {
+  boxEvents,
+  boxes,
+  boxTypes,
+  clients,
+  locations,
+  orderItems,
+  orders,
+  profiles,
+} from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { parseInput, ValidationError } from "./errors";
 import { ForbiddenError, type AppUser, locationScope, requirePermission } from "./guards";
@@ -186,6 +195,8 @@ export type BoxEventResult = {
   /** Цю подію вже записували (повторна відправка). */
   duplicate: boolean;
   boxStatus: BoxStatus;
+  /** Замовлення основної події (для оновлення екрана цеху). */
+  orderId?: string | null;
 };
 
 const ACTION_DONE: Record<BoxAction, string> = {
@@ -369,6 +380,7 @@ export async function recordBoxEvent(
         message,
         duplicate: false,
         boxStatus: planned.next.status,
+        orderId: planned.events.at(-1)?.orderId ?? null,
       },
       // Замовлення, з яких бокс пішов у «не в клієнта»: їх можна було закрити.
       releasedOrderIds: planned.events
@@ -558,4 +570,226 @@ export async function listBoxTypeOptions(
     .from(boxTypes)
     .where(and(eq(boxTypes.isActive, true), eq(boxTypes.isClientOwned, false)))
     .orderBy(asc(boxTypes.sort));
+}
+
+// ---------------------------------------------------------------------------------------------
+// Скан: пакет подій, замовлення для видачі, лічильники
+// ---------------------------------------------------------------------------------------------
+
+export const MAX_EVENTS_PER_BATCH = 20;
+
+export type BoxEventOutcome = {
+  /** Номер скана, який прислав пристрій (щоб зіставити відповідь із записом у черзі). */
+  queueId: string | null;
+  code: string;
+  result: "ok" | "warning" | "error";
+  message: string;
+  duplicate: boolean;
+  boxStatus?: BoxStatus;
+  orderId?: string | null;
+};
+
+/**
+ * Пакет подій зі сканера (ТЗ §9): до 20 штук, у порядку часу скана. Кожна подія дає `ok`,
+ * `warning` чи `error` із текстом; помилка однієї не зупиняє решту. Повторна відправка того ж
+ * номера скана безпечна (D112).
+ */
+export async function processBoxEvents(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  events: RecordBoxEventInput[],
+): Promise<BoxEventOutcome[]> {
+  assertCanScan(actor);
+  if (events.length === 0 || events.length > MAX_EVENTS_PER_BATCH) {
+    throw new ValidationError(`У пакеті від 1 до ${MAX_EVENTS_PER_BATCH} подій.`);
+  }
+  const ordered = events
+    .map((event, index) => ({ event, index }))
+    .sort(
+      (a, b) =>
+        new Date(a.event.occurredAt ?? 0).getTime() - new Date(b.event.occurredAt ?? 0).getTime() ||
+        a.index - b.index,
+    );
+  const outcomes = new Array<BoxEventOutcome>(events.length);
+  for (const { event, index } of ordered) {
+    const base = { queueId: event.deviceQueueId ?? null, code: String(event.code ?? "").trim() };
+    try {
+      const done = await recordBoxEvent(db, actor, event);
+      outcomes[index] = {
+        ...base,
+        code: done.code,
+        result: done.status,
+        message: done.message,
+        duplicate: done.duplicate,
+        boxStatus: done.boxStatus,
+        orderId: done.orderId ?? null,
+      };
+    } catch (error) {
+      if (error instanceof ValidationError || error instanceof ForbiddenError) {
+        outcomes[index] = {
+          ...base,
+          result: "error",
+          message: error.message,
+          duplicate: false,
+        };
+      } else {
+        throw error;
+      }
+    }
+  }
+  return outcomes;
+}
+
+export type BoxIssueOrder = {
+  id: string;
+  number: number | null;
+  clientName: string;
+  /** Скільки боксів потрібно (тара «наша» × кількість). */
+  needed: number;
+  /** Скільки вже відскановано в це замовлення. */
+  issued: number;
+  boxTypeName: string | null;
+};
+
+/** Скільки боксів «У клієнта» числиться в кожному із замовлень. */
+export async function countIssuedBoxes(
+  db: AnyPgDatabase,
+  orderIds: readonly string[],
+): Promise<Map<string, number>> {
+  if (orderIds.length === 0) return new Map();
+  const rows = await db
+    .select({ orderId: boxes.currentOrderId, n: sql<number>`count(*)::int` })
+    .from(boxes)
+    .where(and(inArray(boxes.currentOrderId, [...orderIds]), eq(boxes.status, "at_client")))
+    .groupBy(boxes.currentOrderId);
+  return new Map(rows.map((row) => [row.orderId!, row.n]));
+}
+
+/**
+ * Замовлення, до яких зараз видають бокси (ТЗ 6.7): сьогоднішні «У виробництві» і «Запаковано».
+ * Старший локації й виробництво бачать свою локацію, власник усі.
+ */
+export async function listBoxIssueOrders(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  today: string,
+): Promise<BoxIssueOrder[]> {
+  assertCanScan(actor);
+  const own = locationScope(actor);
+  if (actor.role !== "owner" && !own) return [];
+  const rows = await db
+    .select({
+      id: orders.id,
+      number: orders.number,
+      clientName: clients.name,
+      boxCount: orders.boxCount,
+      boxOwnership: orders.boxOwnership,
+      boxTypeName: boxTypes.name,
+    })
+    .from(orders)
+    .innerJoin(clients, eq(clients.id, orders.clientId))
+    .leftJoin(boxTypes, eq(boxTypes.id, orders.boxTypeId))
+    .where(
+      and(
+        isNull(orders.deletedAt),
+        eq(orders.orderDate, today),
+        inArray(orders.status, ["in_production", "packed"]),
+        own ? eq(orders.locationId, own) : undefined,
+      ),
+    )
+    .orderBy(asc(orders.number));
+  const issued = await countIssuedBoxes(
+    db,
+    rows.map((row) => row.id),
+  );
+  return rows.map((row) => ({
+    id: row.id,
+    number: row.number,
+    clientName: row.clientName,
+    needed: row.boxOwnership === "ours" ? row.boxCount : 0,
+    issued: issued.get(row.id) ?? 0,
+    boxTypeName: row.boxTypeName,
+  }));
+}
+
+export type OrderBox = { code: string; statusLabel: string; status: BoxStatus };
+
+/** Бокси замовлення для його картки: видані (ще в клієнта) і продані в цьому замовленні. */
+export async function listOrderBoxes(db: AnyPgDatabase, orderId: string): Promise<OrderBox[]> {
+  const issued = await db
+    .select({ code: boxes.code, status: boxes.status })
+    .from(boxes)
+    .where(and(eq(boxes.currentOrderId, orderId), eq(boxes.status, "at_client")));
+  const sold = await db
+    .selectDistinct({ code: boxes.code, status: boxes.status })
+    .from(boxEvents)
+    .innerJoin(boxes, eq(boxes.id, boxEvents.boxId))
+    .where(
+      and(eq(boxEvents.orderId, orderId), eq(boxEvents.event, "sold"), eq(boxes.status, "sold")),
+    );
+  return [...issued, ...sold]
+    .sort((a, b) => a.code.localeCompare(b.code))
+    .map((row) => ({ ...row, statusLabel: BOX_STATUS_LABELS[row.status] }));
+}
+
+const SELL_ORDER_STATUSES = ["draft", "confirmed", "in_production", "packed", "shipped"];
+
+/**
+ * Продаж бокса в замовленні (D108): бокс стає «Продано», у замовленні з'являється позиція «Продаж
+ * боксу» (тип, 1 шт., ціна з типу тари, 0 ₴ якщо ціну не задано: тоді її правлять у позиції).
+ * Роблять власник і старший локації (своєї локації).
+ */
+export async function sellBoxToOrder(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  input: { orderId: string; code: string },
+): Promise<{ message: string; priceMissing: boolean }> {
+  if (!canDoBoxAction(actor.role, "sell")) throw new ForbiddenError();
+  const orderId = parseInput(z.string().uuid("Замовлення не знайдено."), input.orderId);
+  const code = parseBoxCode(input.code);
+  if (!code) throw new ValidationError("Некоректний код бокса.");
+
+  const [order] = await db
+    .select({
+      id: orders.id,
+      status: orders.status,
+      locationId: orders.locationId,
+      deletedAt: orders.deletedAt,
+    })
+    .from(orders)
+    .where(eq(orders.id, orderId));
+  if (!order || order.deletedAt) throw new ValidationError("Замовлення не знайдено.");
+  requirePermission(actor, "box_scan", "write", { recordLocationId: order.locationId });
+  if (!SELL_ORDER_STATUSES.includes(order.status)) {
+    throw new ValidationError("У це замовлення бокс продати не можна.");
+  }
+  const [box] = await db
+    .select({
+      id: boxes.id,
+      typeId: boxes.boxTypeId,
+      typeName: boxTypes.name,
+      price: boxTypes.salePrice,
+    })
+    .from(boxes)
+    .innerJoin(boxTypes, eq(boxTypes.id, boxes.boxTypeId))
+    .where(eq(boxes.code, code));
+  if (!box) throw new ValidationError("Бокс не знайдено.");
+
+  // Подія (і перевірка, що бокс можна продати) першою: позиція з'являється лише після неї.
+  await recordBoxEvent(db, actor, { code, action: "sell", orderId });
+  await withActor(db, actor.id, async (tx) => {
+    await tx.insert(orderItems).values({
+      orderId,
+      kind: "box_sale",
+      title: `Продаж боксу ${box.typeName}`,
+      qty: "1",
+      unit: "шт",
+      price: box.price ?? "0",
+      boxTypeId: box.typeId,
+    });
+  });
+  return {
+    message: `Продано бокс ${code}.`,
+    priceMissing: box.price === null,
+  };
 }

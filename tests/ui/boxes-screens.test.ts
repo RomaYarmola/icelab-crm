@@ -79,3 +79,35 @@ describe("екрани боксів: права", () => {
     expect(page).toContain("/boxes/${code}");
   });
 });
+
+describe("сканер боксів (B9, PR 3)", () => {
+  it("камера й бібліотека сканування вантажаться лише за натисканням, одним динамічним імпортом", () => {
+    const source = read("src/components/boxesPage/BoxScanner.tsx");
+    expect(source.startsWith('"use client"')).toBe(true);
+    expect(source).toContain('await import("@zxing/browser")');
+    expect(source).not.toMatch(/^import .*@zxing/m);
+    // Серверне лише типи й чиста функція розбору коду.
+    expect(source).not.toMatch(/from "@\/db\//);
+    expect(source).toContain("Видача");
+    expect(source).toContain("Повернення");
+    expect(source).toContain("Код вручну");
+  });
+
+  it("адреса подій вимагає вхід, перевіряє тіло, віддає 400 і 403, не кешується", () => {
+    const route = read("src/app/api/boxes/events/route.ts");
+    expect(route).toContain("requireUser()");
+    expect(route).toContain("status: 400");
+    expect(route).toContain("status: 403");
+    expect(route).toContain("no-store");
+    expect(route).toContain("MAX_EVENTS_PER_BATCH");
+    expect(route).toContain("notifyOrderChange");
+  });
+
+  it("сторінка сканера закрита за ролями, а продаж бокса лише власнику й старшому локації", () => {
+    const page = read("src/app/(app)/boxes/scan/page.tsx");
+    for (const role of ['"owner"', '"location_lead"', '"production"']) expect(page).toContain(role);
+    const order = read("src/app/(app)/orders/[id]/page.tsx");
+    expect(order).toContain('user.role === "owner" || user.role === "location_lead"');
+    expect(read("src/components/productionPage/ProductionCard.tsx")).toContain("boxesIssued");
+  });
+});

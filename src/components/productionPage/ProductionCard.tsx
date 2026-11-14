@@ -7,6 +7,7 @@ import { formatPhone } from "@/utils/phone";
 import { mapRouteUrl, mapSearchUrl, telHref } from "@/utils/mapLinks";
 import { parseDecimal } from "@/utils/orderMath";
 import { describeBoxes, formatKgPlain } from "@/utils/productionView";
+import ButtonLink from "../shared/buttons/ButtonLink";
 import { getButtonClassName } from "../shared/buttons/buttonStyles";
 import StatusChip from "../shared/chips/StatusChip";
 import Tag from "../shared/chips/Tag";
@@ -118,6 +119,19 @@ export default function ProductionCard({
       </div>
 
       <DetailList items={details} />
+
+      {card.boxesNeeded > 0 ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <Text variant="label">
+            Бокси: {card.boxesIssued} з {card.boxesNeeded}
+          </Text>
+          {!wall && canWork && !packed ? (
+            <ButtonLink href={`/boxes/scan?order=${card.id}`} variant="outline" size="sm">
+              Сканувати
+            </ButtonLink>
+          ) : null}
+        </div>
+      ) : null}
 
       {!wall && (callHref || card.mapQuery) ? (
         <div className="flex flex-wrap gap-3">

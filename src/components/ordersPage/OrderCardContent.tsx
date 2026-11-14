@@ -4,7 +4,10 @@ import type { AuditPage } from "@/server/audit";
 import type { OrderCardView } from "@/server/order-views";
 import type { TransitionOption } from "@/server/order-rules";
 import { formatIsoDate } from "@/utils/isoDate";
+import type { OrderBox } from "@/server/boxes";
 import EntityHistory from "../auditPage/EntityHistory";
+import OrderBoxes from "../boxesPage/OrderBoxes";
+import type { FormAction } from "../clientsPage/clientActions";
 import DeleteRecordForm from "../clientsPage/DeleteRecordForm";
 import StatusChip from "../shared/chips/StatusChip";
 import ButtonLink from "../shared/buttons/ButtonLink";
@@ -42,6 +45,9 @@ interface OrderCardContentProps {
   cashHref?: string | null;
   /** Історія змін замовлення (D91): лише ролі, що бачать гроші (власник, менеджер, бухгалтер). */
   changeHistory?: AuditPage | null;
+  /** Бокси замовлення з кодами (ролі, що бачать бокси) і дія «Продати бокс» (власник, старший локації). */
+  boxes?: OrderBox[] | null;
+  sellBoxAction?: FormAction | null;
   /** Замовлення щойно створено: показуємо підтвердження. */
   notice?: "created";
 }
@@ -57,6 +63,8 @@ export default function OrderCardContent({
   actions,
   cashHref,
   changeHistory,
+  boxes,
+  sellBoxAction,
   notice,
 }: OrderCardContentProps) {
   const isCancelled = order.status === "cancelled";
@@ -131,6 +139,9 @@ export default function OrderCardContent({
           needsNote={permissions.itemsNeedNote}
           actions={actions}
         />
+      ) : null}
+      {boxes ? (
+        <OrderBoxes orderId={order.id} boxes={boxes} sellAction={sellBoxAction ?? null} />
       ) : null}
       {canChangePrice ? <OrderPriceForm orderId={order.id} action={actions.changePrice} /> : null}
 

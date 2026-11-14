@@ -6,13 +6,20 @@ import {
   createBoxes,
   daysAtClient,
   getBoxByCode,
+  countIssuedBoxes,
   listBoxes,
+  listBoxIssueOrders,
+  listOrderBoxes,
+  processBoxEvents,
+  sellBoxToOrder,
   listBoxTypeOptions,
   markLabelsPrinted,
   recordBoxEvent,
 } from "@/server/boxes";
 import { ValidationError } from "@/server/errors";
 import { ForbiddenError } from "@/server/guards";
+import { listProductionQueue } from "@/server/production";
+import { orderItems } from "@/db/schema";
 import { transitionOrder } from "@/server/order-status";
 import { USER_ROLES } from "@/server/permissions";
 import { type OrderTestContext, setupOrderTests } from "./order-helpers";
@@ -484,6 +491,186 @@ describe("бокси: створення, події, закриття замо�
       const types = await listBoxTypeOptions(t.db);
       expect(types.map((x) => x.id)).not.toContain(clientOwnedType);
       expect(types.length).toBeGreaterThan(1);
+    });
+  });
+
+  describe("пакет подій зі сканера (ТЗ §9, D112)", () => {
+    it("кожна подія дає ok, warning чи error, помилка однієї не зупиняє решту, порядок відповідей збігається із запитом", async () => {
+      const [a, b] = await batch(2);
+      const orderId = await orderInProduction();
+      const results = await processBoxEvents(t.db, lead(), [
+        { code: a!, action: "issue", orderId, deviceQueueId: "p-1" },
+        { code: "T-9999", action: "return", deviceQueueId: "p-2" },
+        { code: b!, action: "return", deviceQueueId: "p-3" },
+      ]);
+      expect(results.map((r) => r.result)).toEqual(["ok", "error", "warning"]);
+      expect(results.map((r) => r.queueId)).toEqual(["p-1", "p-2", "p-3"]);
+      expect(results[1]!.message).toBe("Бокс не знайдено.");
+      expect(results[0]).toMatchObject({ code: a, boxStatus: "at_client", orderId });
+    });
+
+    it("події застосовуються за часом скана, а не за порядком у пакеті", async () => {
+      const [code] = await batch(1);
+      const orderId = await orderInProduction();
+      const early = new Date(Date.now() - 600_000).toISOString();
+      const late = new Date(Date.now() - 300_000).toISOString();
+      // Повернення надіслано першим, але відскановано пізніше за видачу.
+      const results = await processBoxEvents(t.db, lead(), [
+        { code: code!, action: "return", occurredAt: late, deviceQueueId: "o-2" },
+        { code: code!, action: "issue", orderId, occurredAt: early, deviceQueueId: "o-1" },
+      ]);
+      expect(results.map((r) => r.result)).toEqual(["ok", "ok"]);
+      expect((await row(code!)).status).toBe("in_stock");
+    });
+
+    it("повторна відправка пакета нічого не дублює", async () => {
+      const [code] = await batch(1);
+      const orderId = await orderInProduction();
+      const events = [{ code: code!, action: "issue" as const, orderId, deviceQueueId: "r-1" }];
+      await processBoxEvents(t.db, lead(), events);
+      const again = await processBoxEvents(t.db, lead(), events);
+      expect(again[0]).toMatchObject({ result: "ok", duplicate: true });
+      expect((await eventsOf(code!)).filter((e) => e.event === "issued")).toHaveLength(1);
+    });
+
+    it("від 1 до 20 подій, не сканери не можуть, відмова за правами дає error у відповіді", async () => {
+      await expect(processBoxEvents(t.db, lead(), [])).rejects.toBeInstanceOf(ValidationError);
+      const many = Array.from({ length: 21 }, () => ({
+        code: "T-0001",
+        action: "return" as const,
+      }));
+      await expect(processBoxEvents(t.db, lead(), many)).rejects.toBeInstanceOf(ValidationError);
+      await expect(
+        processBoxEvents(t.db, t.users.manager, [{ code: "T-0001", action: "return" }]),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      const [code] = await batch(1);
+      const [r] = await processBoxEvents(t.db, lead(), [{ code: code!, action: "lose" }]);
+      expect(r).toMatchObject({ result: "error" });
+    });
+  });
+
+  describe("видача: замовлення, лічильник, картка цеху, продаж (D107, D108, D116)", () => {
+    it("список замовлень для видачі: сьогоднішні у виробництві й запаковані своєї локації з лічильником", async () => {
+      const [a] = await batch(1);
+      const mine = await orderInProduction({
+        orderDate: "2034-02-02",
+        boxCount: 2,
+        boxOwnership: "ours",
+      });
+      await recordBoxEvent(t.db, lead(), { code: a!, action: "issue", orderId: mine });
+      const draft = (await t.create({ orderDate: "2034-02-02" })).id;
+      const list = await listBoxIssueOrders(t.db, lead(), "2034-02-02");
+      expect(list.map((o) => o.id)).toContain(mine);
+      expect(list.map((o) => o.id)).not.toContain(draft);
+      expect(list.find((o) => o.id === mine)).toMatchObject({
+        needed: 2,
+        issued: 1,
+        clientName: "Кафе Тест",
+      });
+      expect(await listBoxIssueOrders(t.db, lead(), "2034-02-03")).toEqual([]);
+      expect(
+        (await listBoxIssueOrders(t.db, otherLocationLead, "2034-02-02")).map((o) => o.id),
+      ).not.toContain(mine);
+      expect((await listBoxIssueOrders(t.db, owner(), "2034-02-02")).map((o) => o.id)).toContain(
+        mine,
+      );
+      for (const role of ["manager", "accountant", "driver"] as const) {
+        await expect(
+          listBoxIssueOrders(t.db, t.users[role], "2034-02-02"),
+          role,
+        ).rejects.toBeInstanceOf(ForbiddenError);
+      }
+    });
+
+    it("чужа тара не рахується в «потрібно»; лічильник боксів по замовленнях", async () => {
+      const orderId = await orderInProduction({
+        orderDate: "2034-02-04",
+        boxCount: 3,
+        boxOwnership: "client",
+      });
+      const list = await listBoxIssueOrders(t.db, lead(), "2034-02-04");
+      expect(list.find((o) => o.id === orderId)!.needed).toBe(0);
+      expect((await countIssuedBoxes(t.db, [orderId])).get(orderId)).toBeUndefined();
+      expect(await countIssuedBoxes(t.db, [])).toEqual(new Map());
+    });
+
+    it("картка цеху показує «скільки з скількох боксів», і лише цифри, без грошей", async () => {
+      const [a, b] = await batch(2);
+      const date = "2034-02-06";
+      const orderId = await orderInProduction({
+        orderDate: date,
+        boxCount: 2,
+        boxOwnership: "ours",
+      });
+      await recordBoxEvent(t.db, lead(), { code: a!, action: "issue", orderId });
+      await recordBoxEvent(t.db, t.users.production, { code: b!, action: "issue", orderId });
+      const queue = await listProductionQueue(t.db, t.users.production, { date });
+      const card = queue.cards.find((c) => c.id === orderId)!;
+      expect(card).toMatchObject({ boxesNeeded: 2, boxesIssued: 2 });
+    });
+
+    it("бокси замовлення з кодами: видані й продані", async () => {
+      const [a, b] = await batch(2);
+      const orderId = await orderInProduction();
+      await recordBoxEvent(t.db, lead(), { code: a!, action: "issue", orderId });
+      await recordBoxEvent(t.db, lead(), { code: b!, action: "sell", orderId });
+      const boxesOfOrder = await listOrderBoxes(t.db, orderId);
+      expect(boxesOfOrder.map((x) => [x.code, x.statusLabel])).toEqual([
+        [a, "У клієнта"],
+        [b, "Продано"],
+      ]);
+    });
+
+    it("продаж бокса: статус «Продано», позиція «Продаж боксу» з ціною типу (або 0 з позначкою)", async () => {
+      const [code] = await batch(1);
+      await t.db.update(boxTypes).set({ salePrice: "450" }).where(eq(boxTypes.id, typeId));
+      const orderId = await orderInProduction();
+      const r = await sellBoxToOrder(t.db, lead(), { orderId, code: code! });
+      expect(r).toMatchObject({ priceMissing: false });
+      expect((await row(code!)).status).toBe("sold");
+      const items = await t.db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+      const sale = items.find((i) => i.kind === "box_sale")!;
+      expect(sale).toMatchObject({
+        qty: "1.000",
+        price: "450.00",
+        amount: "450.00",
+        boxTypeId: typeId,
+      });
+      expect((await t.db.select().from(orders).where(eq(orders.id, orderId)))[0]!.total).toBe(
+        "2700.00",
+      );
+
+      await t.db.update(boxTypes).set({ salePrice: null }).where(eq(boxTypes.id, typeId));
+      const [other] = await batch(1);
+      await expect(sellBoxToOrder(t.db, lead(), { orderId, code: other! })).resolves.toMatchObject({
+        priceMissing: true,
+      });
+    });
+
+    it("продаж: лише власник і старший своєї локації; позиція не з'являється, якщо бокс продати не можна", async () => {
+      const [code] = await batch(1);
+      const orderId = await orderInProduction();
+      for (const role of ["production", "manager", "accountant"] as const) {
+        await expect(
+          sellBoxToOrder(t.db, t.users[role], { orderId, code: code! }),
+          role,
+        ).rejects.toBeInstanceOf(ForbiddenError);
+      }
+      await expect(
+        sellBoxToOrder(t.db, otherLocationLead, { orderId, code: code! }),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+      await expect(sellBoxToOrder(t.db, owner(), { orderId, code: "T-9999" })).rejects.toThrow(
+        "Бокс не знайдено.",
+      );
+      await sellBoxToOrder(t.db, owner(), { orderId, code: code! });
+      const before = (await t.db.select().from(orderItems).where(eq(orderItems.orderId, orderId)))
+        .length;
+      await expect(sellBoxToOrder(t.db, owner(), { orderId, code: code! })).rejects.toBeInstanceOf(
+        ValidationError,
+      );
+      expect(
+        (await t.db.select().from(orderItems).where(eq(orderItems.orderId, orderId))).length,
+      ).toBe(before);
     });
   });
 

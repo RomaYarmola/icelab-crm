@@ -43,6 +43,8 @@ function card(
     recipientName: "Марія Петренко",
     recipientPhone: "+380501234567",
     mapQuery: "вул. Сагайдачного, 12, Київ",
+    boxesNeeded: 2,
+    boxesIssued: 1,
     isNew: false,
     ...overrides,
   };
