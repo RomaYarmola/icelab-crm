@@ -91,28 +91,28 @@ describe("готівка: запис, оплата, сторно, підсумо
       });
     });
 
-    it("допуск з налаштувань: не вистачає 5 грн вважається сплаченим", async () => {
+    it("допуску немає: не вистачає 5 грн, замовлення ще не сплачене (Роман, D117)", async () => {
       const id = await cashOrder();
       const result = await recordCashEntry(t.db, t.users.location_lead, {
         orderId: id,
         amount: "2245",
       });
-      expect(result.settled).toBe(true);
-      expect((await row(id)).status).toBe("closed");
+      expect(result.settled).toBe(false);
+      expect((await row(id)).status).toBe("shipped");
     });
 
     it("допуск береться з налаштувань, а не з коду", async () => {
       await t.db
         .update(settings)
-        .set({ value: 0 })
+        .set({ value: 5 })
         .where(eq(settings.key, "payment.amount_tolerance_uah"));
       const id = await cashOrder();
       const result = await recordCashEntry(t.db, t.users.owner, { orderId: id, amount: "2245" });
-      expect(result.settled).toBe(false);
-      expect((await row(id)).status).toBe("shipped");
+      expect(result.settled).toBe(true);
+      expect((await row(id)).status).toBe("closed");
       await t.db
         .update(settings)
-        .set({ value: 5 })
+        .set({ value: 0 })
         .where(eq(settings.key, "payment.amount_tolerance_uah"));
     });
 

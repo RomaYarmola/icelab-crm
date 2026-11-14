@@ -9,6 +9,7 @@ import { type AppUser, locationScope, requirePermission } from "./guards";
 import { transitionOrder } from "./order-status";
 import {
   describeDeliveryPlace,
+  describeMapQuery,
   isNewForProduction,
   ordersToAutoStart,
   PRODUCTION_STATUSES,
@@ -50,6 +51,11 @@ export type ProductionCard = {
   comment: string | null;
   /** Цех ще не бачив це замовлення (D65). */
   isNew: boolean;
+  /** Отримувач і його телефон (E.164): для кнопки дзвінка (D118). */
+  recipientName: string | null;
+  recipientPhone: string | null;
+  /** Що шукати на карті; `null` для самовивозу й замовлень без адреси. */
+  mapQuery: string | null;
 };
 
 export type ProductionQueue = {
@@ -118,6 +124,8 @@ export async function listProductionQueue(
       deliveryText: orders.deliveryText,
       timeWindow: orders.timeWindow,
       comment: orders.comment,
+      recipientName: orders.recipientName,
+      recipientPhone: orders.recipientPhone,
       seenByProductionAt: orders.seenByProductionAt,
       addressCity: clientAddresses.cityText,
       addressText: clientAddresses.addressText,
@@ -163,6 +171,20 @@ export async function listProductionQueue(
     }),
     timeWindow: row.timeWindow,
     comment: row.comment,
+    recipientName: row.recipientName,
+    recipientPhone: row.recipientPhone,
+    mapQuery: describeMapQuery({
+      deliveryMethod: row.deliveryMethod,
+      deliveryText: row.deliveryText,
+      address:
+        row.addressCity === null && row.addressText === null && row.addressWarehouse === null
+          ? null
+          : {
+              cityText: row.addressCity,
+              addressText: row.addressText,
+              npWarehouseNumber: row.addressWarehouse,
+            },
+    }),
     isNew: isNewForProduction({ status: row.status, seenByProductionAt: row.seenByProductionAt }),
   }));
 

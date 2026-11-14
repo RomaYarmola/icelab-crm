@@ -40,6 +40,9 @@ function card(
     deliveryPlace: "Київ, вул. Сагайдачного, 12",
     timeWindow: "10:00-14:00",
     comment: "Пакувати в два бокси, привезти до 10:00.",
+    recipientName: "Марія Петренко",
+    recipientPhone: "+380501234567",
+    mapQuery: "вул. Сагайдачного, 12, Київ",
     isNew: false,
     ...overrides,
   };

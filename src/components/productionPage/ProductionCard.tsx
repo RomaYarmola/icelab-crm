@@ -3,8 +3,11 @@
 import { cn } from "@/utils/cn";
 import { DELIVERY_METHOD_LABELS } from "@/constants/orders";
 import type { ProductionCard as ProductionCardData } from "@/server/production";
+import { formatPhone } from "@/utils/phone";
+import { mapRouteUrl, mapSearchUrl, telHref } from "@/utils/mapLinks";
 import { parseDecimal } from "@/utils/orderMath";
 import { describeBoxes, formatKgPlain } from "@/utils/productionView";
+import { getButtonClassName } from "../shared/buttons/buttonStyles";
 import StatusChip from "../shared/chips/StatusChip";
 import Tag from "../shared/chips/Tag";
 import DetailList from "../shared/detailList/DetailList";
@@ -47,6 +50,7 @@ export default function ProductionCard({
   const sold = parseDecimal(card.kgSold);
   const boxes = describeBoxes(card);
   const place = `${DELIVERY_METHOD_LABELS[card.deliveryMethod]}: ${card.deliveryPlace}`;
+  const callHref = telHref(card.recipientPhone);
 
   const details = [
     { label: "Лід", value: card.iceTypeName },
@@ -55,6 +59,19 @@ export default function ProductionCard({
       label: "Куди",
       value: card.deliveryMethod === "pickup" ? card.deliveryPlace : place,
     },
+    ...(card.recipientPhone || card.recipientName
+      ? [
+          {
+            label: "Отримувач",
+            value: [
+              card.recipientName,
+              card.recipientPhone ? formatPhone(card.recipientPhone) : null,
+            ]
+              .filter(Boolean)
+              .join(", "),
+          },
+        ]
+      : []),
     ...(card.timeWindow ? [{ label: "Коли", value: card.timeWindow }] : []),
     ...(card.comment ? [{ label: "Коментар", value: card.comment }] : []),
   ];
@@ -101,6 +118,36 @@ export default function ProductionCard({
       </div>
 
       <DetailList items={details} />
+
+      {!wall && (callHref || card.mapQuery) ? (
+        <div className="flex flex-wrap gap-3">
+          {callHref ? (
+            <a href={callHref} className={getButtonClassName({ variant: "outline", size: "sm" })}>
+              Подзвонити
+            </a>
+          ) : null}
+          {card.mapQuery ? (
+            <>
+              <a
+                href={mapSearchUrl(card.mapQuery)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={getButtonClassName({ variant: "outline", size: "sm" })}
+              >
+                Карта
+              </a>
+              <a
+                href={mapRouteUrl(card.mapQuery)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={getButtonClassName({ variant: "outline", size: "sm" })}
+              >
+                Маршрут
+              </a>
+            </>
+          ) : null}
+        </div>
+      ) : null}
 
       {!wall && canWork ? (
         <div className="flex flex-col gap-3">

@@ -98,12 +98,13 @@ describe("екран виробництва: черга, «Нове», авто�
         timeWindow: "10:00-14:00",
         comment: "Пакувати в два бокси",
         isNew: true,
+        // Телефон отримувача й місце на карті потрібні для кнопок «Подзвонити» і «Карта» (D118).
+        recipientPhone: "+380501234567",
+        mapQuery: "Київ, вул. Сагайдачного, 12",
       });
       const json = JSON.stringify(card);
       for (const secret of [
-        "+380501234567",
         "internalComment",
-        "recipientPhone",
         "paymentKind",
         "pricePerKg",
         "total",

@@ -113,7 +113,8 @@ export const SETTINGS = [
   { key: "markup.event_percent", value: 10 }, // TODO питання 3: 10 чи 15
   { key: "box.reminder_days", value: 14 },
   { key: "client.inactive_days_default", value: 30 },
-  { key: "payment.amount_tolerance_uah", value: 5 },
+  // Роман (14.11.2026): якщо не вистачає навіть 5 грн, сплаченим не вважаємо (D117).
+  { key: "payment.amount_tolerance_uah", value: 0 },
   { key: "payment.date_window_days", value: 14 },
   { key: "np.default_payer", value: "Recipient" }, // TODO питання 7
   { key: "report.daily_time", value: "21:00" },

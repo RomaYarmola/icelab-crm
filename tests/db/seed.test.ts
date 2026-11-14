@@ -70,7 +70,7 @@ describe("початкові дані довідників", () => {
       "markup.np_percent": 10,
       "box.reminder_days": 14,
       "client.inactive_days_default": 30,
-      "payment.amount_tolerance_uah": 5,
+      "payment.amount_tolerance_uah": 0,
       "payment.date_window_days": 14,
       "report.daily_time": "21:00",
     });
