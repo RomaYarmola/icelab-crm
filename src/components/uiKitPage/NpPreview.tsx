@@ -25,7 +25,9 @@ export default function NpPreview({
         saveWeight: formAction,
         sync,
         autoResolve: formAction,
+        trackAll: formAction,
       }}
+      tracking={{ lastFinishedAt: "2026-11-17T09:45:00.000Z", lastChecked: 12, active: 12 }}
       sync={{
         phase: "idle",
         page: 1,

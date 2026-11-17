@@ -1,12 +1,14 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { boxTypes, clientAddresses, shipments } from "@/db/schema";
+import { exportShipments } from "@/server/export";
 import { ForbiddenError } from "@/server/guards";
 import { listShipmentDay } from "@/server/np/shipment-day";
 import { saveLocationSender } from "@/server/np/settings";
 import { transitionOrder } from "@/server/order-status";
 import { USER_ROLES } from "@/server/permissions";
 import { type OrderTestContext, setupOrderTests } from "./order-helpers";
+import { readXlsx, sheetValues } from "./xlsx-reader";
 
 const DAY = "2034-03-05";
 
@@ -147,5 +149,21 @@ describe("«ТТН на день» (B10, PR 4)", () => {
 
   it("некоректна дата відхиляється", async () => {
     await expect(listShipmentDay(t.db, owner(), { date: "вчора" })).rejects.toThrow("Вкажіть дату");
+  });
+
+  it("експорт дня в Excel: власник і менеджер, колонки з ТТН і статусами; старший локації й бухгалтер ні", async () => {
+    const file = await exportShipments(t.db, t.users.manager, { date: DAY });
+    expect(file.kind).toBe("shipments");
+    const sheet = readXlsx(file.buffer).sheets.find((x) => x.name === "Накладні")!;
+    const values = sheetValues(sheet, ["B", "I", "J"]);
+    expect(values[0]).toEqual(["Клієнт", "ТТН", "Статус накладної"]);
+    expect(values.some((r) => r[1] === "20450000000009" && r[2] === "Створена")).toBe(true);
+    await expect(exportShipments(t.db, t.users.location_lead, { date: DAY })).rejects.toThrow(
+      ForbiddenError,
+    );
+    await expect(exportShipments(t.db, t.users.accountant, { date: DAY })).rejects.toThrow(
+      ForbiddenError,
+    );
+    await exportShipments(t.db, owner(), { date: DAY });
   });
 });

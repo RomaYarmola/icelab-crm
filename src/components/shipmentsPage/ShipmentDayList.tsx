@@ -254,6 +254,11 @@ export default function ShipmentDayList({ rows, actions }: ShipmentDayListProps)
             {row.shipment?.errorText && !row.shipment.ttnNumber ? (
               <Notification variant="error">{row.shipment.errorText}</Notification>
             ) : null}
+            {row.shipment && ["refused", "returning", "returned"].includes(row.shipment.status) ? (
+              <Notification variant="warning">
+                Посилка повертається або одержувач відмовився. Зв’яжіться з клієнтом.
+              </Notification>
+            ) : null}
             {row.blockers.length > 0 ? (
               <Notification variant={row.needsAddress ? "warning" : "info"}>
                 <ul className="flex list-disc flex-col gap-1 pl-5">

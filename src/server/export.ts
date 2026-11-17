@@ -37,6 +37,7 @@ import { formatIsoDate, todayIso } from "@/utils/isoDate";
 import { BOX_EVENT_LABELS, ENTERED_VIA_LABELS, ITEM_KIND_LABELS } from "./audit-labels";
 import { listBoxDebts, listBoxStock } from "./box-debts";
 import { BOX_STATUS_LABELS } from "./box-rules";
+import { listShipmentDay } from "./np/shipment-day";
 import { listCashDay, type CashDay } from "./cash";
 import { listClients, type ClientListQuery } from "./clients";
 import { ValidationError } from "./errors";
@@ -468,6 +469,45 @@ export async function exportBoxStock(
         c.num("У клієнтів", (r) => r.atClient),
         c.num("Продано", (r) => r.sold),
         c.num("Втрачено", (r) => r.lost),
+      ]),
+    ],
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Накладні Нової Пошти за день (B10)
+// ---------------------------------------------------------------------------------------------
+
+/** «ТТН на день» у Excel: замовлення Нової Пошти на дату з адресою, вагою, номером ТТН і статусом. */
+export async function exportShipments(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  scope: { date: string; locationId?: string | null },
+): Promise<ExportFile> {
+  requirePermission(actor, "excel_export", "write");
+  const day = await listShipmentDay(db, actor, scope);
+  const params: ExportParams = {
+    Дата: formatIsoDate(day.date),
+    Локація: scope.locationId ? await nameOf(db, locations, scope.locationId, "name") : "усі",
+  };
+  return finish(db, actor, {
+    kind: "shipments",
+    params,
+    fileName: `${FILE_PREFIX}-shipments-${day.date}.xlsx`,
+    sheets: [
+      sheet("Накладні", day.rows, (c) => [
+        c.num("№", (r) => r.number),
+        c.text("Клієнт", (r) => r.clientName),
+        c.text("Локація", (r) => r.locationName),
+        c.text("Статус замовлення", (r) => label(ORDER_STATUS_LABELS, r.status)),
+        c.text("Адреса", (r) => r.addressText),
+        c.text("Одержувач", (r) => r.recipient),
+        c.num("Вага, кг", (r) => r.weightKg),
+        c.num("Місць", (r) => r.seats),
+        c.text("ТТН", (r) => r.shipment?.ttnNumber ?? null),
+        c.text("Статус накладної", (r) => r.shipment?.statusLabel ?? null),
+        c.text("Помилка", (r) => r.shipment?.errorText ?? null),
+        c.text("Чого бракує", (r) => (r.blockers.length > 0 ? r.blockers.join("; ") : null)),
       ]),
     ],
   });

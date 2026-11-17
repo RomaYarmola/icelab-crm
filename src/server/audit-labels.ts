@@ -126,6 +126,7 @@ export const EXPORT_KIND_LABELS = {
   boxes: "Реєстр боксів",
   box_debts: "Борги по боксах",
   box_stock: "Склад боксів",
+  shipments: "Накладні Нової Пошти",
 };
 
 export const AUDIT_TABLES: Record<string, AuditTable> = {

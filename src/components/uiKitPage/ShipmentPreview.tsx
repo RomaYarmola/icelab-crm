@@ -8,7 +8,12 @@ const ready = { weightKg: 36, seats: 2, emptyWeightKnown: true };
 
 /** Блок «Нова Пошта» у чотирьох станах для каталогу `/ui-kit`: чого бракує, форма, ТТН, помилка. */
 export default function ShipmentPreview({ formAction }: ShipmentPreviewProps) {
-  const actions = { create: formAction, price: formAction, remove: formAction };
+  const actions = {
+    create: formAction,
+    price: formAction,
+    remove: formAction,
+    refresh: formAction,
+  };
   const base = { canWrite: true, canSeeMoney: true };
   return (
     <div className="flex max-w-xl flex-col gap-10">

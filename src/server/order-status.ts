@@ -281,3 +281,36 @@ export async function changeOrderPrice(
     { note },
   );
 }
+
+/**
+ * Автоматичне «Відправлено» за трекінгом Нової Пошти (B10, D129, ТЗ 5.4). Виконує система (без
+ * користувача): лише замовлення «Запаковано» переходить у «Відправлено», усе інше лишаємо як є, щоб
+ * не перескакувати кроки цеху. Як і при ручному кроці, готівку, прийняту раніше, враховуємо одразу.
+ * Повертає, чи статус змінився.
+ */
+export async function markShippedBySystem(
+  db: AnyPgDatabase,
+  orderId: string,
+  note: string,
+): Promise<boolean> {
+  let changed = false;
+  let settledByCash = false as boolean;
+  await withActor(
+    db,
+    null,
+    async (tx) => {
+      const [current] = await tx.select().from(orders).where(eq(orders.id, orderId)).for("update");
+      if (!current || current.deletedAt || current.status !== "packed") return;
+      await tx
+        .update(orders)
+        .set({ status: "shipped", shippedAt: new Date() })
+        .where(eq(orders.id, current.id));
+      changed = true;
+      const [updated] = await tx.select().from(orders).where(eq(orders.id, current.id));
+      if (updated && (await settleCashPayment(tx, updated))) settledByCash = true;
+    },
+    { note },
+  );
+  if (settledByCash) await closeIfDone(db, orderId);
+  return changed;
+}
