@@ -75,3 +75,29 @@ export const boxEventKind = pgEnum("box_event_kind", [
   "transferred",
   "note",
 ]);
+
+/** Статус накладної Нової Пошти (ТЗ 5.4): чернетка, створена, далі за трекінгом, або помилка. */
+export const shipmentStatus = pgEnum("shipment_status", [
+  "draft",
+  "created",
+  "sent",
+  "arrived",
+  "received",
+  "returning",
+  "returned",
+  "refused",
+  "error",
+]);
+
+/** Хто платить за доставку (значення як у API Нової Пошти). */
+export const npPayer = pgEnum("np_payer", ["Sender", "Recipient"]);
+
+/** Зовнішній сервіс у журналі викликів (ТЗ §4). */
+export const integrationService = pgEnum("integration_service", [
+  "np",
+  "monobank",
+  "telegram",
+  "claude",
+  "stt",
+  "site",
+]);

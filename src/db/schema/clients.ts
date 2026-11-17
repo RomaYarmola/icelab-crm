@@ -103,6 +103,9 @@ export const clientContacts = pgTable(
     /** Телефон у форматі E.164 (+380...). */
     phone: text("phone"),
     role: text("role"),
+    /** Контрагент і контактна особа одержувача в Новій Пошті (створюються при першій ТТН, B10). */
+    npCounterpartyRef: text("np_counterparty_ref"),
+    npContactRef: text("np_contact_ref"),
     isPrimary: boolean("is_primary").notNull().default(false),
     createdBy: createdBy(),
     ...timestamps,

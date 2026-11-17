@@ -150,7 +150,7 @@ describe("екрани всередині «Ще» («Готівка», «Пра
   const ids = (role: UserRole) => accountNavItemsFor(role).map((item) => item.id);
 
   it("власник бачить «Прайс», «Журнал змін», «Експорт даних» і «Користувачі», бухгалтер «Прайс» і «Журнал змін», менеджер «Прайс»", () => {
-    expect(ids("owner")).toEqual(["prices", "audit", "export", "users"]);
+    expect(ids("owner")).toEqual(["prices", "audit", "export", "users", "np"]);
     expect(ids("manager")).toEqual(["prices"]);
     expect(ids("accountant")).toEqual(["prices", "audit"]);
   });
@@ -233,7 +233,7 @@ describe("екрани в бічній панелі комп'ютера післ
   const ids = (role: UserRole) => sideExtraNavItemsFor(role).map((item) => item.id);
 
   it("власник: «Прайс», «Журнал змін», «Експорт даних», «Користувачі»", () => {
-    expect(ids("owner")).toEqual(["prices", "audit", "export", "users"]);
+    expect(ids("owner")).toEqual(["prices", "audit", "export", "users", "np"]);
   });
 
   it("бухгалтер лише «Журнал змін», решта ролей нічого", () => {
@@ -245,11 +245,20 @@ describe("екрани в бічній панелі комп'ютера післ
 
   it("на телефоні вони лишаються в меню «Ще» власника", () => {
     expect(accountNavItemsFor("owner").map((item) => item.id)).toEqual(
-      expect.arrayContaining(["prices", "audit", "export", "users"]),
+      expect.arrayContaining(["prices", "audit", "export", "users", "np"]),
     );
   });
 
   it("екран називається «Експорт даних»", () => {
     expect(NAV_ITEMS.export.label).toBe("Експорт даних");
+  });
+});
+
+describe("«Нова Пошта» у меню (B10)", () => {
+  it("відкривається лише власнику", () => {
+    for (const role of USER_ROLES) {
+      expect(canOpenPage(role, "np"), role).toBe(role === "owner");
+    }
+    expect(NAV_ITEMS.np.href).toBe("/np");
   });
 });

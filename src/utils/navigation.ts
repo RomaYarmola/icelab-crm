@@ -52,6 +52,8 @@ function canSeeSection(role: UserRole, id: NavItemId): boolean {
       return can(role, "export_all", "write");
     case "users":
       return can(role, "users", "read");
+    case "np":
+      return can(role, "migration_settings", "write");
     case "more":
       return true;
   }
@@ -100,7 +102,7 @@ export function navItemsFor(role: UserRole, placement: NavPlacement): NavItem[] 
  */
 export function accountNavItemsFor(role: UserRole): NavItem[] {
   if (!canUseWeb(role)) return [];
-  return (["prices", "audit", "export", "users"] as const)
+  return (["prices", "audit", "export", "users", "np"] as const)
     .filter((id) => canSeeSection(role, id))
     .map((id) => NAV_ITEMS[id]);
 }
@@ -112,7 +114,7 @@ export function accountNavItemsFor(role: UserRole): NavItem[] {
  */
 export function sideExtraNavItemsFor(role: UserRole): NavItem[] {
   if (!canUseWeb(role)) return [];
-  const ids = (["prices", "audit", "export", "users"] as const).filter(
+  const ids = (["prices", "audit", "export", "users", "np"] as const).filter(
     (id) => id !== "prices" || role === "owner",
   );
   return ids.filter((id) => canSeeSection(role, id)).map((id) => NAV_ITEMS[id]);

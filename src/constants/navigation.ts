@@ -10,6 +10,7 @@ export type NavItemId =
   | "audit"
   | "export"
   | "users"
+  | "np"
   | "more";
 
 export interface NavItem {
@@ -38,5 +39,7 @@ export const NAV_ITEMS: Record<NavItemId, NavItem> = {
   export: { id: "export", label: "Експорт даних", href: "/export" },
   users: { id: "users", label: "Користувачі", href: "/users" },
   // У меню телефона пункт називається «Ще», а сама сторінка це профіль: у шапці так і пишемо.
+  // «Нова Пошта»: ключ, відправник локацій, вага тари; лише власник (B10).
+  np: { id: "np", label: "Нова Пошта", href: "/np" },
   more: { id: "more", label: "Ще", title: "Профіль", href: "/profile" },
 };

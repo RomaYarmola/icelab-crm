@@ -16,13 +16,14 @@ import { getEnv } from "@/env";
 // Усі записи виконуються в транзакції, яку наприкінці скасовують, тож у базі нічого не лишається.
 
 // 17 таблиць B1, login_failures (B2), error_log (B3), regions (B4), order_price_changes (B5),
-// cash_entries (B6), exports (B8) і boxes, box_events, box_debts_legacy (B9)
-const EXPECTED_TABLES = 26;
+// cash_entries (B6), exports (B8) і boxes, box_events, box_debts_legacy (B9), integration_logs, np_cities, np_warehouses, shipments (B10)
+const EXPECTED_TABLES = 30;
 // 15 (updated_at) + 6 (created_by) + 1 (сума) + 1 (історія статусів) + 9 (журнал змін: з B4 ще
 // прайс, контакти й адреси клієнтів) + 1 (зміни цін, B5) + 3 (готівка, B6: час зміни, журнал,
 // захист від правки й видалення) + 2 (журнал експортів, B8: журнал змін і захист від правки)
 // + 6 (бокси, B9: час зміни, журнал, захист подій)
-const EXPECTED_TRIGGERS = 44;
+// + 2 (накладні Нової Пошти, B10: час зміни, журнал)
+const EXPECTED_TRIGGERS = 46;
 const TEST_CODE = "ЯЯ9999"; // «ЯЯ9999» кирилицею
 
 class Rollback extends Error {}
