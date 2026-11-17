@@ -7,6 +7,8 @@ import { getClientFormOptions } from "@/server/client-options";
 import { getLocationFilter } from "@/server/location-filter";
 import { listOrders } from "@/server/orders";
 import { can } from "@/server/permissions";
+import OrdersTabs from "@/components/draftsPage/OrdersTabs";
+import { countIntakeDrafts } from "@/server/intake/drafts";
 import { parseOrderListParams } from "@/utils/orderListParams";
 import { todayIso } from "@/utils/isoDate";
 
@@ -28,7 +30,8 @@ export default async function OrdersPage({
   const db = getDb();
   const locationId = locationFilter.selectedId ?? undefined;
 
-  const [page, options] = await Promise.all([
+  const isOffice = user.role === "owner" || user.role === "manager";
+  const [page, options, draftsCount] = await Promise.all([
     listOrders(db, user, {
       dateFrom: filters.dateFrom || undefined,
       dateTo: filters.dateTo || undefined,
@@ -39,20 +42,24 @@ export default async function OrdersPage({
       search: filters.search || undefined,
     }),
     getClientFormOptions(db, user),
+    isOffice ? countIntakeDrafts(db, user) : Promise.resolve(0),
   ]);
 
   return (
-    <OrdersPageContent
-      page={page}
-      filters={filters}
-      managers={options.managers}
-      locationId={locationId}
-      // Створюють власник і менеджер (D58); решта бачить список без кнопки.
-      canCreate={
-        can(user.role, "orders", "write") && (user.role === "owner" || user.role === "manager")
-      }
-      canExport={can(user.role, "excel_export", "write")}
-      loadMore={loadMoreOrdersAction}
-    />
+    <div className="flex flex-col gap-4">
+      {isOffice ? <OrdersTabs active="orders" draftsCount={draftsCount} /> : null}
+      <OrdersPageContent
+        page={page}
+        filters={filters}
+        managers={options.managers}
+        locationId={locationId}
+        // Створюють власник і менеджер (D58); решта бачить список без кнопки.
+        canCreate={
+          can(user.role, "orders", "write") && (user.role === "owner" || user.role === "manager")
+        }
+        canExport={can(user.role, "excel_export", "write")}
+        loadMore={loadMoreOrdersAction}
+      />
+    </div>
   );
 }
