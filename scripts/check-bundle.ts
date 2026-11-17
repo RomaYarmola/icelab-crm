@@ -10,8 +10,18 @@ import { join } from "node:path";
 // У CI значень немає, тож там спрацьовує лише перевірка назв.
 
 const DIRECTORY = ".next/static";
-const SERVER_ONLY_NAMES = ["SUPABASE_SECRET_KEY", "DATABASE_URL", "NOVA_POSHTA_API_KEY"];
-const SECRET_VARIABLES = ["SUPABASE_SECRET_KEY", "DATABASE_URL", "NOVA_POSHTA_API_KEY"];
+const SERVER_ONLY_NAMES = [
+  "SUPABASE_SECRET_KEY",
+  "DATABASE_URL",
+  "NOVA_POSHTA_API_KEY",
+  "CRON_SECRET",
+];
+const SECRET_VARIABLES = [
+  "SUPABASE_SECRET_KEY",
+  "DATABASE_URL",
+  "NOVA_POSHTA_API_KEY",
+  "CRON_SECRET",
+];
 
 function* files(directory: string): Generator<string> {
   for (const entry of readdirSync(directory)) {

@@ -1,3 +1,4 @@
+import type { NpCityOption, NpWarehouseOption } from "@/server/np/addresses";
 import type { SimilarClient } from "@/server/clients";
 import type { FormState } from "@/utils/formState";
 
@@ -17,6 +18,15 @@ export interface ClientCardActions {
   updateAddress: FormAction;
   deleteAddress: FormAction;
   changePrice: FormAction;
+  /** Підбір адреси в довідниках Нової Пошти (B10); немає там, де підбір не потрібен. */
+  np?: NpPickerActions;
+}
+
+/** Дії підбору міста й відділення Нової Пошти для адреси клієнта. */
+export interface NpPickerActions {
+  searchCities: (query: string) => Promise<NpCityOption[]>;
+  searchWarehouses: (cityRef: string, query: string) => Promise<NpWarehouseOption[]>;
+  resolve: FormAction;
 }
 
 /** Дії форми «Новий клієнт»: створення і дві підказки (код за областю, схожі клієнти). */

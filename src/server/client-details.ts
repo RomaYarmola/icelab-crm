@@ -267,6 +267,8 @@ export async function updateAddress(
         timeWindow: blankToNull(data.timeWindow),
         ...(data.isDefault === undefined ? {} : { isDefault: data.isDefault || address.isDefault }),
         // Текст змінили, тож зіставлення з довідниками Нової Пошти (B10) уже не діє.
+        npCityRef: null,
+        npWarehouseRef: null,
         isResolved: false,
       })
       .where(eq(clientAddresses.id, id));

@@ -24,6 +24,7 @@ const EXPECTED_TABLES = [
   "locations",
   "login_failures",
   "np_cities",
+  "np_sync_state",
   "np_warehouses",
   "order_items",
   "order_price_changes",

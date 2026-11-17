@@ -35,3 +35,23 @@ describe("екран «Нова Пошта»", () => {
     }
   });
 });
+
+describe("розклад і підбір адрес (B10, PR 2)", () => {
+  it("адреса розкладу без сесії, але з секретом у заголовку; ключі розкладу не потрапляють у збірку", () => {
+    expect(read("src/lib/supabase/proxy.ts")).toContain('pathname.startsWith("/api/cron/")');
+    const route = read("src/app/api/cron/np-directories/route.ts");
+    expect(route).toContain("isCronRequest(request)");
+    expect(route).toContain("status: 401");
+    expect(read("src/server/cron-auth.ts")).toContain("timingSafeEqual");
+    expect(read("scripts/check-bundle.ts")).toContain("CRON_SECRET");
+  });
+
+  it("підбір адреси на картці клієнта лише для тих, хто її редагує; серверні функції перевіряють право", () => {
+    expect(read("src/components/clientsPage/AddressesTab.tsx")).toContain("canEdit && actions.np");
+    const server = read("src/server/np/addresses.ts");
+    expect(server.match(/requirePermission\(actor, "clients", "write"\)/g)).toHaveLength(3);
+    expect(server.match(/requirePermission\(actor, "migration_settings", "write"\)/g)).toHaveLength(
+      2,
+    );
+  });
+});

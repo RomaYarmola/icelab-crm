@@ -5,7 +5,9 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { ForbiddenError } from "@/server/guards";
 import { readText, runFormAction } from "@/server/form-state";
+import { autoResolveAddresses } from "@/server/np/addresses";
 import { NpError } from "@/server/np/client";
+import { type SyncResult, syncDirectoriesNow } from "@/server/np/directories";
 import {
   checkNpConnection,
   listNpSenderDetails,
@@ -109,4 +111,42 @@ export async function saveEmptyWeightAction(
     },
     { success: "Збережено.", values: { weightKg } },
   );
+}
+
+export type NpSyncStep = { ok: true; result: SyncResult } | { ok: false; message: string };
+
+/**
+ * «Оновити зараз»: один крок оновлення довідників. Екран викликає його знову й знову, поки не
+ * прийде `done`, і показує прогрес: так кожен запит вкладається в ліміт часу функції.
+ */
+export async function syncDirectoriesAction(): Promise<NpSyncStep> {
+  const actor = await requireUser();
+  try {
+    const result = await syncDirectoriesNow(getDb(), actor);
+    revalidatePath("/np");
+    return { ok: true, result };
+  } catch (error) {
+    if (error instanceof NpError || error instanceof ForbiddenError) {
+      return { ok: false, message: error.message };
+    }
+    throw error;
+  }
+}
+
+/** «Зіставити автоматично»: однозначні адреси клієнтів зіставляються з довідником. */
+export async function autoResolveAction(): Promise<FormState> {
+  const actor = await requireUser();
+  let message = "";
+  const state = await runFormAction(
+    async () => {
+      const result = await autoResolveAddresses(getDb(), actor);
+      message =
+        result.checked === 0
+          ? "Адрес, що чекають зіставлення, немає."
+          : `Перевірено ${result.checked}: зіставлено ${result.resolved}, лишилось для ручного підбору ${result.needsReview}.`;
+      revalidatePath("/np");
+    },
+    { success: "" },
+  );
+  return state.status === "error" ? state : { status: "success", message };
 }

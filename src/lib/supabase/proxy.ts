@@ -31,6 +31,8 @@ const CACHE_HEADERS = ["cache-control", "expires", "pragma"];
 export async function updateSession(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
   if (pathname === "/api/health") return NextResponse.next({ request });
+  // Розклад (Supabase Cron) викликає ці адреси без сесії, їх захищає секретний заголовок (D29).
+  if (pathname.startsWith("/api/cron/")) return NextResponse.next({ request });
 
   let env: ReturnType<typeof getSupabaseEnv>;
   try {

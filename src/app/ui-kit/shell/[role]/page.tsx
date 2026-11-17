@@ -75,6 +75,35 @@ async function previewNpSenders() {
   };
 }
 
+async function previewNpSync() {
+  "use server";
+  return {
+    ok: true as const,
+    result: {
+      status: "done" as const,
+      phase: "idle" as const,
+      page: 1,
+      message: "Довідники оновлено (перегляд).",
+    },
+  };
+}
+
+async function previewNpCities() {
+  "use server";
+  return [
+    { ref: "kyiv", name: "Київ", area: "Київська" },
+    { ref: "kyiv2", name: "Київське", area: "Одеська" },
+  ];
+}
+
+async function previewNpWarehouses() {
+  "use server";
+  return [
+    { ref: "w1", name: "Відділення №1: вул. Хрещатик, 1", number: "1" },
+    { ref: "w5", name: "Відділення №5: вул. Лесі Українки, 5", number: "5" },
+  ];
+}
+
 async function previewNpSenderDetails() {
   "use server";
   return {
@@ -335,6 +364,11 @@ export default async function ShellPreviewPage({
           loadMore={previewLoadMore}
           previewCode={previewCode}
           findSimilar={previewSimilar}
+          npPicker={{
+            searchCities: previewNpCities,
+            searchWarehouses: previewNpWarehouses,
+            resolve: previewFormAction,
+          }}
         />
       ) : (ORDER_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
         <OrdersPreview
@@ -381,6 +415,7 @@ export default async function ShellPreviewPage({
           formAction={previewFormAction}
           loadSenders={previewNpSenders}
           loadSenderDetails={previewNpSenderDetails}
+          sync={previewNpSync}
         />
       ) : screen === "export" ? (
         <ExportAllContent canSeeJournal={can(knownRole, "audit_log", "read")} />

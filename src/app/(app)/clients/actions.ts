@@ -4,6 +4,13 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getDb } from "@/db/client";
+import {
+  type NpCityOption,
+  type NpWarehouseOption,
+  resolveClientAddress,
+  searchNpCities,
+  searchNpWarehouses,
+} from "@/server/np/addresses";
 import { requireUser } from "@/server/auth";
 import {
   type AddressInput,
@@ -426,4 +433,42 @@ export async function mergeClientsAction(
   );
   if (state.status === "success" && mainId) redirect(`/clients/${mainId}?merged=1`);
   return state;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Підбір адреси в довідниках Нової Пошти (B10)
+// ---------------------------------------------------------------------------------------------
+
+/** Пошук міста для підбору: порожній список, якщо запит закороткий. */
+export async function searchNpCitiesAction(query: string): Promise<NpCityOption[]> {
+  const actor = await requireUser();
+  return searchNpCities(getDb(), actor, query);
+}
+
+/** Пошук відділення міста за номером чи назвою. */
+export async function searchNpWarehousesAction(
+  cityRef: string,
+  query: string,
+): Promise<NpWarehouseOption[]> {
+  const actor = await requireUser();
+  return searchNpWarehouses(getDb(), actor, cityRef, query);
+}
+
+/** Зберігає зіставлення адреси з довідником Нової Пошти. */
+export async function resolveAddressAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  return runFormAction(
+    async () => {
+      await resolveClientAddress(getDb(), actor, {
+        addressId: readId(formData, "id"),
+        cityRef: readText(formData, "cityRef"),
+        warehouseRef: readOptionalText(formData, "warehouseRef"),
+      });
+      refresh();
+    },
+    { success: "Адресу зіставлено з Новою Поштою." },
+  );
 }
