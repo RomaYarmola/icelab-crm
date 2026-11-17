@@ -1,0 +1,26 @@
+[
+  {
+    "text": "Кафе Вогник завтра 40 кг 16 мм, самовивіз",
+    "location": "kyiv",
+    "today": "2026-11-17",
+    "expected": {
+      "client_code": "ЗАМІНІТЬ_НА_КОД_КЛІЄНТА",
+      "order_date": "2026-11-18",
+      "kg_sold": 40,
+      "ice_type": "16mm",
+      "delivery_method": "pickup"
+    }
+  },
+  {
+    "text": "У понеділок 25 кг 3 мм для невідомого бару, Нова Пошта, Львів, відділення 12",
+    "location": "lviv",
+    "today": "2026-11-17",
+    "expected": {
+      "client_code": null,
+      "order_date": "2026-11-23",
+      "kg_sold": 25,
+      "ice_type": "3mm",
+      "delivery_method": "np"
+    }
+  }
+]

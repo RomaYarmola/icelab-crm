@@ -112,6 +112,8 @@ export async function listClients(
 
   const conditions: (SQL | undefined)[] = [];
   if (!(query.includeDeleted && actor.role === "owner")) conditions.push(isNull(clients.deletedAt));
+  // Службовий «Новий клієнт» (чернетки із заявок, B11) у списках не показуємо.
+  conditions.push(eq(clients.isPlaceholder, false));
   if (query.statusId) conditions.push(eq(clients.statusId, parseInput(uuid, query.statusId)));
   if (query.managerId) conditions.push(eq(clients.managerId, parseInput(uuid, query.managerId)));
   if (query.applicationId) {
@@ -565,7 +567,13 @@ export async function findSimilarClients(
       .selectDistinct({ id: clients.id, code: clients.code, name: clients.name })
       .from(clients)
       .innerJoin(clientContacts, eq(clientContacts.clientId, clients.id))
-      .where(and(isNull(clients.deletedAt), eq(clientContacts.phone, phone)))
+      .where(
+        and(
+          isNull(clients.deletedAt),
+          eq(clients.isPlaceholder, false),
+          eq(clientContacts.phone, phone),
+        ),
+      )
       .limit(SIMILAR_LIMIT);
     for (const row of byPhone) found.set(row.id, { ...row, reason: "phone" });
   }
@@ -578,6 +586,7 @@ export async function findSimilarClients(
       .where(
         and(
           isNull(clients.deletedAt),
+          eq(clients.isPlaceholder, false),
           sql`(lower(${clients.name}) = lower(${name}) or similarity(${clients.name}, ${name}) >= ${SIMILARITY_THRESHOLD})`,
         ),
       )

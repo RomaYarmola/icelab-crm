@@ -43,3 +43,6 @@ next-env.d.ts
 
 # паролі користувачів, створених скриптами user:create і user:seed-dev
 .dev-users.local
+
+# справжні заявки Романа для оцінки розбору (персональні дані): не комітимо
+intake-eval/*.local.json

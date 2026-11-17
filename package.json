@@ -23,7 +23,8 @@
     "clients:seed-dev": "tsx scripts/clients-seed-dev.ts",
     "orders:seed-dev": "tsx scripts/orders-seed-dev.ts",
     "check:bundle": "tsx scripts/check-bundle.ts",
-    "env:check": "tsx scripts/env-check.ts"
+    "env:check": "tsx scripts/env-check.ts",
+    "intake:eval": "tsx scripts/intake-eval.ts"
   },
   "dependencies": {
     "@supabase/realtime-js": "^2.119.0",
