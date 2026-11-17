@@ -85,6 +85,7 @@ export async function saveSenderAction(
         senderRef: readText(formData, "senderRef"),
         contactRef: readText(formData, "contactRef"),
         addressRef: readText(formData, "addressRef"),
+        cityRef: readText(formData, "addressCityRef"),
         phone: values.phone.trim(),
         senderName: readText(formData, "senderName"),
         contactName: readText(formData, "contactName"),

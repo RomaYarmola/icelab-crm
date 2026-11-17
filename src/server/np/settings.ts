@@ -40,7 +40,7 @@ export type NpSettingsView = {
   boxTypes: { id: string; name: string; emptyWeightKg: string | null }[];
 };
 
-type SenderLabels = { sender?: string; contact?: string; address?: string };
+type SenderLabels = { sender?: string; contact?: string; address?: string; cityRef?: string };
 
 async function readSetting<T>(db: AnyPgDatabase, key: string): Promise<T | null> {
   const [row] = await db
@@ -124,14 +124,18 @@ export async function checkNpConnection(db: AnyPgDatabase, actor: AppUser): Prom
 // Відправник локації
 // ---------------------------------------------------------------------------------------------
 
-export type NpOption = { ref: string; name: string };
+export type NpOption = { ref: string; name: string; cityRef?: string };
 
-type RawRef = { Ref?: string; Description?: string };
+type RawRef = { Ref?: string; Description?: string; CityRef?: string };
 
 const toOptions = (rows: RawRef[]): NpOption[] =>
   rows
-    .filter((row): row is { Ref: string; Description?: string } => typeof row.Ref === "string")
-    .map((row) => ({ ref: row.Ref, name: row.Description?.trim() || row.Ref }));
+    .filter((row): row is RawRef & { Ref: string } => typeof row.Ref === "string")
+    .map((row) => ({
+      ref: row.Ref,
+      name: row.Description?.trim() || row.Ref,
+      ...(row.CityRef ? { cityRef: row.CityRef } : {}),
+    }));
 
 /** Відправники (контрагенти) з акаунта Нової Пошти. */
 export async function listNpSenders(db: AnyPgDatabase, actor: AppUser): Promise<NpOption[]> {
@@ -174,6 +178,8 @@ const senderSchema = z.object({
   senderRef: z.string().min(1, "Оберіть відправника.").max(100),
   contactRef: z.string().min(1, "Оберіть контактну особу.").max(100),
   addressRef: z.string().min(1, "Оберіть адресу відправлення.").max(100),
+  /** Місто адреси відправлення: Нова Пошта вимагає його в накладній. */
+  cityRef: z.string().min(1, "У адреси відправлення немає міста. Оберіть іншу адресу.").max(100),
   phone: z.string().regex(PHONE, "Телефон у форматі +380501234567."),
   senderName: z.string().max(200).optional(),
   contactName: z.string().max(200).optional(),
@@ -206,6 +212,7 @@ export async function saveLocationSender(
       sender: data.senderName ?? "",
       contact: data.contactName ?? "",
       address: data.addressName ?? "",
+      cityRef: data.cityRef,
     } satisfies SenderLabels);
   });
 }

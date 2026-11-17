@@ -7,6 +7,7 @@ import { formatIsoDate } from "@/utils/isoDate";
 import type { OrderBox } from "@/server/boxes";
 import EntityHistory from "../auditPage/EntityHistory";
 import OrderBoxes from "../boxesPage/OrderBoxes";
+import type { ShipmentCard } from "@/server/np/shipments";
 import type { FormAction } from "../clientsPage/clientActions";
 import DeleteRecordForm from "../clientsPage/DeleteRecordForm";
 import StatusChip from "../shared/chips/StatusChip";
@@ -18,6 +19,7 @@ import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import type { OrderCardActions } from "./orderActions";
 import OrderHistory from "./OrderHistory";
+import OrderShipment, { type ShipmentActions } from "./OrderShipment";
 import OrderItemsEditor from "./OrderItemsEditor";
 import OrderItemsList from "./OrderItemsList";
 import OrderPriceForm from "./OrderPriceForm";
@@ -48,6 +50,8 @@ interface OrderCardContentProps {
   /** Бокси замовлення з кодами (ролі, що бачать бокси) і дія «Продати бокс» (власник, старший локації). */
   boxes?: OrderBox[] | null;
   sellBoxAction?: FormAction | null;
+  /** Блок «Нова Пошта» (B10): лише ролі з правом на накладні й замовлення зі способом «Нова Пошта». */
+  shipment?: { card: ShipmentCard; actions: ShipmentActions } | null;
   /** Замовлення щойно створено: показуємо підтвердження. */
   notice?: "created";
 }
@@ -65,6 +69,7 @@ export default function OrderCardContent({
   changeHistory,
   boxes,
   sellBoxAction,
+  shipment,
   notice,
 }: OrderCardContentProps) {
   const isCancelled = order.status === "cancelled";
@@ -142,6 +147,9 @@ export default function OrderCardContent({
       ) : null}
       {boxes ? (
         <OrderBoxes orderId={order.id} boxes={boxes} sellAction={sellBoxAction ?? null} />
+      ) : null}
+      {shipment ? (
+        <OrderShipment orderId={order.id} card={shipment.card} actions={shipment.actions} />
       ) : null}
       {canChangePrice ? <OrderPriceForm orderId={order.id} action={actions.changePrice} /> : null}
 
