@@ -14,4 +14,5 @@ export interface NpActions {
   saveWeight: FormAction;
   sync: () => Promise<NpSyncStep>;
   autoResolve: FormAction;
+  trackAll: FormAction;
 }

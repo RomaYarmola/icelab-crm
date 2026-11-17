@@ -3,11 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
-import { ForbiddenError } from "@/server/guards";
+import { ValidationError } from "@/server/errors";
+import { ForbiddenError, requirePermission } from "@/server/guards";
 import { readText, runFormAction } from "@/server/form-state";
 import { autoResolveAddresses } from "@/server/np/addresses";
 import { NpError } from "@/server/np/client";
 import { type SyncResult, syncDirectoriesNow } from "@/server/np/directories";
+import { trackShipments } from "@/server/np/tracking";
 import {
   checkNpConnection,
   listNpSenderDetails,
@@ -145,6 +147,27 @@ export async function autoResolveAction(): Promise<FormState> {
         result.checked === 0
           ? "Адрес, що чекають зіставлення, немає."
           : `Перевірено ${result.checked}: зіставлено ${result.resolved}, лишилось для ручного підбору ${result.needsReview}.`;
+      revalidatePath("/np");
+    },
+    { success: "" },
+  );
+  return state.status === "error" ? state : { status: "success", message };
+}
+
+/** «Оновити статуси зараз»: трекінг усіх незавершених накладних без очікування розкладу. Лише власник. */
+export async function trackAllAction(): Promise<FormState> {
+  const actor = await requireUser();
+  let message = "";
+  const state = await runFormAction(
+    async () => {
+      requirePermission(actor, "migration_settings", "write");
+      try {
+        const result = await trackShipments(getDb());
+        message = result.message;
+      } catch (error) {
+        if (error instanceof NpError) throw new ValidationError(error.message);
+        throw error;
+      }
       revalidatePath("/np");
     },
     { success: "" },

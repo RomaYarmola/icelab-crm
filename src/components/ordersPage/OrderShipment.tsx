@@ -10,11 +10,16 @@ import Notification from "../shared/notification/Notification";
 import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import ShipmentCreateForm from "./ShipmentCreateForm";
+import ShipmentRefreshForm from "./ShipmentRefreshForm";
+
+/** Статуси, за яких накладну ще відстежуємо: тільки для них є «Оновити статус». */
+const ACTIVE = ["created", "sent", "arrived", "returning"];
 
 export interface ShipmentActions {
   create: FormAction;
   price: FormAction;
   remove: FormAction;
+  refresh: FormAction;
 }
 
 interface OrderShipmentProps {
@@ -82,6 +87,9 @@ export default function OrderShipment({ orderId, card, actions }: OrderShipmentP
           >
             Стікер PDF
           </ButtonLink>
+          {card.canWrite && ACTIVE.includes(shipment.status) ? (
+            <ShipmentRefreshForm orderId={orderId} action={actions.refresh} />
+          ) : null}
           {card.canWrite ? (
             <DeleteRecordForm
               action={actions.remove}

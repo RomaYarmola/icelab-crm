@@ -6,6 +6,7 @@ import { requireUser } from "@/server/auth";
 import { ValidationError } from "@/server/errors";
 import { readText, runFormAction } from "@/server/form-state";
 import { NpError } from "@/server/np/client";
+import { refreshShipmentStatus } from "@/server/np/tracking";
 import {
   createShipment,
   deleteShipment,
@@ -95,4 +96,28 @@ export async function deleteShipmentAction(
     },
     { success: "ТТН видалено." },
   );
+}
+
+/** «Оновити статус»: питає Нову Пошту про цю накладну зараз, не чекаючи розкладу. */
+export async function refreshShipmentAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const orderId = readText(formData, "orderId");
+  let message = "";
+  const state = await runFormAction(
+    async () => {
+      const result = await userFacing(() => refreshShipmentStatus(getDb(), actor, orderId));
+      message =
+        result.shipped > 0
+          ? "Статус оновлено, замовлення переведено у «Відправлено»."
+          : result.changed > 0
+            ? "Статус оновлено."
+            : "Статус не змінився.";
+      revalidatePath(`/orders/${orderId}`);
+    },
+    { success: "" },
+  );
+  return state.status === "error" ? state : { status: "success", message };
 }

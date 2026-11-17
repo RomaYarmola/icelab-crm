@@ -18,6 +18,7 @@ import {
   createShipmentAction,
   deleteShipmentAction,
   previewShipmentPriceAction,
+  refreshShipmentAction,
 } from "@/app/(app)/orders/shipment-actions";
 import { getShipmentCard } from "@/server/np/shipments";
 import { listOrderBoxes } from "@/server/boxes";
@@ -85,6 +86,7 @@ export default async function OrderPage({
                 create: createShipmentAction,
                 price: previewShipmentPriceAction,
                 remove: deleteShipmentAction,
+                refresh: refreshShipmentAction,
               },
             }
           : null

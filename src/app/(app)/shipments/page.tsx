@@ -4,6 +4,7 @@ import ShipmentDayContent from "@/components/shipmentsPage/ShipmentDayContent";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { getLocationFilter } from "@/server/location-filter";
+import { can } from "@/server/permissions";
 import { listShipmentDay } from "@/server/np/shipment-day";
 import { todayIso } from "@/utils/isoDate";
 import { parseDayParam } from "@/utils/productionParams";
@@ -32,6 +33,7 @@ export default async function ShipmentsPage({
       day={day}
       today={today}
       actions={{ createStep: createShipmentStepAction }}
+      canExport={can(user.role, "excel_export", "write")}
     />
   );
 }

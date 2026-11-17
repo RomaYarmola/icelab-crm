@@ -10,6 +10,7 @@ import {
   exportBoxStock,
   exportCash,
   exportClients,
+  exportShipments,
   exportEverything,
   exportOrders,
   type ExportFile,
@@ -30,6 +31,7 @@ export const EXPORT_LISTS = [
   "boxes",
   "box-debts",
   "box-stock",
+  "shipments",
 ] as const;
 export type ExportList = (typeof EXPORT_LISTS)[number];
 
@@ -78,6 +80,8 @@ export async function runExport(
       return exportBoxDebts(db, actor);
     case "box-stock":
       return exportBoxStock(db, actor, { locationId });
+    case "shipments":
+      return exportShipments(db, actor, { date: parseDayParam(params, todayIso()), locationId });
     case "all":
       return exportEverything(db, actor);
   }

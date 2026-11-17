@@ -1,6 +1,7 @@
 import { formatDateTime } from "@/utils/formatDate";
 import type { UnresolvedAddress } from "@/server/np/addresses";
 import type { SyncStatus } from "@/server/np/directories";
+import type { TrackingStatus } from "@/server/np/tracking";
 import type { NpSettingsView } from "@/server/np/settings";
 import Card from "../shared/cards/Card";
 import Disclosure from "../shared/disclosure/Disclosure";
@@ -16,11 +17,13 @@ import DirectorySync from "./DirectorySync";
 import EmptyWeightForm from "./EmptyWeightForm";
 import type { NpActions } from "./npTypes";
 import SenderForm from "./SenderForm";
+import TrackAll from "./TrackAll";
 
 interface NpSettingsContentProps {
   view: NpSettingsView;
   sync: SyncStatus;
   unresolved: { total: number; items: UnresolvedAddress[] };
+  tracking: TrackingStatus;
   actions: NpActions;
 }
 
@@ -32,6 +35,7 @@ export default function NpSettingsContent({
   view,
   sync,
   unresolved,
+  tracking,
   actions,
 }: NpSettingsContentProps) {
   return (
@@ -78,6 +82,21 @@ export default function NpSettingsContent({
           </Notification>
         ) : null}
         <DirectorySync sync={actions.sync} />
+      </section>
+
+      <section aria-labelledby="np-tracking" className="flex max-w-xl flex-col gap-3">
+        <SectionTitle id="np-tracking">Статуси накладних</SectionTitle>
+        <Text variant="muted">
+          Нова Пошта опитується кожні 15 хвилин (на бойовій базі): статус накладної оновлюється в
+          замовленні, а коли посилку відправлено, замовлення «Запаковано» саме стає «Відправлено».
+        </Text>
+        <Text>
+          Відстежується накладних: {tracking.active}.{" "}
+          {tracking.lastFinishedAt
+            ? `Востаннє перевірено ${formatDateTime(new Date(tracking.lastFinishedAt))}.`
+            : "Ще не перевіряли."}
+        </Text>
+        <TrackAll action={actions.trackAll} disabled={!view.hasKey} />
       </section>
 
       <section aria-labelledby="np-addresses" className="flex flex-col gap-3">
