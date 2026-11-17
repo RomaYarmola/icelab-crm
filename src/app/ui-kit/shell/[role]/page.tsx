@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
+import IntakePreview from "@/components/uiKitPage/IntakePreview";
 import ShipmentDayPreview from "@/components/uiKitPage/ShipmentDayPreview";
 import ShipmentPreview from "@/components/uiKitPage/ShipmentPreview";
 import NpPreview from "@/components/uiKitPage/NpPreview";
@@ -309,6 +310,7 @@ const PREVIEW_SCREENS = [
   "np",
   "np-shipment",
   "np-day",
+  "intake",
 ] as const;
 
 /**
@@ -429,6 +431,8 @@ export default async function ShellPreviewPage({
           isOwner={knownRole === "owner"}
           formAction={previewFormAction}
         />
+      ) : screen === "intake" ? (
+        <IntakePreview formAction={previewFormAction} />
       ) : screen === "np-day" ? (
         <ShipmentDayPreview createStep={previewShipmentStep} />
       ) : screen === "np-shipment" ? (

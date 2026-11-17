@@ -102,3 +102,16 @@ export const integrationService = pgEnum("integration_service", [
   "stt",
   "site",
 ]);
+
+/** Звідки заявка: група Telegram, форма на сайті чи голосове (B15). */
+export const intakeChannel = pgEnum("intake_channel", ["telegram", "site", "voice"]);
+
+/** Стан повідомлення-заявки (ТЗ 4.7): нове, розібрано, не вдалось, пропущено, підтверджено, відхилено. */
+export const intakeParseStatus = pgEnum("intake_parse_status", [
+  "new",
+  "parsed",
+  "failed",
+  "skipped",
+  "confirmed",
+  "rejected",
+]);

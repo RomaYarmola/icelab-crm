@@ -33,6 +33,10 @@ export async function updateSession(request: NextRequest): Promise<NextResponse>
   if (pathname === "/api/health") return NextResponse.next({ request });
   // Розклад (Supabase Cron) викликає ці адреси без сесії, їх захищає секретний заголовок (D29).
   if (pathname.startsWith("/api/cron/")) return NextResponse.next({ request });
+  // Telegram і сайт надсилають події без сесії: їх захищають секрети в заголовках (B11).
+  if (pathname === "/api/telegram/webhook" || pathname === "/api/leads/site") {
+    return NextResponse.next({ request });
+  }
 
   let env: ReturnType<typeof getSupabaseEnv>;
   try {

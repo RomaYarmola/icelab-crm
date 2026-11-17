@@ -12,6 +12,7 @@ export type NavItemId =
   | "users"
   | "np"
   | "shipments"
+  | "intake"
   | "more";
 
 export interface NavItem {
@@ -43,6 +44,8 @@ export const NAV_ITEMS: Record<NavItemId, NavItem> = {
   // «Нова Пошта»: ключ, відправник локацій, вага тари; лише власник (B10).
   // «ТТН на день» (B10): масове створення накладних Нової Пошти; власник, менеджер, старший локації.
   shipments: { id: "shipments", label: "Накладні", title: "ТТН на день", href: "/shipments" },
+  // «Прийом заявок»: бот Telegram, група й топіки, прив'язка користувачів; лише власник (B11).
+  intake: { id: "intake", label: "Прийом заявок", href: "/intake" },
   np: { id: "np", label: "Нова Пошта", href: "/np" },
   more: { id: "more", label: "Ще", title: "Профіль", href: "/profile" },
 };
