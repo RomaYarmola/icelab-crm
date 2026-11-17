@@ -100,3 +100,28 @@ describe("чернетка в Telegram (B11, PR 3)", () => {
     expect(flow).toContain('transitionOrder(db, actor, order.id, "confirmed")');
   });
 });
+
+describe("«Чернетки» і заявки з сайту (B11, PR 4)", () => {
+  const read4 = (path: string) => readFileSync(join(ROOT, path), "utf8");
+
+  it("приймач сайту: секрет перевіряється до будь-якої роботи, без сесії лише цей шлях", () => {
+    const route = read4("src/app/api/leads/site/route.ts");
+    expect(route.indexOf("isSiteRequest(request)")).toBeLessThan(route.indexOf("receiveSiteLead("));
+    expect(route).toContain("status: 401");
+    expect(read4("src/lib/supabase/proxy.ts")).toContain('"/api/leads/site"');
+    expect(read4("src/server/intake/site-auth.ts")).toContain("timingSafeEqual");
+    expect(read4("src/server/intake/site-lead.ts")).not.toMatch(/insert\(clients\)/);
+  });
+
+  it("вкладка «Чернетки» лише для власника й менеджера; підтвердження через ті самі правила", () => {
+    expect(read4("src/app/(app)/orders/drafts/page.tsx")).toContain(
+      'user.role !== "owner" && user.role !== "manager"',
+    );
+    const server = read4("src/server/intake/drafts.ts");
+    expect(server.match(/assertOffice\(actor\)/g)!.length).toBeGreaterThanOrEqual(4);
+    expect(server).toContain('transitionOrder(db, actor, orderId, "confirmed")');
+    expect(read4("src/components/draftsPage/DraftsContent.tsx")).toContain(
+      "draft.isPlaceholder ? null",
+    );
+  });
+});
