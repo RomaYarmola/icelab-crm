@@ -21,17 +21,17 @@ describe("меню за ролями (ТЗ §6.1)", () => {
   > = {
     owner: {
       bar: ["orders", "production", "payments", "cash", "more"],
-      side: ["orders", "production", "payments", "cash", "clients", "boxes"],
+      side: ["orders", "production", "payments", "cash", "shipments", "clients", "boxes"],
       home: "/orders",
     },
     manager: {
-      bar: ["orders", "production", "cash", "clients", "more"],
-      side: ["orders", "production", "cash", "clients", "boxes"],
+      bar: ["orders", "production", "cash", "shipments", "more"],
+      side: ["orders", "production", "cash", "shipments", "clients", "boxes"],
       home: "/orders",
     },
     location_lead: {
-      bar: ["orders", "production", "cash", "clients", "more"],
-      side: ["orders", "production", "cash", "clients", "boxes"],
+      bar: ["orders", "production", "cash", "shipments", "more"],
+      side: ["orders", "production", "cash", "shipments", "clients", "boxes"],
       home: "/production",
     },
     production: {
@@ -117,12 +117,16 @@ describe("меню за ролями (ТЗ §6.1)", () => {
 
   it("розділи, яких немає в нижній панелі, потрапляють у меню «Ще»", () => {
     // Порядок у «Ще» той самий, що й у бічній панелі комп'ютера.
-    expect(extraNavItemsFor("owner").map((item) => item.id)).toEqual(["clients", "boxes"]);
+    expect(extraNavItemsFor("owner").map((item) => item.id)).toEqual([
+      "shipments",
+      "clients",
+      "boxes",
+    ]);
     for (const role of ["manager", "location_lead", "accountant"] as const) {
       expect(
         extraNavItemsFor(role).map((item) => item.id),
         role,
-      ).toEqual(["boxes"]);
+      ).toEqual(role === "accountant" ? ["boxes"] : ["clients", "boxes"]);
     }
     expect(extraNavItemsFor("production")).toEqual([]);
   });
@@ -141,7 +145,10 @@ describe("заголовки сторінок у шапці", () => {
     expect(NAV_ITEMS.more.label).toBe("Ще");
     expect(NAV_ITEMS.more.title).toBe("Профіль");
     for (const item of Object.values(NAV_ITEMS)) {
-      if (item.id !== "more") expect(item.title, item.id).toBeUndefined();
+      // Власний заголовок у шапці мають лише «Ще» (Профіль) і «Накладні» (ТТН на день).
+      if (item.id !== "more" && item.id !== "shipments") {
+        expect(item.title, item.id).toBeUndefined();
+      }
     }
   });
 });
@@ -260,5 +267,21 @@ describe("«Нова Пошта» у меню (B10)", () => {
       expect(canOpenPage(role, "np"), role).toBe(role === "owner");
     }
     expect(NAV_ITEMS.np.href).toBe("/np");
+  });
+});
+
+describe("«Накладні» (ТТН на день) у меню (B10)", () => {
+  it("відкривається власнику, менеджеру й старшому локації, стоїть після «Готівки» перед «Клієнтами»", () => {
+    for (const role of USER_ROLES) {
+      const allowed = role === "owner" || role === "manager" || role === "location_lead";
+      expect(canOpenPage(role, "shipments"), role).toBe(allowed);
+      const side = navItemsFor(role, "side").map((item) => item.id);
+      expect(side.includes("shipments"), role).toBe(allowed);
+      if (allowed) {
+        expect(side.indexOf("shipments")).toBeGreaterThan(side.indexOf("cash"));
+        expect(side.indexOf("shipments")).toBeLessThan(side.indexOf("clients"));
+      }
+    }
+    expect(NAV_ITEMS.shipments).toMatchObject({ href: "/shipments", title: "ТТН на день" });
   });
 });

@@ -29,6 +29,7 @@ const icons: Record<NavItemId, typeof OrdersIcon> = {
   prices: PriceIcon,
   users: UsersIcon,
   np: ParcelIcon,
+  shipments: ParcelIcon,
   more: MoreIcon,
 };
 

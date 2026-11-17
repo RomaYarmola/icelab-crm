@@ -55,3 +55,20 @@ describe("розклад і підбір адрес (B10, PR 2)", () => {
     );
   });
 });
+
+describe("«ТТН на день» (B10, PR 4)", () => {
+  it("розділ закритий і в layout, і на сторінці; серверна функція перевіряє право", () => {
+    expect(read("src/app/(app)/shipments/layout.tsx")).toContain('requirePageUser("shipments")');
+    expect(read("src/server/np/shipment-day.ts")).toContain('"shipments", "write"');
+    expect(read("src/app/(app)/shipments/actions.ts")).toContain("createShipment(");
+  });
+
+  it("черга: не більше двох одночасно, по одному замовленню на запит, стікери склеює браузер за потреби", () => {
+    const list = read("src/components/shipmentsPage/ShipmentDayList.tsx");
+    expect(list).toContain("const CONCURRENCY = 2");
+    expect(list).toContain("actions.createStep(orderId)");
+    expect(list).toContain('await import("pdf-lib")');
+    expect(list).not.toMatch(/from "pdf-lib"/);
+    expect(list).not.toMatch(/apiKey|NOVA_POSHTA|process\.env/);
+  });
+});

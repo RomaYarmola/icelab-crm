@@ -54,6 +54,8 @@ function canSeeSection(role: UserRole, id: NavItemId): boolean {
       return can(role, "users", "read");
     case "np":
       return can(role, "migration_settings", "write");
+    case "shipments":
+      return can(role, "shipments", "write");
     case "more":
       return true;
   }
@@ -86,9 +88,11 @@ export function navItemsFor(role: UserRole, placement: NavPlacement): NavItem[] 
   if (!canUseWeb(role)) return [];
 
   const sections = SECTION_ORDER.filter((id) => canSeeSection(role, id)) as NavItemId[];
-  if (canSeeSection(role, "cash")) {
+  // «Готівка», потім «Накладні» (ТТН на день): обидва перед «Клієнтами».
+  for (const id of ["cash", "shipments"] as const) {
+    if (!canSeeSection(role, id)) continue;
     const at = sections.indexOf("clients");
-    sections.splice(at === -1 ? sections.length : at, 0, "cash");
+    sections.splice(at === -1 ? sections.length : at, 0, id);
   }
   if (placement === "side") return sections.map((id) => NAV_ITEMS[id]);
 
