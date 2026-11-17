@@ -32,6 +32,7 @@ import {
 import { addOrderItem, deleteOrderItem, updateOrderItem } from "@/server/order-items";
 import { cancelAsDuplicate, changeOrderPrice, transitionOrder } from "@/server/order-status";
 import { notifyOrderChange } from "@/server/production-signal";
+import { notifyOrderChangedToday, notifyOrderConfirmed } from "@/server/telegram/notify";
 import {
   createOrder,
   type CreateOrderInput,
@@ -220,6 +221,7 @@ export async function updateOrderAction(
         note: readOptionalText(formData, "note") ?? undefined,
       });
       refresh(id);
+      notifyOrderChangedToday(getDb(), id, actor.id);
     },
     { success: "Зміни збережено.", values },
   );
@@ -239,6 +241,7 @@ export async function transitionOrderAction(
         note: readOptionalText(formData, "note") ?? undefined,
       });
       refresh(id);
+      if (to.data === "confirmed") notifyOrderConfirmed(getDb(), id, actor.id);
     },
     { success: "Статус змінено.", values: echo(formData, ["to", "note"]) },
   );

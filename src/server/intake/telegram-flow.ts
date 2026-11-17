@@ -18,6 +18,7 @@ import { deleteDraftOrder } from "../orders";
 import { transitionOrder } from "../order-status";
 import { notifyOrderChange } from "../production-signal";
 import { answerCallbackQuery, editMessageText, sendMessage } from "../telegram/client";
+import { sendConfirmedNotice, sendNoClientNotice } from "../telegram/notify";
 import { processIntakeMessage, type ProcessDeps, type ProcessOutcome } from "./process";
 import type { DraftBuild } from "./draft";
 
@@ -53,6 +54,10 @@ const withSender = (db: AnyPgDatabase, deps: FlowDeps): TelegramSender => ({
   ...(deps.edit ? { edit: deps.edit } : {}),
   ...(deps.answer ? { answer: deps.answer } : {}),
 });
+
+/** Особисте повідомлення в тестах іде через ту саму підміну `send`; без неї відправляє справжній бот. */
+const directSend = (deps: FlowDeps) =>
+  deps.send ? (chatId: number, text: string) => deps.send!({ chatId, text }) : undefined;
 
 /** Відповідь Telegram, що не вдалась (бота вилучили з групи, мережа), приймання не ламає. */
 async function safely(task: () => Promise<unknown>): Promise<void> {
@@ -189,6 +194,14 @@ export async function processAndReply(
       buttons: draftButtons(outcome.orderId, described.isPlaceholder),
     }),
   );
+  // Чернетка без клієнта: автору заявки окремо, щоб не загубилась у групі.
+  if (described.isPlaceholder && message.telegramUserId) {
+    await safely(() =>
+      sendNoClientNotice(db, outcome.orderId, message.telegramUserId!, {
+        send: directSend(deps),
+      }),
+    );
+  }
   return outcome;
 }
 
@@ -322,6 +335,7 @@ export async function handleCallback(
   }
   await settle("confirmed");
   notifyOrderChange(db, order.id);
+  await safely(() => sendConfirmedNotice(db, order.id, actor.id, { send: directSend(deps) }));
   const [location] = await db.select().from(locations).where(eq(locations.id, order.locationId));
   await alert("Підтверджено.");
   await editMessage(

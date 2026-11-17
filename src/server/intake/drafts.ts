@@ -16,6 +16,7 @@ import { ForbiddenError, type AppUser, locationScope, requirePermission } from "
 import { deleteDraftOrder } from "../orders";
 import { transitionOrder } from "../order-status";
 import { notifyOrderChange } from "../production-signal";
+import { notifyOrderConfirmed } from "../telegram/notify";
 
 /**
  * Вкладка «Чернетки» (B11, ТЗ 6.9): чернетки замовлень, створені з Telegram і з сайту, з вихідним
@@ -164,6 +165,7 @@ export async function confirmIntakeDraft(
   await transitionOrder(db, actor, orderId, "confirmed");
   await settleIntakeMessage(db, orderId, "confirmed");
   notifyOrderChange(db, orderId);
+  notifyOrderConfirmed(db, orderId, actor.id);
 }
 
 /** «Відхилити» з CRM: чернетка видаляється, заявка лишається в історії зі статусом «відхилено». */
