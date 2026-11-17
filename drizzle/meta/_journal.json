@@ -99,6 +99,13 @@
       "when": 1794680073898,
       "tag": "0013_boxes_export_kinds",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1794920117149,
+      "tag": "0014_nova_poshta",
+      "breakpoints": true
     }
   ]
 }

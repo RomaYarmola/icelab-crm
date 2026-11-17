@@ -1,5 +1,6 @@
 import { ORDER_STATUS_LABELS } from "@/constants/constants";
 import { ADDRESS_KIND_LABELS, LEGAL_TYPE_LABELS } from "@/constants/clients";
+import { NP_PAYER_LABELS, SHIPMENT_STATUS_LABELS } from "@/constants/np";
 import {
   BOX_OWNERSHIP_LABELS,
   DELIVERY_METHOD_LABELS,
@@ -24,6 +25,7 @@ export const AUDIT_SECTIONS = {
   settings: "Налаштування",
   exports: "Експорт",
   boxes: "Бокси",
+  np: "Нова Пошта",
 } as const;
 
 export type AuditSection = keyof typeof AUDIT_SECTIONS;
@@ -281,6 +283,8 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       name: text("Ім'я"),
       phone: text("Телефон"),
       role: text("Роль"),
+      np_counterparty_ref: hidden("Контрагент Нової Пошти"),
+      np_contact_ref: hidden("Контактна особа Нової Пошти"),
       is_primary: bool("Основний"),
       created_by: hidden("Автор"),
       ...SYSTEM_FIELDS,
@@ -402,6 +406,36 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       file_url: hidden("Адреса файлу"),
       created_by: hidden("Хто вивантажив"),
       created_at: hidden("Створено"),
+    },
+  },
+  shipments: {
+    label: "Накладна Нової Пошти",
+    section: "np",
+    noun: "накладну Нової Пошти",
+    fields: {
+      id: hidden("Ідентифікатор"),
+      order_id: ref("Замовлення", "order"),
+      location_id: ref("Локація", "location"),
+      np_ref: hidden("Ідентифікатор у Новій Пошті"),
+      ttn_number: text("Номер ТТН"),
+      status: choice("Статус", SHIPMENT_STATUS_LABELS),
+      status_code: hidden("Код статусу"),
+      status_text: text("Статус від Нової Пошти"),
+      cost_uah: money("Вартість доставки"),
+      payer: choice("Платник", NP_PAYER_LABELS),
+      recipient_city_ref: hidden("Місто одержувача"),
+      recipient_warehouse_ref: hidden("Відділення одержувача"),
+      recipient_counterparty_ref: hidden("Контрагент одержувача"),
+      recipient_contact_ref: hidden("Контактна особа одержувача"),
+      weight_kg: kg("Вага"),
+      seats: number("Місць"),
+      description: text("Опис вантажу"),
+      created_in_np_at: timestamp("Створено в Новій Пошті"),
+      last_tracked_at: hidden("Востаннє перевірено"),
+      error_text: text("Помилка"),
+      request_payload: hidden("Запит до Нової Пошти"),
+      response_payload: hidden("Відповідь Нової Пошти"),
+      ...SYSTEM_FIELDS,
     },
   },
   settings: {

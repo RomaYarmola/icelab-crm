@@ -6,6 +6,7 @@ import HistoryIcon from "../icons/HistoryIcon";
 import ClientsIcon from "../icons/ClientsIcon";
 import MoreIcon from "../icons/MoreIcon";
 import OrdersIcon from "../icons/OrdersIcon";
+import ParcelIcon from "../icons/ParcelIcon";
 import PaymentsIcon from "../icons/PaymentsIcon";
 import PriceIcon from "../icons/PriceIcon";
 import ProductionIcon from "../icons/ProductionIcon";
@@ -27,6 +28,7 @@ const icons: Record<NavItemId, typeof OrdersIcon> = {
   export: DownloadIcon,
   prices: PriceIcon,
   users: UsersIcon,
+  np: ParcelIcon,
   more: MoreIcon,
 };
 

@@ -513,6 +513,11 @@ async function loadSubjects(db: AnyPgDatabase, rows: AuditRow[]): Promise<Map<st
         subjects.set(row.id, clientTitle(clientId, " · старий борг по боксах"));
         break;
       }
+      case "shipments": {
+        const ttn = valueOf(diff, "ttn_number");
+        subjects.set(row.id, { text: ttn ? `ТТН ${ttn}` : "Накладна Нової Пошти", href: null });
+        break;
+      }
       case "exports": {
         const file = valueOf(diff, "file_name");
         subjects.set(row.id, { text: file ? `Файл ${file}` : "Експорт у Excel", href: null });

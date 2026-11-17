@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
+import NpPreview from "@/components/uiKitPage/NpPreview";
 import BoxesPreview, {
   BOX_PREVIEW_SCREENS,
   type BoxPreviewScreen,
@@ -60,6 +61,29 @@ async function previewSetLocation(): Promise<{ ok: boolean }> {
 async function previewFormAction(): Promise<FormState> {
   "use server";
   return { status: "success", message: "Приклад: у каталозі збереження вимкнено." };
+}
+
+/** Заглушки екрана «Нова Пошта» у каталозі: у Нову Пошту нічого не відправляють. */
+async function previewNpSenders() {
+  "use server";
+  return {
+    ok: true as const,
+    data: [
+      { ref: "s1", name: "ФОП Коваль О. І." },
+      { ref: "s2", name: "ТОВ «АйсЛаб»" },
+    ],
+  };
+}
+
+async function previewNpSenderDetails() {
+  "use server";
+  return {
+    ok: true as const,
+    data: {
+      contacts: [{ ref: "c1", name: "Коваль Олена" }],
+      addresses: [{ ref: "a1", name: "Київ, відділення № 5" }],
+    },
+  };
 }
 
 /** Заглушка «екран виробництва відкрито»: у каталозі нічого не запускає й не позначає. */
@@ -236,6 +260,7 @@ const PREVIEW_SCREENS = [
   ...AUDIT_PREVIEW_SCREENS,
   ...BOX_PREVIEW_SCREENS,
   "export",
+  "np",
 ] as const;
 
 /**
@@ -350,6 +375,12 @@ export default async function ShellPreviewPage({
           screen={screen as BoxPreviewScreen}
           isOwner={knownRole === "owner"}
           formAction={previewFormAction}
+        />
+      ) : screen === "np" ? (
+        <NpPreview
+          formAction={previewFormAction}
+          loadSenders={previewNpSenders}
+          loadSenderDetails={previewNpSenderDetails}
         />
       ) : screen === "export" ? (
         <ExportAllContent canSeeJournal={can(knownRole, "audit_log", "read")} />

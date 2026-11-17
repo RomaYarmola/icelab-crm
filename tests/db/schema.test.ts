@@ -20,8 +20,11 @@ const EXPECTED_TABLES = [
   "error_log",
   "exports",
   "ice_types",
+  "integration_logs",
   "locations",
   "login_failures",
+  "np_cities",
+  "np_warehouses",
   "order_items",
   "order_price_changes",
   "order_sources",
@@ -30,6 +33,7 @@ const EXPECTED_TABLES = [
   "profiles",
   "regions",
   "settings",
+  "shipments",
 ];
 
 describe("структура бази", () => {
@@ -42,7 +46,7 @@ describe("структура бази", () => {
     await ctx.client.close();
   });
 
-  it("містить усі 17 таблиць блоку B1, невдалі входи з B2, журнал помилок з B3, області з B4 зміни цін замовлень з B5, готівку з B6, журнал експортів з B8 і бокси з B9", async () => {
+  it("містить усі 17 таблиць блоку B1, невдалі входи з B2, журнал помилок з B3, області з B4 зміни цін замовлень з B5, готівку з B6, журнал експортів з B8, бокси з B9 і Нову Пошту з B10", async () => {
     const result = await ctx.db.execute(
       sql`select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );
