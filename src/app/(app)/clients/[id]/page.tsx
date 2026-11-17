@@ -9,7 +9,10 @@ import {
   deleteAddressAction,
   deleteClientAction,
   deleteContactAction,
+  resolveAddressAction,
   restoreClientAction,
+  searchNpCitiesAction,
+  searchNpWarehousesAction,
   updateAddressAction,
   updateClientAction,
   updateContactAction,
@@ -104,6 +107,11 @@ export default async function ClientPage({
         updateAddress: updateAddressAction,
         deleteAddress: deleteAddressAction,
         changePrice: changeClientPriceAction,
+        np: {
+          searchCities: searchNpCitiesAction,
+          searchWarehouses: searchNpWarehousesAction,
+          resolve: resolveAddressAction,
+        },
       }}
     />
   );

@@ -16,8 +16,8 @@ import { getEnv } from "@/env";
 // Усі записи виконуються в транзакції, яку наприкінці скасовують, тож у базі нічого не лишається.
 
 // 17 таблиць B1, login_failures (B2), error_log (B3), regions (B4), order_price_changes (B5),
-// cash_entries (B6), exports (B8) і boxes, box_events, box_debts_legacy (B9), integration_logs, np_cities, np_warehouses, shipments (B10)
-const EXPECTED_TABLES = 30;
+// cash_entries (B6), exports (B8) і boxes, box_events, box_debts_legacy (B9), integration_logs, np_cities, np_warehouses, shipments, np_sync_state (B10)
+const EXPECTED_TABLES = 31;
 // 15 (updated_at) + 6 (created_by) + 1 (сума) + 1 (історія статусів) + 9 (журнал змін: з B4 ще
 // прайс, контакти й адреси клієнтів) + 1 (зміни цін, B5) + 3 (готівка, B6: час зміни, журнал,
 // захист від правки й видалення) + 2 (журнал експортів, B8: журнал змін і захист від правки)

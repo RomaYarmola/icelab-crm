@@ -50,6 +50,7 @@ export type AddressView = Pick<
   | "npWarehouseNumber"
   | "timeWindow"
   | "isDefault"
+  | "isResolved"
 >;
 
 export function toAddressView(address: AddressRow): AddressView {
@@ -63,6 +64,7 @@ export function toAddressView(address: AddressRow): AddressView {
     npWarehouseNumber: address.npWarehouseNumber,
     timeWindow: address.timeWindow,
     isDefault: address.isDefault,
+    isResolved: address.isResolved,
   };
 }
 

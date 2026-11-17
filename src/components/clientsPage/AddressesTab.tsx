@@ -9,6 +9,7 @@ import SubTitle from "../shared/titles/SubTitle";
 import AddressForm from "./AddressForm";
 import type { ClientCardActions } from "./clientActions";
 import DeleteRecordForm from "./DeleteRecordForm";
+import NpAddressPicker from "./NpAddressPicker";
 
 interface AddressesTabProps {
   clientId: string;
@@ -16,6 +17,8 @@ interface AddressesTabProps {
   actions: ClientCardActions;
   canEdit: boolean;
 }
+
+const isNp = (kind: string) => kind === "np_warehouse" || kind === "np_address";
 
 /** Вкладка «Адреси»: доставка, склад чи адреса Нової Пошти, автобус; одна за замовчуванням. */
 export default function AddressesTab({ clientId, addresses, actions, canEdit }: AddressesTabProps) {
@@ -52,7 +55,12 @@ export default function AddressesTab({ clientId, addresses, actions, canEdit }: 
                 <SubTitle className="min-w-0 break-words">
                   {address.label || ADDRESS_KIND_LABELS[address.kind]}
                 </SubTitle>
-                {address.isDefault ? <Tag className="shrink-0">За замовчуванням</Tag> : null}
+                <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                  {isNp(address.kind) ? (
+                    <Tag>{address.isResolved ? "Зіставлено" : "Потребує уточнення"}</Tag>
+                  ) : null}
+                  {address.isDefault ? <Tag>За замовчуванням</Tag> : null}
+                </div>
               </div>
               {address.label ? (
                 <Text variant="muted">{ADDRESS_KIND_LABELS[address.kind]}</Text>
@@ -70,6 +78,23 @@ export default function AddressesTab({ clientId, addresses, actions, canEdit }: 
               ) : null}
               {address.timeWindow ? (
                 <Text variant="muted">Вікно доставки: {address.timeWindow}</Text>
+              ) : null}
+              {canEdit && actions.np && isNp(address.kind) ? (
+                <Disclosure
+                  key={`np-${address.id}-${address.isResolved}`}
+                  summary={
+                    address.isResolved
+                      ? "Змінити відділення Нової Пошти"
+                      : "Підібрати в довіднику Нової Пошти"
+                  }
+                  defaultOpen={!address.isResolved}
+                >
+                  <NpAddressPicker
+                    addressId={address.id}
+                    kind={address.kind as "np_warehouse" | "np_address"}
+                    actions={actions.np}
+                  />
+                </Disclosure>
               ) : null}
               {canEdit ? (
                 <div className="flex flex-col gap-1 border-t border-grey-border pt-2">

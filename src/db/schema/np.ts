@@ -123,3 +123,25 @@ export const shipments = pgTable(
     check("shipments_weight_ok", sql`${t.weightKg} is null or ${t.weightKg} > 0`),
   ],
 ).enableRLS();
+
+/**
+ * Стан оновлення довідників (D125): де зупинилось порційне завантаження. Окрема таблиця, а не
+ * `settings`: запис змінюється після кожної сторінки, і журнал змін від цього захлинувся б.
+ * Один рядок з ключем `directories`.
+ */
+export const npSyncState = pgTable(
+  "np_sync_state",
+  {
+    key: text("key").primaryKey(),
+    /** `idle` (нічого не робимо), `cities` або `warehouses` (завантаження триває). */
+    phase: text("phase").notNull().default("idle"),
+    /** Наступна сторінка, яку треба завантажити. */
+    page: integer("page").notNull().default(1),
+    runStartedAt: timestamp("run_started_at", { withTimezone: true }),
+    lastFinishedAt: timestamp("last_finished_at", { withTimezone: true }),
+    citiesCount: integer("cities_count").notNull().default(0),
+    warehousesCount: integer("warehouses_count").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [check("np_sync_state_phase_ok", sql`${t.phase} in ('idle', 'cities', 'warehouses')`)],
+).enableRLS();

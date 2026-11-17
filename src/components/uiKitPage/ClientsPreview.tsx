@@ -10,6 +10,7 @@ import type { ClientPriceHistoryItem, DefaultPriceHistoryItem } from "@/server/p
 import type { FormState } from "@/utils/formState";
 import { PREVIEW_AUDIT_ENTRIES } from "./AuditPreview";
 import ClientCardContent from "../clientsPage/ClientCardContent";
+import type { NpPickerActions } from "../clientsPage/clientActions";
 import ClientsPageContent from "../clientsPage/ClientsPageContent";
 import MergeClientsContent from "../clientsPage/MergeClientsContent";
 import NewClientContent from "../clientsPage/NewClientContent";
@@ -227,6 +228,7 @@ function cardFor(role: UserRole, overrides: Partial<ClientCardView> = {}): Clien
         npWarehouseNumber: null,
         timeWindow: "10:00-14:00",
         isDefault: true,
+        isResolved: false,
       },
       {
         id: "ad2",
@@ -238,6 +240,7 @@ function cardFor(role: UserRole, overrides: Partial<ClientCardView> = {}): Clien
         npWarehouseNumber: "14",
         timeWindow: null,
         isDefault: false,
+        isResolved: false,
       },
     ],
     ...overrides,
@@ -269,6 +272,7 @@ interface ClientsPreviewProps {
   loadMore: () => Promise<LoadMoreResult>;
   previewCode: () => Promise<string | null>;
   findSimilar: () => Promise<SimilarClient[]>;
+  npPicker: NpPickerActions;
 }
 
 export default function ClientsPreview({
@@ -280,6 +284,7 @@ export default function ClientsPreview({
   loadMore,
   previewCode,
   findSimilar,
+  npPicker,
 }: ClientsPreviewProps) {
   const canWrite = can(role, "clients", "write");
   const filters = {
@@ -380,6 +385,7 @@ export default function ClientsPreview({
         updateAddress: noop,
         deleteAddress: noop,
         changePrice: noop,
+        np: npPicker,
       }}
     />
   );

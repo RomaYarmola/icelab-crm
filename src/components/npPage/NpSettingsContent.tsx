@@ -1,4 +1,6 @@
 import { formatDateTime } from "@/utils/formatDate";
+import type { UnresolvedAddress } from "@/server/np/addresses";
+import type { SyncStatus } from "@/server/np/directories";
 import type { NpSettingsView } from "@/server/np/settings";
 import Card from "../shared/cards/Card";
 import Disclosure from "../shared/disclosure/Disclosure";
@@ -7,13 +9,18 @@ import Tag from "../shared/chips/Tag";
 import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import SubTitle from "../shared/titles/SubTitle";
+import Link from "next/link";
+import AutoResolve from "./AutoResolve";
 import ConnectionCheck from "./ConnectionCheck";
+import DirectorySync from "./DirectorySync";
 import EmptyWeightForm from "./EmptyWeightForm";
 import type { NpActions } from "./npTypes";
 import SenderForm from "./SenderForm";
 
 interface NpSettingsContentProps {
   view: NpSettingsView;
+  sync: SyncStatus;
+  unresolved: { total: number; items: UnresolvedAddress[] };
   actions: NpActions;
 }
 
@@ -21,7 +28,12 @@ interface NpSettingsContentProps {
  * Екран «Нова Пошта» (B10, ТЗ 6.12): чи є ключ і чи працює з’єднання, відправник кожної локації й
  * вага порожніх боксів. Лише власник. Сам ключ тут не показується і в базі не зберігається.
  */
-export default function NpSettingsContent({ view, actions }: NpSettingsContentProps) {
+export default function NpSettingsContent({
+  view,
+  sync,
+  unresolved,
+  actions,
+}: NpSettingsContentProps) {
   return (
     <div className="flex flex-col gap-8">
       <section aria-labelledby="np-connection" className="flex max-w-xl flex-col gap-3">
@@ -45,6 +57,59 @@ export default function NpSettingsContent({ view, actions }: NpSettingsContentPr
           <Text variant="muted">З’єднання ще не перевіряли.</Text>
         )}
         <ConnectionCheck action={actions.check} disabled={!view.hasKey} />
+      </section>
+
+      <section aria-labelledby="np-directories" className="flex max-w-xl flex-col gap-3">
+        <SectionTitle id="np-directories">Довідники міст і відділень</SectionTitle>
+        <Text variant="muted">
+          Копія списків Нової Пошти для швидкого вибору адреси. Оновлюється щодоби сама (на бойовій
+          базі), тут можна оновити вручну.
+        </Text>
+        <Text>
+          У копії: міст {sync.storedCities}, відділень {sync.storedWarehouses}.{" "}
+          {sync.lastFinishedAt
+            ? `Оновлено ${formatDateTime(new Date(sync.lastFinishedAt))}.`
+            : "Ще не завантажували."}
+        </Text>
+        {sync.phase !== "idle" ? (
+          <Notification variant="info">
+            Завантаження триває: {sync.phase === "cities" ? "міста" : "відділення"}, сторінка{" "}
+            {sync.page}. Натисніть «Оновити зараз», щоб продовжити.
+          </Notification>
+        ) : null}
+        <DirectorySync sync={actions.sync} />
+      </section>
+
+      <section aria-labelledby="np-addresses" className="flex flex-col gap-3">
+        <SectionTitle id="np-addresses">Адреси, що потребують уточнення</SectionTitle>
+        <Text variant="muted" className="max-w-xl">
+          Накладну можна створити лише для адреси, зіставленої з довідником. Однозначні адреси
+          система зіставить сама, решту вибирають на картці клієнта, вкладка «Адреси».
+        </Text>
+        <div className="max-w-xl">
+          <AutoResolve action={actions.autoResolve} />
+        </div>
+        {unresolved.total === 0 ? (
+          <Text variant="muted">Усі адреси Нової Пошти зіставлені.</Text>
+        ) : (
+          <>
+            <Text>Усього: {unresolved.total}.</Text>
+            <ul className="grid gap-3 lg:grid-cols-2">
+              {unresolved.items.map((item) => (
+                <Card as="li" key={item.id} className="flex flex-col gap-1">
+                  <Link
+                    href={`/clients/${item.clientId}?tab=addresses`}
+                    className="text-h2 break-words text-navy underline-offset-2 lg:hover:underline"
+                  >
+                    {item.clientName}
+                  </Link>
+                  <Text variant="muted">{item.kindLabel}</Text>
+                  <Text className="break-words">{item.text}</Text>
+                </Card>
+              ))}
+            </ul>
+          </>
+        )}
       </section>
 
       <section aria-labelledby="np-senders" className="flex flex-col gap-3">
