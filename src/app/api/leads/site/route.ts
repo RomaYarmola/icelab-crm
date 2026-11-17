@@ -2,6 +2,7 @@ import { getDb } from "@/db/client";
 import { reportError } from "@/server/error-log";
 import { receiveSiteLead, validateSiteLead } from "@/server/intake/site-lead";
 import { isSiteRequest } from "@/server/intake/site-auth";
+import { notifySiteLead } from "@/server/telegram/notify";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 10;
@@ -32,6 +33,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!result.ok) {
       return Response.json({ error: result.error }, { status: result.status, headers: noStore });
     }
+    if (!result.duplicate) notifySiteLead(getDb(), result.draftId);
     return Response.json(
       { draftId: result.draftId, duplicate: result.duplicate },
       { headers: noStore },
