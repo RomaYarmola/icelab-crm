@@ -82,12 +82,15 @@ describe("налаштування Нової Пошти (B10, PR 1)", () => {
       if (calledMethod === "getCounterparties") return reply([{ Ref: "s1", Description: "ФОП А" }]);
       if (calledMethod === "getCounterpartyContactPersons")
         return reply([{ Ref: "c1", Description: "Олена Коваль" }]);
-      return reply([{ Ref: "a1", Description: "Київ, відділення 5" }, { NoRef: true }]);
+      return reply([
+        { Ref: "a1", Description: "Київ, відділення 5", CityRef: "city1" },
+        { NoRef: true },
+      ]);
     });
     expect(await listNpSenders(t.db, owner())).toEqual([{ ref: "s1", name: "ФОП А" }]);
     expect(await listNpSenderDetails(t.db, owner(), "s1")).toEqual({
       contacts: [{ ref: "c1", name: "Олена Коваль" }],
-      addresses: [{ ref: "a1", name: "Київ, відділення 5" }],
+      addresses: [{ ref: "a1", name: "Київ, відділення 5", cityRef: "city1" }],
     });
     await expect(listNpSenderDetails(t.db, owner(), "")).rejects.toThrow(ValidationError);
   });
@@ -98,6 +101,7 @@ describe("налаштування Нової Пошти (B10, PR 1)", () => {
       senderRef: "s1",
       contactRef: "c1",
       addressRef: "a1",
+      cityRef: "city1",
       phone: "+380501234567",
       senderName: "ФОП А",
       contactName: "Олена",

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
+import ShipmentPreview from "@/components/uiKitPage/ShipmentPreview";
 import NpPreview from "@/components/uiKitPage/NpPreview";
 import BoxesPreview, {
   BOX_PREVIEW_SCREENS,
@@ -290,6 +291,7 @@ const PREVIEW_SCREENS = [
   ...BOX_PREVIEW_SCREENS,
   "export",
   "np",
+  "np-shipment",
 ] as const;
 
 /**
@@ -410,6 +412,8 @@ export default async function ShellPreviewPage({
           isOwner={knownRole === "owner"}
           formAction={previewFormAction}
         />
+      ) : screen === "np-shipment" ? (
+        <ShipmentPreview formAction={previewFormAction} />
       ) : screen === "np" ? (
         <NpPreview
           formAction={previewFormAction}

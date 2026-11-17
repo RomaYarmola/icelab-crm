@@ -14,6 +14,12 @@ import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { canDeleteDraft, editPolicy, transitionOptions } from "@/server/order-rules";
 import { sellBoxAction } from "@/app/(app)/boxes/actions";
+import {
+  createShipmentAction,
+  deleteShipmentAction,
+  previewShipmentPriceAction,
+} from "@/app/(app)/orders/shipment-actions";
+import { getShipmentCard } from "@/server/np/shipments";
 import { listOrderBoxes } from "@/server/boxes";
 import { getOrder } from "@/server/orders";
 import { can } from "@/server/permissions";
@@ -51,6 +57,8 @@ export default async function OrderPage({
     ? await listOrderBoxes(getDb(), id)
     : null;
   const canSellBox = user.role === "owner" || user.role === "location_lead";
+  // Накладна Нової Пошти (B10): власник, менеджер і старший локації (своєї локації).
+  const shipmentCard = await getShipmentCard(getDb(), user, id);
   const isOffice = user.role === "owner" || user.role === "manager";
 
   return (
@@ -69,6 +77,18 @@ export default async function OrderPage({
       changeHistory={changeHistory}
       boxes={boxes}
       sellBoxAction={canSellBox ? sellBoxAction : null}
+      shipment={
+        shipmentCard
+          ? {
+              card: shipmentCard,
+              actions: {
+                create: createShipmentAction,
+                price: previewShipmentPriceAction,
+                remove: deleteShipmentAction,
+              },
+            }
+          : null
+      }
       notice={query.created ? "created" : undefined}
       actions={{
         transition: transitionOrderAction,
