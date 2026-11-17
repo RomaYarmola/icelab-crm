@@ -77,3 +77,26 @@ describe("розбір заявок (B11, PR 2)", () => {
     expect(read2("src/server/clients.ts")).toContain("eq(clients.isPlaceholder, false)");
   });
 });
+
+describe("чернетка в Telegram (B11, PR 3)", () => {
+  const read3 = (path: string) => readFileSync(join(ROOT, path), "utf8");
+
+  it("розбір іде після відповіді, лише після перевірки секрету; запасний розклад теж за секретом", () => {
+    const route = read3("src/app/api/telegram/webhook/route.ts");
+    expect(route.indexOf("isTelegramRequest(request)")).toBeLessThan(route.indexOf("after("));
+    expect(route).toContain("processAndReply(");
+    const retry = read3("src/app/api/cron/intake-retry/route.ts");
+    expect(retry.indexOf("isCronRequest(request)")).toBeLessThan(retry.indexOf("processAndReply("));
+    expect(retry).toContain("status: 401");
+    expect(read3("src/lib/supabase/proxy.ts")).toContain('"/api/cron/"');
+  });
+
+  it("кнопки перевіряють роль за прив'язаним Telegram і дозволяють лише менеджера й власника", () => {
+    const flow = read3("src/server/intake/telegram-flow.ts");
+    expect(flow).toContain('row.role !== "owner" && row.role !== "manager"');
+    expect(flow).toContain("Немає доступу.");
+    expect(flow).toContain("Уже підтверджено");
+    // Підтвердження йде тією ж функцією, що й у CRM, а не обхідним шляхом.
+    expect(flow).toContain('transitionOrder(db, actor, order.id, "confirmed")');
+  });
+});
