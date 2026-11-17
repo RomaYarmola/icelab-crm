@@ -2,6 +2,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { withActor } from "@/db/actor";
 import { intakeMessages, locations, profiles, telegramLinkCodes } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
+import { handleCallback, type FlowDeps, type TgCallback } from "../intake/telegram-flow";
 import { sendMessage } from "./client";
 import {
   getTelegramSettings,
@@ -32,7 +33,7 @@ export type TgUpdate = {
   update_id: number;
   message?: TgMessage;
   edited_message?: TgMessage;
-  callback_query?: { id: string };
+  callback_query?: TgCallback;
 };
 
 export type UpdateOutcome =
@@ -41,9 +42,10 @@ export type UpdateOutcome =
   | { kind: "bind_failed"; reason: string }
   | { kind: "captured"; target: "kyiv" | "lviv" }
   | { kind: "stored"; id: string; status: "new" | "skipped"; location: "kyiv" | "lviv" }
-  | { kind: "updated"; id: string };
+  | { kind: "updated"; id: string }
+  | { kind: "callback"; result: string };
 
-type Deps = {
+type Deps = FlowDeps & {
   /** Надіслати відповідь; у тестах підміна. */
   send?: (params: Parameters<typeof sendMessage>[1]) => Promise<unknown>;
   now?: Date;
@@ -275,12 +277,16 @@ async function handleGroup(
   };
 }
 
-/** Головна точка: одна подія Telegram. Кнопки (`callback_query`) додаються в наступному кроці. */
+/** Головна точка: одна подія Telegram: повідомлення групи, особисте листування чи натискання кнопки. */
 export async function handleUpdate(
   db: AnyPgDatabase,
   update: TgUpdate,
   deps: Deps = {},
 ): Promise<UpdateOutcome> {
+  if (update.callback_query) {
+    const result = await handleCallback(db, update.callback_query, deps);
+    return { kind: "callback", result: result.kind };
+  }
   const message = update.message ?? update.edited_message;
   if (!message) return { kind: "ignored", reason: "це не повідомлення" };
   if (message.chat.type === "private") return handlePrivate(db, message, deps);

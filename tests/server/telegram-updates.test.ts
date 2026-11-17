@@ -87,7 +87,9 @@ describe("події Telegram: приймання й прив'язка (B11, PR 
       expect((await run(update(item))).kind, JSON.stringify(item)).toBe("ignored");
     }
     expect(await t.db.select().from(intakeMessages)).toHaveLength(0);
-    expect((await run({ update_id: 1, callback_query: { id: "q" } })).kind).toBe("ignored");
+    expect(
+      (await run({ update_id: 1, callback_query: { id: "q", from: { id: 1 }, data: "x" } })).kind,
+    ).toBe("callback");
   });
 
   it("не менеджер, не підключений і бот зберігаються як «пропущено» з причиною", async () => {
