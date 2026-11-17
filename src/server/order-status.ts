@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { withActor } from "@/db/actor";
-import { boxes, orderItems, orderPriceChanges, orders } from "@/db/schema";
+import { boxes, clients, orderItems, orderPriceChanges, orders } from "@/db/schema";
 import type { OrderStatus } from "@/constants/constants";
 import type { AnyPgDatabase } from "@/db/types";
 import { parseDecimal } from "@/utils/orderMath";
@@ -78,6 +78,16 @@ export async function transitionOrder(
 
       if (check.kind === "forward") {
         if (to === "confirmed") {
+          // Чернетка із заявки без визначеного клієнта (B11, ТЗ 13): у виробництво не потрапляє.
+          const [owner] = await tx
+            .select({ isPlaceholder: clients.isPlaceholder })
+            .from(clients)
+            .where(eq(clients.id, current.clientId));
+          if (owner?.isPlaceholder) {
+            throw new ValidationError(
+              "Оберіть справжнього клієнта замість «Новий клієнт», перш ніж підтвердити.",
+            );
+          }
           if (!current.iceTypeId)
             throw new ValidationError("Вкажіть тип льоду, перш ніж підтвердити.");
           if (!(parseDecimal(current.kgSold) > 0)) {

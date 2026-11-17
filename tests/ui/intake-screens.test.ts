@@ -57,3 +57,23 @@ describe("екран «Прийом заявок»", () => {
     expect(read("src/server/telegram/webhook-auth.ts")).toContain("timingSafeEqual");
   });
 });
+
+describe("розбір заявок (B11, PR 2)", () => {
+  const read2 = (path: string) => readFileSync(join(ROOT, path), "utf8");
+
+  it("ключ Claude читається лише в клієнті Claude; у підказці немає телефонів і персональних полів", () => {
+    expect(read2("src/server/intake/claude.ts")).toContain("process.env.ANTHROPIC_API_KEY");
+    for (const file of ["prompt.ts", "draft.ts", "process.ts", "schema.ts"]) {
+      expect(read2(`src/server/intake/${file}`), file).not.toMatch(/process\.env|ANTHROPIC/);
+    }
+    // Список клієнтів для моделі: код, назва, застосування, місто. Контактів і телефонів немає.
+    expect(read2("src/server/intake/prompt.ts")).not.toMatch(
+      /clientContacts|client_contacts|phone/,
+    );
+  });
+
+  it("чернетку без справжнього клієнта підтвердити не можна, службовий клієнт не показується у списках", () => {
+    expect(read2("src/server/order-status.ts")).toContain("owner?.isPlaceholder");
+    expect(read2("src/server/clients.ts")).toContain("eq(clients.isPlaceholder, false)");
+  });
+});
