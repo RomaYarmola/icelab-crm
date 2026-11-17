@@ -73,7 +73,10 @@ type SenderData = {
   cityRef: string;
 };
 
-async function loadSender(db: AnyPgDatabase, locationId: string): Promise<SenderData | null> {
+export async function loadSender(
+  db: AnyPgDatabase,
+  locationId: string,
+): Promise<SenderData | null> {
   const [location] = await db.select().from(locations).where(eq(locations.id, locationId));
   if (
     !location?.npSenderRef ||

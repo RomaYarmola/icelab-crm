@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
+import ShipmentDayPreview from "@/components/uiKitPage/ShipmentDayPreview";
 import ShipmentPreview from "@/components/uiKitPage/ShipmentPreview";
 import NpPreview from "@/components/uiKitPage/NpPreview";
 import BoxesPreview, {
@@ -103,6 +104,21 @@ async function previewNpWarehouses() {
     { ref: "w1", name: "Відділення №1: вул. Хрещатик, 1", number: "1" },
     { ref: "w5", name: "Відділення №5: вул. Лесі Українки, 5", number: "5" },
   ];
+}
+
+async function previewShipmentStep(orderId: string) {
+  "use server";
+  await new Promise((resolve) => setTimeout(resolve, 700));
+  if (orderId === "o1") {
+    return { ok: false as const, orderId, message: "RecipientAddress is invalid" };
+  }
+  return {
+    ok: true as const,
+    orderId,
+    shipmentId: `s-${orderId}`,
+    ttnNumber: `2045000000${orderId.slice(1)}`.padEnd(14, "0"),
+    duplicate: false,
+  };
 }
 
 async function previewNpSenderDetails() {
@@ -292,6 +308,7 @@ const PREVIEW_SCREENS = [
   "export",
   "np",
   "np-shipment",
+  "np-day",
 ] as const;
 
 /**
@@ -412,6 +429,8 @@ export default async function ShellPreviewPage({
           isOwner={knownRole === "owner"}
           formAction={previewFormAction}
         />
+      ) : screen === "np-day" ? (
+        <ShipmentDayPreview createStep={previewShipmentStep} />
       ) : screen === "np-shipment" ? (
         <ShipmentPreview formAction={previewFormAction} />
       ) : screen === "np" ? (
