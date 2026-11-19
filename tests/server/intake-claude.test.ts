@@ -87,10 +87,11 @@ describe("розбір заявки: схема й клієнт Claude (B11, PR 
     expect(body).toMatchObject({
       model: CLAUDE_MODEL,
       max_tokens: 800,
-      temperature: 0,
       tool_choice: { type: "tool", name: "record_order" },
       messages: [{ role: "user", content: "ДСВ завтра 40 кг" }],
     });
+    // Нова модель відхиляє `temperature` (400): параметра в запиті немає.
+    expect(body).not.toHaveProperty("temperature");
     expect(body.system[0].cache_control).toBeUndefined();
     expect(body.system[1].cache_control).toEqual({ type: "ephemeral" });
     expect(body.tools[0].name).toBe("record_order");
