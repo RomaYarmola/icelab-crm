@@ -7,7 +7,7 @@ import {
   sumAmounts,
 } from "@/utils/orderMath";
 
-describe("скільки виготовити (D53)", () => {
+describe("скільки виготовити (D53, D162: округлення вниз)", () => {
   it("без надбавки стільки, скільки продано", () => {
     expect(computeKgToProduce(30, 0)).toBe(30);
     expect(computeKgToProduce(12, 0)).toBe(12);
@@ -20,16 +20,17 @@ describe("скільки виготовити (D53)", () => {
     expect(computeKgToProduce(100, 15)).toBe(115);
   });
 
-  it("нецілий результат округлюється вгору", () => {
-    expect(computeKgToProduce(12, 10)).toBe(14); // 13,2
-    expect(computeKgToProduce(25, 10)).toBe(28); // 27,5
-    expect(computeKgToProduce(1, 10)).toBe(2); // 1,1
+  it("нецілий результат округлюється вниз: 25 кг з 10% це 27 (приклад Романа)", () => {
+    expect(computeKgToProduce(12, 10)).toBe(13); // 13,2
+    expect(computeKgToProduce(25, 10)).toBe(27); // 27,5
+    expect(computeKgToProduce(1, 10)).toBe(1); // 1,1
   });
 
   it("дробові кілограми й відсотки", () => {
     expect(computeKgToProduce(12.5, 0)).toBe(13);
-    expect(computeKgToProduce(12.5, 10)).toBe(14); // 13,75
-    expect(computeKgToProduce(30, 16.67)).toBe(36); // 35,001
+    expect(computeKgToProduce(12.5, 10)).toBe(13); // 13,75
+    expect(computeKgToProduce(4.5, 10)).toBe(5); // 4,95, але не менше проданого (4,5 → 5)
+    expect(computeKgToProduce(30, 16.67)).toBe(35); // 35,001
     expect(computeKgToProduce(0.001, 10)).toBe(1);
   });
 
@@ -44,7 +45,7 @@ describe("скільки виготовити (D53)", () => {
 
   it("великі замовлення", () => {
     expect(computeKgToProduce(5000, 10)).toBe(5500);
-    expect(computeKgToProduce(9999.999, 15)).toBe(11500);
+    expect(computeKgToProduce(9999.999, 15)).toBe(11499); // 11499,99885
   });
 });
 

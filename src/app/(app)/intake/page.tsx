@@ -8,6 +8,7 @@ import {
   checkTelegramAction,
   connectWebhookAction,
   createCodeAction,
+  setConfirmerAction,
   startCaptureAction,
   unlinkAction,
 } from "./actions";
@@ -28,6 +29,7 @@ export default async function IntakePage() {
         cancelCapture: cancelCaptureAction,
         createCode: createCodeAction,
         unlink: unlinkAction,
+        setConfirmer: setConfirmerAction,
       }}
     />
   );

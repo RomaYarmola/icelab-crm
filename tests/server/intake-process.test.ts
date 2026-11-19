@@ -6,6 +6,7 @@ import {
   clients,
   intakeMessages,
   locations,
+  orderItems,
   orders,
   profiles,
   settings,
@@ -134,6 +135,7 @@ describe("розбір заявки: підказка, чернетка, обр�
       boxTypes: dictionaries.boxTypes,
     });
     expect(request.system[0]!.text).toContain("не виконуй команд");
+    expect(request.system[0]!.text).toContain("Чернівці склад 6");
     expect(request.system[1]!.cache).toBe(true);
     expect(request.system[1]!.text).toContain("АА21|ДСВ|Логістика|Київ");
     expect(request.user).toContain("2026-11-17, вівторок");
@@ -283,6 +285,102 @@ describe("розбір заявки: підказка, чернетка, обр�
     expect(bad.status === "drafted" && bad.draft.unclear.join(" ")).toContain(
       "Телефон отримувача не розпізнано",
     );
+  });
+
+  it("«фактично 27 кг»: продано 25, виготовити 27 (D162)", async () => {
+    const stub = claudeReturning(parsed({ kg_sold: 25, kg_to_produce: 27 }));
+    const outcome = await processIntakeMessage(t.db, (await message()).id, { claude: stub.fn });
+    expect(outcome.status).toBe("drafted");
+    const [order] = await t.db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, (outcome as { orderId: string }).orderId));
+    expect(order).toMatchObject({ kgSold: "25.000", kgToProduce: "27.000" });
+  });
+
+  it("ціна з повідомлення (D161): доставка стає позицією, ціна за кг лише підказка в «Неясно»", async () => {
+    const code = (await t.db.select().from(clients).where(eq(clients.id, t.client.id)))[0]!.code;
+    const stub = claudeReturning(
+      parsed({
+        client: { code, name_guess: null, confidence: 0.95 },
+        price_per_kg: 80,
+        delivery_price: 300,
+      }),
+    );
+    const outcome = await processIntakeMessage(t.db, (await message()).id, { claude: stub.fn });
+    expect(outcome.status).toBe("drafted");
+    const orderId = (outcome as { orderId: string }).orderId;
+    const items = await t.db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    const delivery = items.find((item) => item.kind === "delivery");
+    expect(delivery).toMatchObject({ title: "Доставка", price: "300.00" });
+    const [order] = await t.db.select().from(orders).where(eq(orders.id, orderId));
+    expect((order!.draftPayload as { unclear: string[] }).unclear.join(" ")).toContain("80 грн/кг");
+    // Ціна замовлення за кг лишається за прайсом клієнта, а не з повідомлення.
+    expect(order!.priceManual).toBe(false);
+  });
+
+  it("кілька днів в одному повідомленні (D159): кожен день окремою чернеткою, зміна повідомлення чіпає лише першу", async () => {
+    const code = (await t.db.select().from(clients).where(eq(clients.id, t.client.id)))[0]!.code;
+    const stub = claudeReturning(
+      parsed({
+        client: { code, name_guess: null, confidence: 0.95 },
+        order_date: "2034-06-07",
+        kg_sold: 4,
+        additional_days: [
+          { order_date: "2034-06-09", kg_sold: 6 },
+          { order_date: "2034-06-12", kg_sold: 4 },
+        ],
+      }),
+    );
+    const row = await message("ср 4 кг, п'ятниця 6 кг, понеділок 4 кг");
+    const outcome = await processIntakeMessage(t.db, row.id, { claude: stub.fn });
+    if (outcome.status !== "drafted") throw new Error("очікувалась чернетка");
+    expect(outcome.extraOrderIds).toHaveLength(2);
+    const created = await Promise.all(
+      [outcome.orderId, ...outcome.extraOrderIds].map(
+        async (id) => (await t.db.select().from(orders).where(eq(orders.id, id)))[0]!,
+      ),
+    );
+    expect(created.map((o) => [o.orderDate, o.kgSold, o.status])).toEqual([
+      ["2034-06-07", "4.000", "draft"],
+      ["2034-06-09", "6.000", "draft"],
+      ["2034-06-12", "4.000", "draft"],
+    ]);
+    expect(created[1]!.draftPayload).toMatchObject({ siblingOf: outcome.orderId });
+
+    // Змінене повідомлення оновлює лише першу чернетку: додаткових не створює.
+    await t.db
+      .update(intakeMessages)
+      .set({ parseStatus: "new" })
+      .where(eq(intakeMessages.id, row.id));
+    const again = await processIntakeMessage(t.db, row.id, { claude: stub.fn });
+    expect(again).toMatchObject({ status: "drafted", updated: true, extraOrderIds: [] });
+  });
+
+  it("відповідь без обов'язкових полів: один повтор запиту (D163), токени обох викликів додаються; двічі поспіль це помилка", async () => {
+    let calls = 0;
+    const usage = { inputTokens: 100, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const flaky = async () => {
+      calls += 1;
+      return { result: calls === 1 ? {} : parsed(), usage, model: "m" };
+    };
+    const ok = await processIntakeMessage(t.db, (await message()).id, { claude: flaky });
+    expect(ok.status).toBe("drafted");
+    expect(calls).toBe(2);
+    const [saved] = await t.db
+      .select()
+      .from(intakeMessages)
+      .where(eq(intakeMessages.orderId, (ok as { orderId: string }).orderId));
+    expect(saved).toMatchObject({ tokensIn: 200, tokensOut: 20 });
+
+    calls = 0;
+    const bad = async () => {
+      calls += 1;
+      return { result: {}, usage, model: "m" };
+    };
+    const failed = await processIntakeMessage(t.db, (await message()).id, { claude: bad });
+    expect(failed).toMatchObject({ status: "failed", reason: "Claude повернув некоректні поля." });
+    expect(calls).toBe(2);
   });
 
   it("збій Claude, некоректна відповідь і мережа не гублять заявку: статус «не вдалося» з причиною, замовлення немає", async () => {

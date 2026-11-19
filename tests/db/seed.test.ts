@@ -72,7 +72,7 @@ describe("початкові дані довідників", () => {
       "client.inactive_days_default": 30,
       "payment.amount_tolerance_uah": 0,
       "payment.date_window_days": 14,
-      "report.daily_time": "21:00",
+      "report.daily_time": "18:00",
     });
   });
 

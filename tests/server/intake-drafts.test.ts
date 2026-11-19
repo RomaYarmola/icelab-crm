@@ -8,6 +8,7 @@ import {
   listIntakeDrafts,
   rejectIntakeDraft,
 } from "@/server/intake/drafts";
+import { canConfirmDrafts, setConfirmer } from "@/server/intake/confirmers";
 import { receiveSiteLead } from "@/server/intake/site-lead";
 import { processAndReply } from "@/server/intake/telegram-flow";
 import type { ParseResult } from "@/server/intake/schema";
@@ -168,5 +169,32 @@ describe("вкладка «Чернетки» (B11, PR 4)", () => {
     expect(
       (await t.db.select().from(orders).where(eq(orders.id, confirmed.orderId)))[0]!.deletedAt,
     ).toBeNull();
+  });
+
+  it("підтверджувачі (D151): поки список порожній, підтверджують усі; з списком лише позначені; змінює лише власник", async () => {
+    const owner = t.users.owner;
+    expect(await canConfirmDrafts(t.db, manager().id)).toBe(true);
+    await expect(setConfirmer(t.db, manager(), owner.id, true)).rejects.toThrow(ForbiddenError);
+    await expect(setConfirmer(t.db, owner, t.users.location_lead.id, true)).rejects.toThrow(
+      "менеджери й власник",
+    );
+
+    await setConfirmer(t.db, owner, owner.id, true);
+    expect(await canConfirmDrafts(t.db, owner.id)).toBe(true);
+    expect(await canConfirmDrafts(t.db, manager().id)).toBe(false);
+    const { orderId } = await telegramDraft("лише для підтверджувачів");
+    await expect(confirmIntakeDraft(t.db, manager(), orderId)).rejects.toThrow(ForbiddenError);
+    expect((await t.db.select().from(orders).where(eq(orders.id, orderId)))[0]!.status).toBe(
+      "draft",
+    );
+    // Відхилити можна й не підтверджувачу.
+    await rejectIntakeDraft(t.db, manager(), orderId);
+
+    await setConfirmer(t.db, owner, manager().id, true);
+    await setConfirmer(t.db, owner, owner.id, false);
+    const second = await telegramDraft("тепер менеджер");
+    await confirmIntakeDraft(t.db, manager(), second.orderId);
+    await setConfirmer(t.db, owner, manager().id, false);
+    expect(await canConfirmDrafts(t.db, owner.id)).toBe(true);
   });
 });

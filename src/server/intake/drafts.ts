@@ -17,6 +17,7 @@ import { deleteDraftOrder } from "../orders";
 import { transitionOrder } from "../order-status";
 import { notifyOrderChange } from "../production-signal";
 import { notifyOrderConfirmed } from "../telegram/notify";
+import { canConfirmDrafts, NOT_CONFIRMER_MESSAGE } from "./confirmers";
 
 /**
  * Вкладка «Чернетки» (B11, ТЗ 6.9): чернетки замовлень, створені з Telegram і з сайту, з вихідним
@@ -162,6 +163,7 @@ export async function confirmIntakeDraft(
   orderId: string,
 ): Promise<void> {
   assertOffice(actor);
+  if (!(await canConfirmDrafts(db, actor.id))) throw new ForbiddenError(NOT_CONFIRMER_MESSAGE);
   await transitionOrder(db, actor, orderId, "confirmed");
   await settleIntakeMessage(db, orderId, "confirmed");
   notifyOrderChange(db, orderId);

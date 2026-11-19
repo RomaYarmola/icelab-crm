@@ -11,6 +11,7 @@ import {
   estimateCostUsd,
   type ClaudeRequest,
   type ClaudeResponse,
+  type ClaudeUsage,
 } from "./claude";
 import { buildDraft, type DraftBuild } from "./draft";
 import { buildClaudeRequest, kyivDay, loadClientLines, loadDictionaries } from "./prompt";
@@ -34,6 +35,8 @@ export type ProcessOutcome =
       number: number | null;
       draft: DraftBuild;
       updated: boolean;
+      /** Інші дні з того ж повідомлення: окремі чернетки (D159). */
+      extraOrderIds: string[];
     }
   | { status: "limit"; orderId: string; number: number | null }
   | { status: "failed"; reason: string }
@@ -84,6 +87,15 @@ async function authorOf(db: AnyPgDatabase, telegramUserId: number | null): Promi
     role: row.role,
     locationId: row.locationId,
     locationName: null,
+  };
+}
+
+function addUsage(a: ClaudeUsage, b: ClaudeUsage): ClaudeUsage {
+  return {
+    inputTokens: a.inputTokens + b.inputTokens,
+    outputTokens: a.outputTokens + b.outputTokens,
+    cacheReadTokens: a.cacheReadTokens + b.cacheReadTokens,
+    cacheWriteTokens: a.cacheWriteTokens + b.cacheWriteTokens,
   };
 }
 
@@ -170,9 +182,16 @@ export async function processIntakeMessage(
           clients,
           boxTypes: dictionaries.boxTypes,
         });
-        response = await (deps.claude ?? ((r) => callClaude(txDb, r)))(request);
-        const check = parseResultSchema.safeParse(response.result);
-        if (!check.success) throw new ClaudeError("Claude повернув некоректні поля.");
+        const ask = deps.claude ?? ((r: ClaudeRequest) => callClaude(txDb, r));
+        // Відповідь без обов'язкових полів буває випадково (D163): один повтор, далі як помилка.
+        let check = null as ReturnType<typeof parseResultSchema.safeParse> | null;
+        for (let attempt = 1; attempt <= 2; attempt += 1) {
+          const next = await ask(request);
+          response = response ? { ...next, usage: addUsage(response.usage, next.usage) } : next;
+          check = parseResultSchema.safeParse(next.result);
+          if (check.success) break;
+        }
+        if (!check?.success) throw new ClaudeError("Claude повернув некоректні поля.");
         parsed = check.data;
       } catch (error) {
         if (!(error instanceof ClaudeError)) throw error;
@@ -260,6 +279,40 @@ export async function processIntakeMessage(
         })
         .where(eq(orders.id, orderId!)),
     );
+    // Кілька днів в одному повідомленні: кожен наступний день окремою чернеткою (D159). Нове
+    // повідомлення створює їх, змінене оновлює лише першу чернетку.
+    const extraOrderIds: string[] = [];
+    if (!updated && !limited) {
+      for (const day of parsed.additional_days ?? []) {
+        const extra = await buildDraft(
+          txDb,
+          { ...parsed, order_date: day.order_date, kg_sold: day.kg_sold, delivery_price: null },
+          { locationId: message.locationId, messageDay, dictionaries },
+        );
+        try {
+          const createdExtra = await createOrder(txDb, author, extra.input);
+          await withActor(txDb, author.id, (inner) =>
+            inner
+              .update(orders)
+              .set({
+                telegramChatId: message.telegramChatId,
+                telegramMessageId: message.telegramMessageId,
+                draftPayload: {
+                  parsed,
+                  unclear: extra.unclear,
+                  isPlaceholder: extra.isPlaceholder,
+                  siblingOf: orderId,
+                },
+              })
+              .where(eq(orders.id, createdExtra.id)),
+          );
+          extraOrderIds.push(createdExtra.id);
+        } catch (error) {
+          if (!(error instanceof ValidationError)) throw error;
+          // Не вдалось створити додатковий день: перший уже є, решту менеджер додасть сам.
+        }
+      }
+    }
     await tx
       .update(intakeMessages)
       .set({
@@ -274,6 +327,13 @@ export async function processIntakeMessage(
       .where(eq(intakeMessages.id, message.id));
 
     if (limited) return { status: "limit" as const, orderId: orderId!, number };
-    return { status: "drafted" as const, orderId: orderId!, number, draft, updated };
+    return {
+      status: "drafted" as const,
+      orderId: orderId!,
+      number,
+      draft,
+      updated,
+      extraOrderIds,
+    };
   });
 }

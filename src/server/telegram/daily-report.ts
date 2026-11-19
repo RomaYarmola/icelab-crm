@@ -1,9 +1,10 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { boxEvents, cashEntries, locations, npSyncState, orders, settings } from "@/db/schema";
+import { boxEvents, cashEntries, locations, orders, settings } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { formatIsoDate } from "@/utils/isoDate";
 import { getPublicUrl } from "../box-labels";
 import { kyivDay } from "../intake/prompt";
+import { claimDay } from "./day-claim";
 import { getTelegramToken, sendMessage } from "./client";
 import { getTelegramSettings } from "./settings";
 
@@ -16,7 +17,7 @@ import { getTelegramSettings } from "./settings";
 
 const TIME_KEY = "report.daily_time";
 const STATE_KEY = "daily_report";
-export const DEFAULT_REPORT_TIME = "21:00";
+export const DEFAULT_REPORT_TIME = "18:00";
 
 export type LocationSummary = {
   locationId: string;
@@ -33,7 +34,7 @@ const num = (value: unknown) => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
-/** Час зведення з налаштувань: `HH:MM`, інакше 21:00. */
+/** Час зведення з налаштувань: `HH:MM`, інакше 18:00. */
 export async function getReportTime(db: AnyPgDatabase): Promise<string> {
   const [row] = await db
     .select({ value: settings.value })
@@ -197,18 +198,8 @@ export async function runDailyReport(
       : null);
   if (!send) return { sent: false, reason: "no_token" };
 
-  const [previous] = await db.select().from(npSyncState).where(eq(npSyncState.key, STATE_KEY));
-  const claimed = await db
-    .insert(npSyncState)
-    .values({ key: STATE_KEY, phase: "idle", lastFinishedAt: now })
-    .onConflictDoUpdate({
-      target: npSyncState.key,
-      set: { lastFinishedAt: now, updatedAt: now },
-      setWhere: sql`(${npSyncState.lastFinishedAt} is null
-        or (${npSyncState.lastFinishedAt} at time zone 'Europe/Kyiv')::date < ${day}::date)`,
-    })
-    .returning({ key: npSyncState.key });
-  if (claimed.length === 0) return { sent: false, reason: "already" };
+  const claim = await claimDay(db, STATE_KEY, now, day);
+  if (!claim) return { sent: false, reason: "already" };
 
   try {
     const rows = await collectDaySummary(db, day);
@@ -217,10 +208,7 @@ export async function runDailyReport(
     return { sent: true, day };
   } catch {
     // Звільняємо спробу: наступний виклик розкладу спробує знову.
-    await db
-      .update(npSyncState)
-      .set({ lastFinishedAt: previous?.lastFinishedAt ?? null })
-      .where(eq(npSyncState.key, STATE_KEY));
+    await claim.release();
     return { sent: false, reason: "failed" };
   }
 }

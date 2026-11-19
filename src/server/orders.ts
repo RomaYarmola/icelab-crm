@@ -1,3 +1,4 @@
+import { LOCATION_PENDING_NOTE } from "@/constants/intake";
 import { and, asc, desc, eq, gte, inArray, isNull, lte, or, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "@/db/actor";
@@ -520,6 +521,18 @@ export async function updateOrder(
     itemPrice = resolved?.pricePerKg ?? "0.00";
   }
   if ("price" in changed) set.priceManual = priceManual;
+  // Чернетка з сайту: щойно менеджер зберіг форму з обраним складом, позначку знято (D152).
+  const draftPayload = order.draftPayload as {
+    locationPending?: boolean;
+    unclear?: string[];
+  } | null;
+  if (touches("locationId") && draftPayload?.locationPending) {
+    set.draftPayload = {
+      ...draftPayload,
+      locationPending: false,
+      unclear: (draftPayload.unclear ?? []).filter((line) => line !== LOCATION_PENDING_NOTE),
+    };
+  }
 
   // «Виготовити»: перераховуємо лише якщо воно було підказаним, а не виправленим вручну (D53).
   const wasSuggested =

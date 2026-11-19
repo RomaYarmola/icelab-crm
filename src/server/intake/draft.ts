@@ -170,6 +170,10 @@ export async function buildDraft(
     orderDate,
     iceTypeId: ice?.id ?? null,
     kgSold: parsed.kg_sold ?? 0,
+    // «Фактично N кг» з повідомлення: це кг на виготовлення, а продане лишається як є (D162).
+    ...(parsed.kg_to_produce != null && parsed.kg_to_produce > 0
+      ? { kgToProduce: parsed.kg_to_produce.toFixed(3) }
+      : {}),
     sourceId: source?.id ?? null,
     deliveryMethod: parsed.delivery.method ?? "other",
     deliveryText: clip(deliveryText, 500),
@@ -182,5 +186,22 @@ export async function buildDraft(
     paymentKind: parsed.payment_hint ? PAYMENT_KINDS[parsed.payment_hint] : "unknown",
     comment: clip(parsed.comment, 2000),
   };
+  // Ціна доставки з повідомлення стає позицією «Доставка» (D161); ціну боксів беремо з довідника.
+  if (parsed.delivery_price != null && parsed.delivery_price > 0) {
+    input.items = [{ kind: "delivery", title: "Доставка", qty: 1, price: parsed.delivery_price }];
+  }
+  // Ціна за кг з повідомлення діє лише для нового клієнта (D161): ставимо її в чернетку з позначкою,
+  // а коли клієнт відомий, його прайс сильніший і ціна лишається підказкою.
+  if (parsed.price_per_kg != null && parsed.price_per_kg > 0) {
+    if (isPlaceholder) {
+      unclear.push(
+        `У повідомленні ціна ${parsed.price_per_kg} грн/кг. Для нового клієнта впишіть її в замовлення вручну.`,
+      );
+    } else {
+      unclear.push(
+        `У повідомленні ціна ${parsed.price_per_kg} грн/кг; діє прайс клієнта, перевірте, чи збігається.`,
+      );
+    }
+  }
   return { input, clientId, isPlaceholder, unclear };
 }

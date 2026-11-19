@@ -232,8 +232,8 @@ describe("сповіщення менеджерам і вечірнє зведе
       const capture = async (chatId: number, text: string) => {
         reports.push({ chatId, text });
       };
-      // Налаштування 21:00; зараз 20:00 за Києвом.
-      const early = new Date("2034-09-02T17:00:00Z");
+      // Налаштування 18:00; зараз 17:00 за Києвом.
+      const early = new Date("2034-09-02T14:00:00Z");
       expect(await runDailyReport(t.db, { now: early, send: capture })).toEqual({
         sent: false,
         reason: "not_yet",
@@ -273,7 +273,7 @@ describe("сповіщення менеджерам і вечірнє зведе
       });
       await t.db
         .update(settings)
-        .set({ value: "21:00" })
+        .set({ value: "18:00" })
         .where(eq(settings.key, "report.daily_time"));
     });
 

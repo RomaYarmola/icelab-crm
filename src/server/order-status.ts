@@ -88,6 +88,11 @@ export async function transitionOrder(
               "Оберіть справжнього клієнта замість «Новий клієнт», перш ніж підтвердити.",
             );
           }
+          if ((current.draftPayload as { locationPending?: boolean } | null)?.locationPending) {
+            throw new ValidationError(
+              "Оберіть склад (Київ чи Львів) у формі чернетки й збережіть її, перш ніж підтвердити.",
+            );
+          }
           if (!current.iceTypeId)
             throw new ValidationError("Вкажіть тип льоду, перш ніж підтвердити.");
           if (!(parseDecimal(current.kgSold) > 0)) {

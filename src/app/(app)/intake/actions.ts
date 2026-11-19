@@ -14,6 +14,7 @@ import {
   unlinkTelegram,
 } from "@/server/telegram/admin";
 import { ValidationError } from "@/server/errors";
+import { setConfirmer } from "@/server/intake/confirmers";
 import type { FormState } from "@/utils/formState";
 
 /**
@@ -106,5 +107,19 @@ export async function unlinkAction(_previous: FormState, formData: FormData): Pr
   return withMessage(async () => {
     await unlinkTelegram(getDb(), actor, profileId);
     return "Telegram відв'язано.";
+  });
+}
+
+/** «Може підтверджувати заявки» / «Забрати право підтверджувати» (D151). */
+export async function setConfirmerAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const profileId = readText(formData, "profileId");
+  const allowed = readText(formData, "allowed") === "yes";
+  return withMessage(async () => {
+    await setConfirmer(getDb(), actor, profileId, allowed);
+    return allowed ? "Тепер цей користувач підтверджує заявки." : "Право підтверджувати знято.";
   });
 }

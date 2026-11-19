@@ -13,6 +13,7 @@ import {
   setWebhook,
   TelegramError,
 } from "./client";
+import { getConfirmerIds } from "../intake/confirmers";
 import { getTelegramSettings, setTelegramSettings, type TelegramSettings } from "./settings";
 
 /**
@@ -34,6 +35,8 @@ export type IntakeUser = {
   role: "owner" | "manager";
   locationName: string | null;
   isLinked: boolean;
+  /** Може підтверджувати чернетки (D151). */
+  isConfirmer: boolean;
 };
 
 export type IntakeStatus = {
@@ -41,12 +44,15 @@ export type IntakeStatus = {
   hasWebhookSecret: boolean;
   settings: TelegramSettings;
   users: IntakeUser[];
+  /** Список підтверджувачів порожній: підтверджує будь-хто з офісу. */
+  anyoneConfirms: boolean;
 };
 
 export async function getIntakeStatus(db: AnyPgDatabase, actor: AppUser): Promise<IntakeStatus> {
   assertOwner(actor);
-  const [settings, rows] = await Promise.all([
+  const [settings, confirmerIds, rows] = await Promise.all([
     getTelegramSettings(db),
+    getConfirmerIds(db),
     db
       .select({
         id: profiles.id,
@@ -70,7 +76,9 @@ export async function getIntakeStatus(db: AnyPgDatabase, actor: AppUser): Promis
       role: row.role as "owner" | "manager",
       locationName: row.locationName,
       isLinked: row.telegramUserId !== null,
+      isConfirmer: confirmerIds.includes(row.id),
     })),
+    anyoneConfirms: confirmerIds.length === 0,
   };
 }
 

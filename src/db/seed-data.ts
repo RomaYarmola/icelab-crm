@@ -117,7 +117,7 @@ export const SETTINGS = [
   { key: "payment.amount_tolerance_uah", value: 0 },
   { key: "payment.date_window_days", value: 14 },
   { key: "np.default_payer", value: "Recipient" }, // TODO питання 7
-  { key: "report.daily_time", value: "21:00" },
+  { key: "report.daily_time", value: "18:00" },
 ];
 
 // Області для коду клієнта (D24): позначки з автомобільних номерів України, карту дав Роман.

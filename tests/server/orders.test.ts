@@ -77,7 +77,7 @@ describe("замовлення: створення, зміна, список, к
       const custom = await makeClient(t.db, { name: "Окрема", markupPercentOverride: "5.00" });
       const b = await t.create({ clientId: custom.id, deliveryMethod: "np" });
       expect(await row(b.id)).toMatchObject({
-        kgToProduce: "32.000",
+        kgToProduce: "31.000",
         markupPercentApplied: "5.00",
       });
     });

@@ -1,4 +1,7 @@
 import { eq } from "drizzle-orm";
+import { LOCATION_PENDING_NOTE, REPEAT_CONTACT_NOTE } from "@/constants/intake";
+import { updateOrder } from "@/server/orders";
+import { transitionOrder } from "@/server/order-status";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/leads/site/route";
 import { clientContacts, clients, orders, profiles, siteLeads } from "@/db/schema";
@@ -6,6 +9,7 @@ import {
   dedupeKey,
   locationFromText,
   methodFromText,
+  isConsultation,
   receiveSiteLead,
   summarizeItems,
 } from "@/server/intake/site-lead";
@@ -215,12 +219,12 @@ describe("заявки з сайту (B11, PR 4)", () => {
     expect(await t.db.select().from(siteLeads)).toHaveLength(0);
   });
 
-  it("консультація й невідомі позиції потрапляють у коментар; чернетка не втрачається", async () => {
+  it("невідомий тип заявки й невідомі позиції потрапляють у коментар; чернетка не втрачається", async () => {
     const result = await receiveSiteLead(
       t.db,
       lead({
         phone: uniquePhone(),
-        type: "консультація",
+        type: "питання",
         items: [{ title: "Бокс 46 л", quantity: 2, unit: "шт" }],
         comment: undefined,
       }),
@@ -228,8 +232,59 @@ describe("заявки з сайту (B11, PR 4)", () => {
     );
     if (!result.ok) throw new Error("очікувався успіх");
     const [order] = await t.db.select().from(orders).where(eq(orders.id, result.draftId));
-    expect(order!.comment).toContain("Тип заявки: консультація.");
+    expect(order!.comment).toContain("Тип заявки: питання.");
     expect(order!.comment).toContain("Позиції: Бокс 46 л × 2 шт.");
     expect(order!.kgSold).toBe("0.000");
+  });
+
+  it("консультація: чернетки немає (D153)", () => {
+    expect(isConsultation(lead({ phone: "0671112233", type: "Консультація" }))).toBe(true);
+    expect(isConsultation(lead({ phone: "0671112233", type: "замовлення" }))).toBe(false);
+    expect(isConsultation("рядок")).toBe(false);
+  });
+
+  it("склад із сайту обирає менеджер (D152): до цього підтвердити не можна, збереження форми знімає позначку", async () => {
+    const known = uniquePhone();
+    await t.db
+      .insert(clientContacts)
+      .values({ clientId: t.client.id, name: "Олена", phone: known });
+    const result = await receiveSiteLead(t.db, lead({ phone: known }), { now: NOW });
+    if (!result.ok) throw new Error("очікувався успіх");
+    const load = async () =>
+      (await t.db.select().from(orders).where(eq(orders.id, result.draftId)))[0]!;
+    expect((await load()).draftPayload).toMatchObject({ locationPending: true, repeat: true });
+    expect(((await load()).draftPayload as { unclear: string[] }).unclear).toEqual(
+      expect.arrayContaining([LOCATION_PENDING_NOTE, REPEAT_CONTACT_NOTE]),
+    );
+    await expect(
+      transitionOrder(t.db, t.users.manager, result.draftId, "confirmed"),
+    ).rejects.toThrow("Оберіть склад");
+
+    await updateOrder(t.db, t.users.manager, result.draftId, {
+      locationId: (await load()).locationId,
+    });
+    const after = (await load()).draftPayload as { locationPending: boolean; unclear: string[] };
+    expect(after.locationPending).toBe(false);
+    expect(after.unclear).not.toContain(LOCATION_PENDING_NOTE);
+    await transitionOrder(t.db, t.users.manager, result.draftId, "confirmed");
+    expect((await load()).status).toBe("confirmed");
+  });
+
+  it("повторне звернення (D154): нова людина без позначки, друга заявка з того ж телефону з позначкою, клієнта не створюємо", async () => {
+    const phone = uniquePhone();
+    const first = await receiveSiteLead(t.db, lead({ phone }), { now: NOW });
+    const second = await receiveSiteLead(
+      t.db,
+      { ...lead({ phone }), receivedAt: "2034-08-12T09:00:00Z" },
+      { now: new Date("2034-08-12T09:00:00Z") },
+    );
+    if (!first.ok || !second.ok) throw new Error("очікувався успіх");
+    const payload = async (id: string) =>
+      (await t.db.select().from(orders).where(eq(orders.id, id)))[0]!.draftPayload as {
+        repeat: boolean;
+        isPlaceholder: boolean;
+      };
+    expect(await payload(first.draftId)).toMatchObject({ repeat: false, isPlaceholder: true });
+    expect(await payload(second.draftId)).toMatchObject({ repeat: true, isPlaceholder: true });
   });
 });
