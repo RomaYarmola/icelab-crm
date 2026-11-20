@@ -26,7 +26,11 @@ export default function SideNav({ items, userName, userDescription, signOutActio
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col gap-6 border-r border-grey-border bg-white p-6 lg:flex">
       <Logo priority className="mx-auto w-32" />
-      <nav aria-label="Основне меню" className="flex-1">
+      {/* Коли пунктів більше, ніж вміщається по висоті, меню гортається тонкою смужкою збоку. */}
+      <nav
+        aria-label="Основне меню"
+        className="-mr-3 min-h-0 flex-1 overflow-y-auto pr-3 [scrollbar-color:var(--color-grey-border)_transparent] [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-grey-border [&::-webkit-scrollbar-track]:bg-transparent"
+      >
         <ul className="flex flex-col gap-1">
           {items.map((item) => (
             <li key={item.id}>

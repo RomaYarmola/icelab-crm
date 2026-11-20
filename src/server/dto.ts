@@ -27,6 +27,7 @@ const ORDER_BASE_FIELDS = [
   "kgToProduce",
   "markupPercentApplied",
   "deliveryMethod",
+  "npDeliveryKind",
   "addressId",
   "deliveryText",
   "timeWindow",

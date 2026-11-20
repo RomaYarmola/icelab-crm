@@ -9,7 +9,6 @@ import { requireUser } from "@/server/auth";
 import { reportError } from "@/server/error-log";
 import { ValidationError } from "@/server/errors";
 import {
-  readOptionalInt,
   readOptionalText,
   readText,
   runFormAction,
@@ -31,7 +30,6 @@ import {
   type OrderPricing,
   searchClientsForOrder,
 } from "@/server/order-form";
-import { addOrderItem, deleteOrderItem, updateOrderItem } from "@/server/order-items";
 import { cancelAsDuplicate, changeOrderPrice, transitionOrder } from "@/server/order-status";
 import { notifyOrderChange } from "@/server/production-signal";
 import { notifyOrderChangedToday, notifyOrderConfirmed } from "@/server/telegram/notify";
@@ -88,15 +86,12 @@ const ORDER_FIELD_NAMES = [
   "timeWindow",
   "recipientName",
   "recipientPhone",
-  "boxTypeId",
-  "boxCount",
   "boxOwnership",
   "paymentKind",
   "comment",
   "internalComment",
   "price",
   "note",
-  "itemsJson",
 ];
 
 /** Значення поля форми: порожнє означає «не вказано» (`undefined`), щоб діяли значення за замовчуванням. */
@@ -104,25 +99,24 @@ const optional = (formData: FormData, name: string) =>
   readOptionalText(formData, name) ?? undefined;
 
 /**
- * Додаткові позиції нового замовлення: форма надсилає їх JSON-рядком у прихованому полі
- * `itemsJson`. Значення перевіряє схема всередині `createOrder`.
+ * Тара замовлення рядками: форма надсилає їх JSON-рядком у прихованому полі `boxesJson` (вид бокса
+ * і кількість). Значення перевіряє схема всередині `createOrder` і `updateOrder`.
  */
-function readNewItems(formData: FormData): CreateOrderInput["items"] {
-  const raw = readOptionalText(formData, "itemsJson");
+function readBoxes(formData: FormData): CreateOrderInput["boxes"] {
+  const raw = readOptionalText(formData, "boxesJson");
   if (raw === null) return undefined;
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new ValidationError("Не вдалося прочитати додаткові позиції.");
+    throw new ValidationError("Не вдалося прочитати тару.");
   }
-  if (!Array.isArray(parsed)) throw new ValidationError("Не вдалося прочитати додаткові позиції.");
-  return parsed as CreateOrderInput["items"];
+  if (!Array.isArray(parsed)) throw new ValidationError("Не вдалося прочитати тару.");
+  return parsed as CreateOrderInput["boxes"];
 }
 
 /** Поля нового замовлення з форми. Значення перевіряє схема всередині серверної функції. */
 function readCreateFields(formData: FormData): CreateOrderInput {
-  const boxCount = readOptionalInt(formData, "boxCount");
   return {
     clientId: readText(formData, "clientId"),
     locationId: readText(formData, "locationId"),
@@ -132,20 +126,18 @@ function readCreateFields(formData: FormData): CreateOrderInput {
     kgToProduce: optional(formData, "kgToProduce"),
     sourceId: optional(formData, "sourceId"),
     deliveryMethod: optional(formData, "deliveryMethod") as CreateOrderInput["deliveryMethod"],
+    npDeliveryKind: optional(formData, "npDeliveryKind") as CreateOrderInput["npDeliveryKind"],
     addressId: optional(formData, "addressId"),
     deliveryText: optional(formData, "deliveryText"),
     timeWindow: optional(formData, "timeWindow"),
     recipientName: optional(formData, "recipientName"),
     recipientPhone: optional(formData, "recipientPhone"),
-    boxTypeId: optional(formData, "boxTypeId"),
-    clientOwnBoxId: optional(formData, "clientOwnBoxId"),
-    boxCount: boxCount === null ? undefined : boxCount,
+    boxes: readBoxes(formData),
     boxOwnership: optional(formData, "boxOwnership") as CreateOrderInput["boxOwnership"],
     paymentKind: optional(formData, "paymentKind") as CreateOrderInput["paymentKind"],
     comment: optional(formData, "comment"),
     internalComment: optional(formData, "internalComment"),
     price: optional(formData, "price"),
-    items: readNewItems(formData),
   };
 }
 
@@ -163,8 +155,6 @@ function readUpdateFields(formData: FormData): UpdateOrderInput {
     "timeWindow",
     "recipientName",
     "recipientPhone",
-    "boxTypeId",
-    "clientOwnBoxId",
     "comment",
     "internalComment",
   ];
@@ -184,8 +174,7 @@ function readUpdateFields(formData: FormData): UpdateOrderInput {
     const value = optional(formData, name);
     if (formData.has(name) && value !== undefined) patch[name] = value;
   }
-  const boxCount = readOptionalInt(formData, "boxCount");
-  if (formData.has("boxCount") && boxCount !== null) patch.boxCount = boxCount;
+  if (formData.has("boxesJson")) patch.boxes = readBoxes(formData);
   if (formData.has("price")) patch.price = readOptionalText(formData, "price");
   return patch as UpdateOrderInput;
 }
@@ -302,79 +291,6 @@ export async function cancelAsDuplicateAction(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Позиції
-// ---------------------------------------------------------------------------------------------
-
-const ITEM_FIELD_NAMES = ["kind", "title", "qty", "unit", "price", "note"];
-
-export async function addOrderItemAction(
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const actor = await requireUser();
-  return runFormAction(
-    async () => {
-      await addOrderItem(
-        getDb(),
-        actor,
-        readId(formData, "orderId"),
-        {
-          kind: readText(formData, "kind") as "delivery",
-          title: readText(formData, "title"),
-          qty: readText(formData, "qty"),
-          unit: optional(formData, "unit"),
-          price: readText(formData, "price"),
-        },
-        { note: readOptionalText(formData, "note") ?? undefined },
-      );
-      refresh();
-    },
-    { success: "Позицію додано.", values: echo(formData, ITEM_FIELD_NAMES) },
-  );
-}
-
-export async function updateOrderItemAction(
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const actor = await requireUser();
-  return runFormAction(
-    async () => {
-      await updateOrderItem(
-        getDb(),
-        actor,
-        readId(formData),
-        {
-          title: readText(formData, "title"),
-          qty: readText(formData, "qty"),
-          unit: optional(formData, "unit"),
-          price: readText(formData, "price"),
-        },
-        { note: readOptionalText(formData, "note") ?? undefined },
-      );
-      refresh();
-    },
-    { success: "Позицію збережено.", values: echo(formData, ITEM_FIELD_NAMES) },
-  );
-}
-
-export async function deleteOrderItemAction(
-  _previous: FormState,
-  formData: FormData,
-): Promise<FormState> {
-  const actor = await requireUser();
-  return runFormAction(
-    async () => {
-      await deleteOrderItem(getDb(), actor, readId(formData), {
-        note: readOptionalText(formData, "note") ?? undefined,
-      });
-      refresh();
-    },
-    { success: "Позицію видалено." },
-  );
-}
-
-// ---------------------------------------------------------------------------------------------
 // Читання для екранів
 // ---------------------------------------------------------------------------------------------
 
@@ -464,7 +380,7 @@ export async function searchClientsForOrderAction(query: string): Promise<Client
   }
 }
 
-/** Власні бокси вибраного клієнта для списку в формі. Помилка дає порожній список. */
+/** Бокси вибраного клієнта для списку в формі. Помилка дає порожній список. */
 export async function clientOwnBoxesAction(clientId: string): Promise<ClientOwnBoxOption[]> {
   const actor = await requireUser();
   try {

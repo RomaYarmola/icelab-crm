@@ -4,15 +4,21 @@ import { addDays, formatIsoDate } from "./isoDate";
 /** Підписи для картки цеху (D63). Чисті функції без React. */
 
 /**
- * Тара на картці: «Наш довгий 46 л × 2», для чужої тари «Бокс клієнта × 2», для проданої з
+ * Тара на картці: «Довгий 46 л × 2», для чужої тари «Бокс клієнта × 2», для проданої з
  * приміткою. Без тари (0 штук) нічого не показуємо.
  */
 export function describeBoxes(input: {
   boxTypeName: string | null;
   boxCount: number;
   boxOwnership: "ours" | "client" | "sold";
+  /** Тара рядками (20.11.2026): «2 × Міні 9 л, 1 × Довгий 46 л»; без неї діють поля вище. */
+  boxLines?: { name: string; count: number }[];
 }): string | null {
   if (input.boxCount <= 0) return null;
+  if (input.boxLines && input.boxLines.length > 0) {
+    const text = input.boxLines.map((line) => `${line.name} × ${line.count}`).join(", ");
+    return input.boxOwnership === "sold" ? `${text}, продаємо` : text;
+  }
   const count = `× ${input.boxCount}`;
   if (input.boxOwnership === "client") return `Бокс клієнта ${count}`;
   const name = input.boxTypeName ?? "Тара";

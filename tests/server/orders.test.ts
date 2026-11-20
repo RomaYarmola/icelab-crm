@@ -5,6 +5,7 @@ import {
   clientAddresses,
   clientOwnBoxes,
   clients,
+  orderBoxes,
   orderItems,
   orders,
 } from "@/db/schema";
@@ -58,6 +59,186 @@ describe("замовлення: створення, зміна, список, к
         qty: "30.000",
         unit: "кг",
         price: "75.00",
+      });
+    });
+
+    it("Нова Пошта: вид відправки (відділення чи кур'єр), для інших способів знімається", async () => {
+      const np = await t.create({ deliveryMethod: "np" });
+      expect((await row(np.id)).npDeliveryKind).toBe("warehouse");
+      await updateOrder(t.db, t.users.manager, np.id, { npDeliveryKind: "courier" });
+      expect((await row(np.id)).npDeliveryKind).toBe("courier");
+      await updateOrder(t.db, t.users.manager, np.id, { deliveryMethod: "pickup" });
+      expect((await row(np.id)).npDeliveryKind).toBeNull();
+      await updateOrder(t.db, t.users.manager, np.id, { deliveryMethod: "np" });
+      expect((await row(np.id)).npDeliveryKind).toBe("warehouse");
+      expect(
+        (await row((await t.create({ deliveryMethod: "pickup" })).id)).npDeliveryKind,
+      ).toBeNull();
+    });
+
+    it("тара рядками: 2 × mini або mini + довгий, підсумок у замовленні, місткість сумується", async () => {
+      const mini = (await t.db.select().from(boxTypes).where(eq(boxTypes.code, "mini_9")))[0]!;
+      const long = (
+        await t.db.select().from(boxTypes).where(eq(boxTypes.code, "ours_long_46"))
+      )[0]!;
+      const plus = await makeClient(t.db, { name: "Тара рядками", markupPercentOverride: "10.00" });
+      // 2 × Міні 9 л: 14 кг + 10% = 15, але вміщається 2 × 7 = 14.
+      const two = await t.create({
+        clientId: plus.id,
+        kgSold: 14,
+        boxes: [{ boxTypeId: mini.id, count: 2 }],
+      });
+      expect(await row(two.id)).toMatchObject({
+        boxCount: 2,
+        boxTypeId: mini.id,
+        kgToProduce: "14.000",
+      });
+      // 1 × mini + 1 × довгий: два рядки, разом 2 бокси, місткість 7 + 33 = 40.
+      const mixed = await t.create({
+        clientId: plus.id,
+        kgSold: 30,
+        boxes: [
+          { boxTypeId: mini.id, count: 1 },
+          { boxTypeId: long.id, count: 1 },
+        ],
+      });
+      expect(await row(mixed.id)).toMatchObject({
+        boxCount: 2,
+        boxTypeId: mini.id,
+        kgToProduce: "33.000",
+      });
+      const lines = await t.db.select().from(orderBoxes).where(eq(orderBoxes.orderId, mixed.id));
+      expect(lines.map((l) => [l.boxTypeId, l.count]).sort()).toEqual(
+        [
+          [mini.id, 1],
+          [long.id, 1],
+        ].sort(),
+      );
+      // Зміна рядків у чернетці: лишається один довгий, підсумок і «виготовити» перераховуються.
+      await updateOrder(t.db, t.users.manager, mixed.id, {
+        boxes: [{ boxTypeId: long.id, count: 3 }],
+      });
+      expect(await row(mixed.id)).toMatchObject({
+        boxCount: 3,
+        boxTypeId: long.id,
+        kgToProduce: "33.000",
+      });
+      // Однакові рядки зливаються, кількість має бути цілою й додатною.
+      const merged = await t.create({
+        clientId: plus.id,
+        boxes: [
+          { boxTypeId: mini.id, count: 1 },
+          { boxTypeId: mini.id, count: 2 },
+        ],
+      });
+      expect(await row(merged.id)).toMatchObject({ boxCount: 3 });
+      await expect(t.create({ boxes: [{ boxTypeId: mini.id, count: 0 }] })).rejects.toThrow();
+      await expect(t.create({ boxes: [{ count: 1 }] })).rejects.toThrow("Оберіть бокс");
+      // Без тари рядків немає.
+      await updateOrder(t.db, t.users.manager, merged.id, { boxes: [] });
+      expect(await row(merged.id)).toMatchObject({ boxCount: 0, boxTypeId: null });
+    });
+
+    it("комбінація: 1 бокс клієнта і 1 наш; чия тара береться з рядків, наших боксів видають лише наших", async () => {
+      const mini = (await t.db.select().from(boxTypes).where(eq(boxTypes.code, "mini_9")))[0]!;
+      const combo = await makeClient(t.db, { name: "Комбінація тари" });
+      const [grey] = await t.db
+        .insert(clientOwnBoxes)
+        .values({ clientId: combo.id, name: "Сірий", capacityKg: "20" })
+        .returning();
+      const mixed = await t.create({
+        clientId: combo.id,
+        boxes: [
+          { clientOwnBoxId: grey!.id, count: 1 },
+          { boxTypeId: mini.id, count: 1 },
+        ],
+      });
+      expect(await row(mixed.id)).toMatchObject({ boxCount: 2, boxOwnership: "ours" });
+      const { loadBoxLineViews, ourBoxesNeeded } = await import("@/server/order-boxes");
+      const views = (await loadBoxLineViews(t.db, [mixed.id])).get(mixed.id)!;
+      expect(views.map((v) => [v.name, v.isClient])).toEqual([
+        ["Сірий", true],
+        ["Міні 9 л", false],
+      ]);
+      expect(ourBoxesNeeded("ours", 2, views)).toBe(1);
+      // Усі рядки клієнта дають «клієнта», тоді видавати нічого не треба.
+      const onlyClient = await t.create({
+        clientId: combo.id,
+        boxes: [{ clientOwnBoxId: grey!.id, count: 2 }],
+      });
+      expect(await row(onlyClient.id)).toMatchObject({ boxCount: 2, boxOwnership: "client" });
+      const clientViews = (await loadBoxLineViews(t.db, [onlyClient.id])).get(onlyClient.id)!;
+      expect(ourBoxesNeeded("client", 2, clientViews)).toBe(0);
+      // Зміна рядків перераховує і чию тару.
+      await updateOrder(t.db, t.users.manager, onlyClient.id, {
+        boxes: [{ boxTypeId: mini.id, count: 1 }],
+      });
+      expect(await row(onlyClient.id)).toMatchObject({ boxCount: 1, boxOwnership: "ours" });
+    });
+
+    it("Нова Пошта: вид відправки, отримувач і телефон беруться зі збереженої адреси", async () => {
+      const lviv = await makeClient(t.db, { name: "Адреса НП" });
+      const [wh] = await t.db
+        .insert(clientAddresses)
+        .values({
+          clientId: lviv.id,
+          kind: "np_warehouse",
+          label: "Склад",
+          cityText: "Львів",
+          recipientName: "Іван Петренко",
+          recipientPhone: "+380501234567",
+        })
+        .returning();
+      const [door] = await t.db
+        .insert(clientAddresses)
+        .values({
+          clientId: lviv.id,
+          kind: "np_address",
+          label: "Кур'єр",
+          cityText: "Львів",
+          addressText: "вул. А, 1",
+          recipientName: "Марія Коваль",
+          recipientPhone: "+380671112233",
+        })
+        .returning();
+      const order = await t.create({ clientId: lviv.id, deliveryMethod: "np", addressId: wh!.id });
+      expect(await row(order.id)).toMatchObject({
+        npDeliveryKind: "warehouse",
+        recipientName: "Іван Петренко",
+        recipientPhone: "+380501234567",
+      });
+      await updateOrder(t.db, t.users.manager, order.id, { addressId: door!.id });
+      expect(await row(order.id)).toMatchObject({
+        npDeliveryKind: "courier",
+        recipientName: "Марія Коваль",
+        recipientPhone: "+380671112233",
+      });
+    });
+
+    it("власна адресна доставка: отримувач і телефон беруться зі збереженої адреси виду «доставка»", async () => {
+      const own = await makeClient(t.db, { name: "Власна доставка" });
+      const [addr] = await t.db
+        .insert(clientAddresses)
+        .values({
+          clientId: own.id,
+          kind: "delivery",
+          label: "Офіс",
+          cityText: "Київ",
+          addressText: "вул. Хрещатик, 5",
+          recipientName: "Олена Коваль",
+          recipientPhone: "+380931112233",
+        })
+        .returning();
+      const order = await t.create({
+        clientId: own.id,
+        deliveryMethod: "our_delivery",
+        addressId: addr!.id,
+      });
+      expect(await row(order.id)).toMatchObject({
+        deliveryMethod: "our_delivery",
+        npDeliveryKind: null,
+        recipientName: "Олена Коваль",
+        recipientPhone: "+380931112233",
       });
     });
 

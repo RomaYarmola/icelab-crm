@@ -78,6 +78,7 @@ describe("журнал змін: читання, фільтри, права (B8,
     clientCode = client.code;
     await addContact(t.db, t.users.manager, clientId, { name: "Марія", phone: "0501234567" });
     await addAddress(t.db, t.users.manager, clientId, {
+      label: "Адреса",
       kind: "delivery",
       cityText: "Київ",
       addressText: "вул. Сагайдачного, 12",

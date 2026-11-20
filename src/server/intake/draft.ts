@@ -190,6 +190,9 @@ export async function buildDraft(
       : {}),
     sourceId: source?.id ?? null,
     deliveryMethod: parsed.delivery.method ?? "other",
+    ...(parsed.delivery.method === "np"
+      ? { npDeliveryKind: parsed.delivery.np_kind ?? "warehouse" }
+      : {}),
     deliveryText: clip(deliveryText, 500),
     timeWindow: clip(parsed.delivery.time_window, 50),
     recipientName: clip(parsed.delivery.recipient_name, 100),

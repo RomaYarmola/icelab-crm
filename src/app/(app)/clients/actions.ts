@@ -333,10 +333,13 @@ export async function deleteContactAction(
 function readAddress(formData: FormData) {
   return {
     kind: readText(formData, "kind") as AddressInput["kind"],
-    label: readOptionalText(formData, "label"),
+    label: readText(formData, "label"),
     cityText: readOptionalText(formData, "cityText"),
     addressText: readOptionalText(formData, "addressText"),
     recipientName: readOptionalText(formData, "recipientName"),
+    recipientPhone: readOptionalText(formData, "recipientPhone"),
+    npCityRef: readOptionalText(formData, "npCityRef"),
+    npWarehouseRef: readOptionalText(formData, "npWarehouseRef"),
     npWarehouseNumber: readOptionalText(formData, "npWarehouseNumber"),
     timeWindow: readOptionalText(formData, "timeWindow"),
     isDefault: readFlag(formData, "isDefault"),
@@ -349,6 +352,7 @@ const ADDRESS_FIELD_NAMES = [
   "cityText",
   "addressText",
   "recipientName",
+  "recipientPhone",
   "npWarehouseNumber",
   "timeWindow",
 ];
@@ -398,7 +402,7 @@ export async function deleteAddressAction(
 }
 
 // ---------------------------------------------------------------------------------------------
-// Власні бокси клієнта (D164)
+// Бокси клієнта (D164)
 // ---------------------------------------------------------------------------------------------
 
 const OWN_BOX_FIELD_NAMES = [

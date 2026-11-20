@@ -15,7 +15,8 @@ import { isIsoDate } from "@/utils/isoDate";
 import { parseInput, ValidationError } from "../errors";
 import { type AppUser, locationScope, requirePermission } from "../guards";
 import { loadSender } from "./shipments";
-import { boxSpec, shipmentBlockers, shipmentParams } from "./shipment-rules";
+import { loadBoxLineViews } from "../order-boxes";
+import { boxLinesForShipment, boxSpec, shipmentBlockers, shipmentParams } from "./shipment-rules";
 import { getDefaultEmptyBoxKg } from "./settings";
 
 /**
@@ -120,6 +121,10 @@ export async function listShipmentDay(
   }
 
   const defaultEmptyKg = await getDefaultEmptyBoxKg(db);
+  const lineViews = await loadBoxLineViews(
+    db,
+    rows.map((row) => row.order.id),
+  );
 
   return {
     date,
@@ -131,6 +136,7 @@ export async function listShipmentDay(
             order: {
               status: order.status,
               deliveryMethod: order.deliveryMethod,
+              npDeliveryKind: order.npDeliveryKind,
               recipientName: order.recipientName,
               recipientPhone: order.recipientPhone,
               kgToProduce: order.kgToProduce,
@@ -155,6 +161,7 @@ export async function listShipmentDay(
         emptyWeightKg: spec.emptyWeightKg,
         defaultEmptyKg,
         dimensions: spec.dimensions,
+        lines: boxLinesForShipment(lineViews.get(order.id) ?? []),
       });
       return {
         orderId: order.id,

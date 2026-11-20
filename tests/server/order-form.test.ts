@@ -75,10 +75,11 @@ describe("підказки для форми замовлення", () => {
       ]);
       const options = await listClientAddressOptions(t.db, t.users.manager, client.id);
       expect(options.map((o) => o.text)).toEqual([
-        "Доставка: Офіс, Київ, вул. Тестова, 1",
-        "Склад Нової Пошти: Львів, відділення № 14",
+        "Офіс: Київ, вул. Тестова, 1",
+        "Відділення чи поштомат Нової Пошти: Львів, відділення № 14",
       ]);
-      expect(options[0]?.isDefault).toBe(true);
+      expect(options[0]).toMatchObject({ isDefault: true, kind: "delivery" });
+      expect(options[1]?.kind).toBe("np_warehouse");
     });
 
     it("клієнт без адрес: порожній список; некоректний id відхиляється; ролі", async () => {

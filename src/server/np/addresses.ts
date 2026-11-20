@@ -74,6 +74,43 @@ export async function searchNpWarehouses(
   return rows;
 }
 
+/**
+ * Місто й (для відділення чи поштомата) відділення з довідника Нової Пошти за вибраними
+ * ідентифікаторами. Помилка, якщо їх немає, вони неактивні чи відділення з іншого міста.
+ */
+export async function lookupNpRefs(
+  tx: AnyPgDatabase,
+  cityRef: string,
+  warehouseRef: string | null | undefined,
+): Promise<{
+  city: typeof npCities.$inferSelect;
+  warehouse: typeof npWarehouses.$inferSelect | null;
+}> {
+  const [city] = await tx
+    .select()
+    .from(npCities)
+    .where(and(eq(npCities.ref, cityRef), eq(npCities.isActive, true)));
+  if (!city)
+    throw new ValidationError("Місто не знайдено в довіднику Нової Пошти. Оберіть зі списку.");
+  if (!warehouseRef) return { city, warehouse: null };
+  const [warehouse] = await tx
+    .select()
+    .from(npWarehouses)
+    .where(
+      and(
+        eq(npWarehouses.ref, warehouseRef),
+        eq(npWarehouses.cityRef, city.ref),
+        eq(npWarehouses.isActive, true),
+      ),
+    );
+  if (!warehouse) {
+    throw new ValidationError(
+      "Відділення чи поштомат не знайдено в цьому місті. Оберіть зі списку.",
+    );
+  }
+  return { city, warehouse };
+}
+
 const resolveSchema = z.object({
   addressId: uuid,
   cityRef: z.string().min(1, "Оберіть місто.").max(100),

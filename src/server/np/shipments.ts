@@ -18,9 +18,11 @@ import { todayIso } from "@/utils/isoDate";
 import { parseInput, ValidationError } from "../errors";
 import { type AppUser, requirePermission } from "../guards";
 import { can, canAccessLocation } from "../permissions";
+import { loadBoxLineViews } from "../order-boxes";
 import { callNp, NpError } from "./client";
 import { getDefaultEmptyBoxKg } from "./settings";
 import {
+  boxLinesForShipment,
   boxSpec,
   NP_SERVICE_TYPE,
   normalizeNpPhone,
@@ -138,6 +140,7 @@ async function loadContext(db: AnyPgDatabase, orderId: string) {
     address: address ?? null,
     boxType: boxType ?? null,
     ownBox: ownBox ?? null,
+    boxLines: (await loadBoxLineViews(db, [order.id])).get(order.id) ?? [],
     defaultEmptyKg: await getDefaultEmptyBoxKg(db),
     shipment,
     sender,
@@ -153,6 +156,7 @@ function paramsFor(ctx: Context) {
     emptyWeightKg: spec.emptyWeightKg,
     defaultEmptyKg: ctx.defaultEmptyKg,
     dimensions: spec.dimensions,
+    lines: boxLinesForShipment(ctx.boxLines),
   });
 }
 
@@ -161,6 +165,7 @@ function blockersFor(ctx: Context): string[] {
     order: {
       status: ctx.order.status,
       deliveryMethod: ctx.order.deliveryMethod,
+      npDeliveryKind: ctx.order.npDeliveryKind,
       recipientName: ctx.order.recipientName,
       recipientPhone: ctx.order.recipientPhone,
       kgToProduce: ctx.order.kgToProduce,

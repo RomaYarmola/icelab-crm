@@ -218,11 +218,40 @@ describe("сповіщення менеджерам і вечірнє зведе
       const text = formatDaySummary(DAY, rows, "https://x/production");
       expect(text).toContain("Підсумок дня");
       expect(text).toContain("готівкою отримано 100");
+      // Самовивіз і доставка в кілограмах (20.11.2026): замовлення з теста самовивіз за замовчуванням.
+      expect(row.pickupKg + row.deliveryKg).toBe(row.kg);
+      expect(row.pickupOrders + row.deliveryOrders).toBe(row.orders);
+      expect(text).toContain("Самовивіз:");
+      expect(text).toContain("доставка:");
+    });
+
+    it("самовивіз і доставка: окремо замовлення й кг", async () => {
+      const pick = await t.create({ orderDate: DAY, kgSold: 20, deliveryMethod: "pickup" });
+      const np = await t.create({ orderDate: DAY, kgSold: 30, deliveryMethod: "np" });
+      await transitionOrder(t.db, owner(), pick.id, "confirmed");
+      await transitionOrder(t.db, owner(), np.id, "confirmed");
+      const row = (await collectDaySummary(t.db, DAY)).find((r) => r.locationId === t.location)!;
+      expect(row.pickupKg).toBeGreaterThanOrEqual(20);
+      expect(row.deliveryKg).toBeGreaterThanOrEqual(30);
+      expect(row.pickupOrders).toBeGreaterThanOrEqual(1);
+      expect(row.deliveryOrders).toBeGreaterThanOrEqual(1);
     });
 
     it("порожній день: короткий текст", () => {
       const text = formatDaySummary(DAY, [
-        { locationId: "a", name: "Київ", orders: 0, kg: 0, shipped: 0, cash: 0, boxesIssued: 0 },
+        {
+          locationId: "a",
+          name: "Київ",
+          orders: 0,
+          kg: 0,
+          pickupOrders: 0,
+          pickupKg: 0,
+          deliveryOrders: 0,
+          deliveryKg: 0,
+          shipped: 0,
+          cash: 0,
+          boxesIssued: 0,
+        },
       ]);
       expect(text).toContain("не було");
     });

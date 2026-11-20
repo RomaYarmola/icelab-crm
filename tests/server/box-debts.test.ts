@@ -156,8 +156,8 @@ describe("борги, старі борги, склад (B9, D113, D114)", () =>
       "бокс",
       "бокси",
     ]);
-    const text = debtReminderText({ total: 2, boxTypeName: "Наш довгий", oldestDay: "2034-01-10" });
-    expect(text).toContain("2 бокси «Наш довгий»");
+    const text = debtReminderText({ total: 2, boxTypeName: "Довгий", oldestDay: "2034-01-10" });
+    expect(text).toContain("2 бокси «Довгий»");
     expect(text).toContain("10.01.2034");
     expect(text).toContain("IceLab");
   });

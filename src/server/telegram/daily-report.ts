@@ -24,6 +24,12 @@ export type LocationSummary = {
   name: string;
   orders: number;
   kg: number;
+  /** Самовивіз: замовлень і кг (20.11.2026). */
+  pickupOrders: number;
+  pickupKg: number;
+  /** Доставка (Нова Пошта й старі способи): замовлень і кг. */
+  deliveryOrders: number;
+  deliveryKg: number;
   shipped: number;
   cash: number;
   boxesIssued: number;
@@ -70,6 +76,8 @@ export async function collectDaySummary(
       locationId: orders.locationId,
       count: sql<number>`count(*)::int`,
       kg: sql<string>`coalesce(sum(${orders.kgSold}), 0)`,
+      pickupCount: sql<number>`(count(*) filter (where ${orders.deliveryMethod} = 'pickup'))::int`,
+      pickupKg: sql<string>`coalesce(sum(${orders.kgSold}) filter (where ${orders.deliveryMethod} = 'pickup'), 0)`,
     })
     .from(orders)
     .where(
@@ -124,6 +132,11 @@ export async function collectDaySummary(
     name: location.name,
     orders: orderBy.get(location.id)?.count ?? 0,
     kg: num(orderBy.get(location.id)?.kg),
+    pickupOrders: orderBy.get(location.id)?.pickupCount ?? 0,
+    pickupKg: num(orderBy.get(location.id)?.pickupKg),
+    deliveryOrders:
+      (orderBy.get(location.id)?.count ?? 0) - (orderBy.get(location.id)?.pickupCount ?? 0),
+    deliveryKg: num(orderBy.get(location.id)?.kg) - num(orderBy.get(location.id)?.pickupKg),
     shipped: shippedBy.get(location.id)?.count ?? 0,
     cash: num(cashBy.get(location.id)?.total),
     boxesIssued: boxBy.get(location.id)?.count ?? 0,
@@ -140,8 +153,12 @@ export function formatDaySummary(day: string, rows: LocationSummary[], link?: st
       orders: acc.orders + row.orders,
       kg: acc.kg + row.kg,
       cash: acc.cash + row.cash,
+      pickupOrders: acc.pickupOrders + row.pickupOrders,
+      pickupKg: acc.pickupKg + row.pickupKg,
+      deliveryOrders: acc.deliveryOrders + row.deliveryOrders,
+      deliveryKg: acc.deliveryKg + row.deliveryKg,
     }),
-    { orders: 0, kg: 0, cash: 0 },
+    { orders: 0, kg: 0, cash: 0, pickupOrders: 0, pickupKg: 0, deliveryOrders: 0, deliveryKg: 0 },
   );
   if (
     total.orders === 0 &&
@@ -154,12 +171,14 @@ export function formatDaySummary(day: string, rows: LocationSummary[], link?: st
       lines.push(
         "",
         `${row.name}: замовлень ${row.orders}, ${fmt(row.kg)} кг; відправлено ${row.shipped}; готівкою отримано ${fmt(row.cash)} грн; боксів видано ${row.boxesIssued}.`,
+        `Самовивіз: ${row.pickupOrders}, ${fmt(row.pickupKg)} кг; доставка: ${row.deliveryOrders}, ${fmt(row.deliveryKg)} кг.`,
       );
     }
     if (rows.length > 1) {
       lines.push(
         "",
         `Разом: замовлень ${total.orders}, ${fmt(total.kg)} кг, готівкою ${fmt(total.cash)} грн.`,
+        `Самовивіз разом: ${total.pickupOrders}, ${fmt(total.pickupKg)} кг; доставка разом: ${total.deliveryOrders}, ${fmt(total.deliveryKg)} кг.`,
       );
     }
   }

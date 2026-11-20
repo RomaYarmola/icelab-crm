@@ -1,13 +1,11 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  addOrderItemAction,
   cancelAsDuplicateAction,
   clientAddressesAction,
   changeOrderPriceAction,
   createOrderAction,
   deleteDraftOrderAction,
-  deleteOrderItemAction,
   findDuplicateOrdersAction,
   loadMoreOrdersAction,
   orderPricingAction,
@@ -15,10 +13,9 @@ import {
   repeatLastOrderAction,
   transitionOrderAction,
   updateOrderAction,
-  updateOrderItemAction,
 } from "@/app/(app)/orders/actions";
 import { getDb } from "@/db/client";
-import { orderItems, orders } from "@/db/schema";
+import { orders } from "@/db/schema";
 import { requireUser } from "@/server/auth";
 import type { UserRole } from "@/server/permissions";
 import { INITIAL_FORM_STATE, type FormState } from "@/utils/formState";
@@ -199,49 +196,6 @@ describe("серверні дії розділу «Замовлення»", () =
     });
   });
 
-  describe("позиції", () => {
-    it("додати, змінити, видалити; помилки з повідомленням", async () => {
-      const { id } = await t.create();
-      expect(
-        await run(addOrderItemAction, {
-          orderId: id,
-          kind: "delivery",
-          title: "Доставка",
-          qty: "1",
-          price: "150",
-        }),
-      ).toMatchObject({ status: "success" });
-      const item = (await t.db.select().from(orderItems).where(eq(orderItems.orderId, id))).find(
-        (i) => i.kind === "delivery",
-      )!;
-      expect((await row(id)).total).toBe("2400.00");
-      expect(
-        await run(updateOrderItemAction, {
-          id: item.id,
-          title: "Доставка за місто",
-          qty: "1",
-          price: "200",
-        }),
-      ).toMatchObject({ status: "success" });
-      expect((await row(id)).total).toBe("2450.00");
-      expect(
-        (
-          await run(addOrderItemAction, {
-            orderId: id,
-            kind: "delivery",
-            title: "",
-            qty: "1",
-            price: "1",
-          })
-        ).message,
-      ).toBe("Вкажіть назву позиції.");
-      expect(await run(deleteOrderItemAction, { id: item.id })).toMatchObject({
-        status: "success",
-      });
-      expect((await row(id)).total).toBe("2250.00");
-    });
-  });
-
   describe("читання для екранів", () => {
     it("«Показати ще»: частина списку, помилки без збою, відмова ролі", async () => {
       const first = await loadMoreOrdersAction({ offset: 0 });
@@ -277,24 +231,6 @@ describe("серверні дії розділу «Замовлення»", () =
       as("accountant");
       expect(await searchClientsForOrderAction("Кафе Тест")).toEqual([]);
       expect(await orderPricingAction({ clientId: t.client.id, orderDate: ORDER_DATE })).toBeNull();
-    });
-
-    it("створення з додатковими позиціями з форми (itemsJson)", async () => {
-      const items = JSON.stringify([{ kind: "delivery", title: "Доставка", qty: 1, price: 150 }]);
-      const target = await redirectOf(
-        run(createOrderAction, { ...base(), comment: "З позиціями", itemsJson: items }),
-      );
-      const created = (
-        await t.db.select().from(orders).where(eq(orders.comment, "З позиціями"))
-      )[0]!;
-      expect(target).toBe(`/orders/${created.id}?created=1`);
-      expect(created.total).toBe("2400.00");
-      expect((await run(createOrderAction, { ...base(), itemsJson: "не json" })).message).toBe(
-        "Не вдалося прочитати додаткові позиції.",
-      );
-      expect((await run(createOrderAction, { ...base(), itemsJson: "{}" })).message).toBe(
-        "Не вдалося прочитати додаткові позиції.",
-      );
     });
 
     it("підказки: дублі й «як минулого разу», помилки дають порожній результат", async () => {

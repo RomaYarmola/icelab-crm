@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { addLegacyDebt, resolveLegacyDebt } from "@/server/box-debts";
-import { createBoxes, markLabelsPrinted, recordBoxEvent, sellBoxToOrder } from "@/server/boxes";
+import { createBoxes, markLabelsPrinted, recordBoxEvent } from "@/server/boxes";
 import { readText, runFormAction } from "@/server/form-state";
 import type { FormState } from "@/utils/formState";
 
@@ -59,24 +59,6 @@ export async function markPrintedAction(
       revalidatePath("/boxes");
     },
     { success: "Позначено надрукованими.", values: { codes: codes.join(",") } },
-  );
-}
-
-/** «Продати бокс» на картці замовлення (D108): бокс «Продано» і позиція в замовленні. */
-export async function sellBoxAction(_previous: FormState, formData: FormData): Promise<FormState> {
-  const actor = await requireUser();
-  const values = { code: readText(formData, "code") };
-  const orderId = readText(formData, "orderId");
-  return runFormAction(
-    async () => {
-      await sellBoxToOrder(getDb(), actor, { orderId, code: values.code });
-      revalidatePath(`/orders/${orderId}`);
-      revalidatePath("/boxes");
-    },
-    {
-      success: "Бокс продано, позицію додано в замовлення. Перевірте ціну в позиціях.",
-      values: {},
-    },
   );
 }
 

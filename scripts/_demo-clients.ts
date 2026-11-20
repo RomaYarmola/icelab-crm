@@ -286,7 +286,13 @@ export async function addDemoClients(
       await addContact(db, actor, created.id, { ...contact, isPrimary: false });
     }
     for (const address of spec.addresses ?? []) {
-      await addAddress(db, actor, created.id, address);
+      await addAddress(db, actor, created.id, {
+        ...address,
+        label: address.label ?? address.cityText ?? address.addressText ?? "Адреса",
+        // Для адрес Нової Пошти отримувач і телефон обов'язкові.
+        recipientName: address.recipientName ?? "Отримувач",
+        recipientPhone: "050 123 45 67",
+      });
     }
     for (const price of spec.prices ?? []) {
       await changeClientPrice(db, actor, {

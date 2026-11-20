@@ -57,10 +57,12 @@ export default function OrderSummary({ order }: { order: OrderCardView }) {
     {
       label: "Тара",
       value:
-        order.boxTypeName || order.boxCount > 0
+        order.boxLines.length > 0 || order.boxTypeName || order.boxCount > 0
           ? [
-              order.boxTypeName,
-              order.boxCount > 0 ? `${order.boxCount} шт` : null,
+              order.boxLines.length > 0
+                ? order.boxLines.map((line) => `${line.count} × ${line.name}`).join(", ")
+                : order.boxTypeName,
+              order.boxLines.length === 0 && order.boxCount > 0 ? `${order.boxCount} шт` : null,
               BOX_OWNERSHIP_LABELS[order.boxOwnership],
             ]
               .filter(Boolean)

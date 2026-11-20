@@ -1,0 +1,1 @@
+ALTER TABLE "client_addresses" ADD COLUMN "recipient_phone" text;

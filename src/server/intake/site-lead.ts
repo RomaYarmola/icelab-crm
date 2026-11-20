@@ -80,10 +80,17 @@ export function methodFromText(text: string | undefined): ParseResult["delivery"
   if (value.includes("самовивіз")) return "pickup";
   if (value.includes("нова пошта") || value.includes("новою поштою") || value.includes("нп "))
     return "np";
-  if (value.includes("автобус")) return "bus";
-  if (value.includes("достав") || value.includes("кур'єр") || value.includes("курьер"))
+  // Власна доставка: за адресою нашими силами (Роман, 20.11.2026). Автобус та інше: менеджер обере сам.
+  if (value.includes("автобус")) return null;
+  if (value.includes("достав") || value.includes("кур'єр") || value.includes("курьер")) {
     return "our_delivery";
-  return "other";
+  }
+  return null;
+}
+
+/** Нова Пошта: кур'єром за адресою чи на відділення (за текстом способу отримання). */
+export function npKindFromText(text: string | undefined): "warehouse" | "courier" {
+  return /кур['’ʼ]?єр|курьер|адресн/i.test(text ?? "") ? "courier" : "warehouse";
 }
 
 /**
@@ -273,6 +280,7 @@ export async function receiveSiteLead(
         method,
         city: null,
         np_warehouse_number: null,
+        np_kind: method === "np" ? npKindFromText(lead.delivery) : null,
         address: method === "np" || method === "our_delivery" ? (lead.delivery ?? null) : null,
         time_window: null,
         recipient_name: lead.name ?? null,

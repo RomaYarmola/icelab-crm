@@ -93,6 +93,28 @@ describe("правила накладної Нової Пошти (B10, D127, D1
     expect(splitRecipientName("О'Брайен Ірина")?.lastName).toBe("О'Брайен");
   });
 
+  it("тара рядками: вага й місця сумуються за рядками (mini + довгий)", () => {
+    const params = shipmentParams({
+      kgToProduce: "30.000",
+      boxCount: 0,
+      emptyWeightKg: null,
+      lines: [
+        { count: 1, emptyWeightKg: "0.6", dimensions: null },
+        { count: 1, emptyWeightKg: null, dimensions: null },
+      ],
+    });
+    // 30 + 0,6 + 1 (типова для невідомої ваги) = 31,6; місць 2; вага бокса відома не скрізь.
+    expect(params).toMatchObject({ weightKg: 31.6, seats: 2, emptyWeightKnown: false });
+  });
+
+  it("кур'єрська відправка Новою Поштою поки блокується (D167)", () => {
+    const input = ready();
+    input.order.npDeliveryKind = "courier";
+    expect(shipmentBlockers(input).join(" ")).toContain("кур'єром поки не підтримуємо");
+    input.order.npDeliveryKind = "warehouse";
+    expect(shipmentBlockers(input)).toEqual([]);
+  });
+
   it("вага = лід + порожні бокси, місць стільки, скільки боксів (мінімум 1)", () => {
     expect(shipmentParams({ kgToProduce: "33.000", boxCount: 2, emptyWeightKg: "1.500" })).toEqual({
       weightKg: 36,

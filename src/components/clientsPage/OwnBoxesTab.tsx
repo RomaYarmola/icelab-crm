@@ -30,7 +30,7 @@ function describe(box: OwnBoxView): string[] {
 }
 
 /**
- * Вкладка «Власні бокси» (D164): бокси, які клієнт надіслав нам для роботи. У замовленні з тарою
+ * Вкладка «Бокси клієнта» (D164): бокси, які клієнт надіслав нам для роботи. У замовленні з тарою
  * клієнта обирається один із них, а накладна Нової Пошти бере з нього вагу й розміри.
  */
 export default function OwnBoxesTab({ clientId, boxes, actions, canEdit }: OwnBoxesTabProps) {
@@ -50,7 +50,7 @@ export default function OwnBoxesTab({ clientId, boxes, actions, canEdit }: OwnBo
 
       {boxes.length === 0 ? (
         <EmptyState
-          title="Власних боксів ще немає"
+          title="Боксів клієнта ще немає"
           description="Додайте бокс клієнта, щоб обирати його в замовленні."
         />
       ) : (

@@ -67,8 +67,13 @@ describe("об'єднання дублів (D46)", () => {
     });
     await addContact(db, users.owner, main, { name: "Головний контакт", phone: "050 111 11 11" });
     await addContact(db, users.owner, duplicate, { name: "Контакт дубля", phone: "067 222 22 22" });
-    await addAddress(db, users.owner, main, { kind: "delivery", addressText: "вул. Головна, 1" });
+    await addAddress(db, users.owner, main, {
+      label: "Адреса",
+      kind: "delivery",
+      addressText: "вул. Головна, 1",
+    });
     await addAddress(db, users.owner, duplicate, {
+      label: "Адреса",
       kind: "delivery",
       addressText: "вул. Дубля, 2",
     });
@@ -142,7 +147,11 @@ describe("об'єднання дублів (D46)", () => {
     const main = await newClient("Порожній головний");
     const duplicate = await newClient("Дубль із даними");
     await addContact(db, users.owner, duplicate, { name: "Єдиний", phone: "050 999 88 77" });
-    await addAddress(db, users.owner, duplicate, { kind: "bus", cityText: "Ірпінь" });
+    await addAddress(db, users.owner, duplicate, {
+      label: "Адреса",
+      kind: "bus",
+      cityText: "Ірпінь",
+    });
     await mergeClients(db, users.owner, main, duplicate);
     const [contact] = await db
       .select()

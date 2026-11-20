@@ -1,3 +1,4 @@
+import { describeBoxLines, loadBoxLineViews, ourBoxesNeeded } from "./order-boxes";
 import { and, asc, desc, eq, inArray, isNull, like, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "@/db/actor";
@@ -704,14 +705,22 @@ export async function listBoxIssueOrders(
     db,
     rows.map((row) => row.id),
   );
-  return rows.map((row) => ({
-    id: row.id,
-    number: row.number,
-    clientName: row.clientName,
-    needed: row.boxOwnership === "ours" ? row.boxCount : 0,
-    issued: issued.get(row.id) ?? 0,
-    boxTypeName: row.boxTypeName,
-  }));
+  const lineViews = await loadBoxLineViews(
+    db,
+    rows.map((row) => row.id),
+  );
+  return rows.map((row) => {
+    const lines = lineViews.get(row.id) ?? [];
+    return {
+      id: row.id,
+      number: row.number,
+      clientName: row.clientName,
+      needed: ourBoxesNeeded(row.boxOwnership, row.boxCount, lines),
+      issued: issued.get(row.id) ?? 0,
+      // Кілька видів тари в замовленні: «2 × Міні 9 л, 1 × Довгий 46 л».
+      boxTypeName: lines.length > 0 ? describeBoxLines(lines) : row.boxTypeName,
+    };
+  });
 }
 
 export type OrderBox = { code: string; statusLabel: string; status: BoxStatus };

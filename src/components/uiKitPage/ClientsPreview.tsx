@@ -64,7 +64,7 @@ const OPTIONS: ClientFormOptions = {
     { id: "src-site", name: "Сайт" },
     { id: "src-phone", name: "Телефон" },
   ],
-  boxTypes: [{ id: "box-46", name: "Наш довгий 46 л", capacityKg: "33.000" }],
+  boxTypes: [{ id: "box-46", name: "Довгий 46 л", capacityKg: "33.000", isClientOwned: false }],
   managers: [
     { id: "mgr-1", name: "Олена Коваль" },
     { id: "mgr-2", name: "Марія Менеджер" },
@@ -205,7 +205,7 @@ function cardFor(role: UserRole, overrides: Partial<ClientCardView> = {}): Clien
     iceTypeName: "16 мм",
     managerName: "Олена Коваль",
     sourceName: "Сайт",
-    boxTypeName: "Наш довгий 46 л",
+    boxTypeName: "Довгий 46 л",
     isDeleted: false,
     contacts: [
       {
@@ -225,6 +225,9 @@ function cardFor(role: UserRole, overrides: Partial<ClientCardView> = {}): Clien
         cityText: "Київ",
         addressText: "вул. Сагайдачного, 12",
         recipientName: "Марія",
+        recipientPhone: null,
+        npCityRef: null,
+        npWarehouseRef: null,
         npWarehouseNumber: null,
         timeWindow: "10:00-14:00",
         isDefault: true,
@@ -237,6 +240,9 @@ function cardFor(role: UserRole, overrides: Partial<ClientCardView> = {}): Clien
         cityText: "Львів",
         addressText: null,
         recipientName: null,
+        recipientPhone: null,
+        npCityRef: null,
+        npWarehouseRef: null,
         npWarehouseNumber: "14",
         timeWindow: null,
         isDefault: false,

@@ -6,6 +6,16 @@ import type { FormAction } from "../clientsPage/clientActions";
 /** Клієнт, вибраний у формі замовлення. */
 export type PickedClient = { id: string; code: string; name: string };
 
+/** Рядок тари у формі: вид бокса (наш тип або бокс клієнта) і кількість рядком. */
+export interface BoxLineDraft {
+  key: number;
+  /** Чий бокс у цьому рядку: наш чи клієнта (20.11.2026: питаємо для кожного рядка). */
+  owner: "ours" | "client";
+  boxTypeId: string;
+  clientOwnBoxId: string;
+  count: string;
+}
+
 /** Усі поля форми замовлення рядками: так вони живуть у полях введення. */
 export interface OrderFormValues {
   locationId: string;
@@ -20,9 +30,8 @@ export interface OrderFormValues {
   timeWindow: string;
   recipientName: string;
   recipientPhone: string;
-  boxTypeId: string;
-  clientOwnBoxId: string;
-  boxCount: string;
+  /** Тара рядками: що й скільки (20.11.2026). */
+  boxLines: BoxLineDraft[];
   boxOwnership: string;
   paymentKind: string;
   comment: string;
@@ -35,16 +44,7 @@ export interface OrderFormOptions {
   iceTypes: { id: string; name: string }[];
   sources: { id: string; name: string }[];
   /** `capacityKg`: скільки кг вміщає бокс (для підказки «виготовити», D165). */
-  boxTypes: { id: string; name: string; capacityKg?: string | null }[];
-}
-
-/** Додаткова позиція, що створюється разом із замовленням. */
-export interface DraftItem {
-  key: number;
-  kind: "delivery" | "box_sale" | "other";
-  title: string;
-  qty: string;
-  price: string;
+  boxTypes: { id: string; name: string; capacityKg?: string | null; isClientOwned?: boolean }[];
 }
 
 /** Серверні дії і підказки форми. У каталозі `/ui-kit` це заглушки. */
@@ -52,7 +52,7 @@ export interface OrderFormActions {
   submit: FormAction;
   searchClients: (query: string) => Promise<ClientListItem[]>;
   clientAddresses: (clientId: string) => Promise<ClientAddressOption[]>;
-  /** Власні бокси клієнта для вибору, коли тара клієнтська (D164). */
+  /** Бокси клієнта для вибору, коли тара клієнтська (D164). */
   clientOwnBoxes: (clientId: string) => Promise<ClientOwnBoxOption[]>;
   pricing: (input: {
     clientId: string;

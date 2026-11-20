@@ -1,3 +1,4 @@
+import { searchNpCitiesAction, searchNpWarehousesAction } from "@/app/(app)/clients/actions";
 import type { Metadata } from "next";
 import NpSettingsContent from "@/components/npPage/NpSettingsContent";
 import { getDb } from "@/db/client";
@@ -40,6 +41,8 @@ export default async function NpPage() {
         loadSenders: loadSendersAction,
         loadSenderDetails: loadSenderDetailsAction,
         saveSender: saveSenderAction,
+        searchCities: searchNpCitiesAction,
+        searchWarehouses: searchNpWarehousesAction,
         saveWeight: saveEmptyWeightAction,
         sync: syncDirectoriesAction,
         autoResolve: autoResolveAction,

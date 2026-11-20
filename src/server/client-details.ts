@@ -6,6 +6,7 @@ import { addressKind } from "@/db/schema/enums";
 import type { AnyPgDatabase } from "@/db/types";
 import { normalizePhone } from "@/utils/phone";
 import { parseInput, ValidationError } from "./errors";
+import { lookupNpRefs } from "./np/addresses";
 import { type AppUser, requirePermission } from "./guards";
 
 /**
@@ -27,10 +28,14 @@ const contactSchema = z.object({
 
 const addressSchema = z.object({
   kind: z.enum(addressKind.enumValues, "Оберіть вид адреси зі списку."),
-  label: text(100, "Назва адреси надто довга."),
+  label: z.string().trim().min(1, "Вкажіть назву адреси.").max(100, "Назва адреси надто довга."),
   cityText: text(100, "Назва міста надто довга."),
   addressText: text(300, "Адреса надто довга."),
   recipientName: text(100, "Ім'я отримувача надто довге."),
+  recipientPhone: z.string().nullable().optional(),
+  /** Місто й відділення чи поштомат з довідника Нової Пошти (вибір у формі). */
+  npCityRef: z.string().trim().max(100).nullable().optional(),
+  npWarehouseRef: z.string().trim().max(100).nullable().optional(),
   npWarehouseNumber: text(20, "Номер відділення надто довгий."),
   timeWindow: text(50, "Вікно доставки надто довге."),
   isDefault: z.boolean().optional(),
@@ -181,11 +186,73 @@ export async function deleteContact(
 // Адреси
 // ---------------------------------------------------------------------------------------------
 
+const isNpKind = (kind: string) => kind === "np_warehouse" || kind === "np_address";
+
 function assertAddressFilled(data: z.output<typeof addressSchema>) {
-  const filled = [data.cityText, data.addressText, data.npWarehouseNumber].some(
+  const filled = [data.cityText, data.addressText, data.npWarehouseNumber, data.npCityRef].some(
     (value) => blankToNull(value) !== null,
   );
   if (!filled) throw new ValidationError("Вкажіть місто, адресу або номер відділення.");
+  // Адреси Нової Пошти (20.11.2026): отримувач і його телефон обов'язкові.
+  if (isNpKind(data.kind)) {
+    if (blankToNull(data.recipientName) === null) throw new ValidationError("Вкажіть отримувача.");
+    if (blankToNull(data.recipientPhone) === null) {
+      throw new ValidationError("Вкажіть телефон отримувача.");
+    }
+    if (data.kind === "np_address" && blankToNull(data.addressText) === null) {
+      throw new ValidationError("Вкажіть адресу для кур'єра: вулицю й будинок.");
+    }
+  }
+}
+
+/** Телефон отримувача у форматі +380…; для адрес Нової Пошти він обов'язковий. */
+function parseRecipientPhone(data: z.output<typeof addressSchema>): string | null {
+  const value = blankToNull(data.recipientPhone);
+  if (value === null) return null;
+  const phone = normalizePhone(value);
+  if (!phone) {
+    throw new ValidationError(
+      "Не вдалося розпізнати телефон отримувача. Вкажіть, наприклад, 050 123 45 67.",
+    );
+  }
+  return phone;
+}
+
+/**
+ * Значення адреси для запису. Для Нової Пошти: місто й відділення чи поштомат беремо з довідника
+ * (якщо їх вибрано), тож адреса одразу зіставлена; вікна доставки й текстової адреси для відділення
+ * немає, для кур'єра немає вікна.
+ */
+async function addressValues(tx: AnyPgDatabase, data: z.output<typeof addressSchema>) {
+  const base = {
+    kind: data.kind,
+    label: blankToNull(data.label),
+    cityText: blankToNull(data.cityText),
+    addressText: blankToNull(data.addressText),
+    recipientName: blankToNull(data.recipientName),
+    recipientPhone: parseRecipientPhone(data),
+    npWarehouseNumber: blankToNull(data.npWarehouseNumber),
+    timeWindow: isNpKind(data.kind) ? null : blankToNull(data.timeWindow),
+    npCityRef: null as string | null,
+    npWarehouseRef: null as string | null,
+    isResolved: false,
+  };
+  if (!isNpKind(data.kind) || !data.npCityRef) return base;
+  const refs = await lookupNpRefs(
+    tx,
+    data.npCityRef,
+    data.kind === "np_warehouse" ? data.npWarehouseRef : null,
+  );
+  return {
+    ...base,
+    cityText: refs.city.nameUa,
+    addressText: data.kind === "np_warehouse" ? null : base.addressText,
+    npWarehouseNumber: refs.warehouse?.number ?? null,
+    npCityRef: refs.city.ref,
+    npWarehouseRef: refs.warehouse?.ref ?? null,
+    // Відділення чи поштомат без вибраного відділення ще не зіставлені.
+    isResolved: data.kind === "np_address" || refs.warehouse !== null,
+  };
 }
 
 export async function addAddress(
@@ -214,17 +281,7 @@ export async function addAddress(
     }
     const [row] = await tx
       .insert(clientAddresses)
-      .values({
-        clientId: id,
-        kind: data.kind,
-        label: blankToNull(data.label),
-        cityText: blankToNull(data.cityText),
-        addressText: blankToNull(data.addressText),
-        recipientName: blankToNull(data.recipientName),
-        npWarehouseNumber: blankToNull(data.npWarehouseNumber),
-        timeWindow: blankToNull(data.timeWindow),
-        isDefault,
-      })
+      .values({ clientId: id, ...(await addressValues(tx, data)), isDefault })
       .returning({ id: clientAddresses.id });
     return row!;
   });
@@ -258,18 +315,8 @@ export async function updateAddress(
     await tx
       .update(clientAddresses)
       .set({
-        kind: data.kind,
-        label: blankToNull(data.label),
-        cityText: blankToNull(data.cityText),
-        addressText: blankToNull(data.addressText),
-        recipientName: blankToNull(data.recipientName),
-        npWarehouseNumber: blankToNull(data.npWarehouseNumber),
-        timeWindow: blankToNull(data.timeWindow),
+        ...(await addressValues(tx, data)),
         ...(data.isDefault === undefined ? {} : { isDefault: data.isDefault || address.isDefault }),
-        // Текст змінили, тож зіставлення з довідниками Нової Пошти (B10) уже не діє.
-        npCityRef: null,
-        npWarehouseRef: null,
-        isResolved: false,
       })
       .where(eq(clientAddresses.id, id));
   });

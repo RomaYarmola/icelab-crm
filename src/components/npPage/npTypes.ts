@@ -1,5 +1,6 @@
 import type { NpLoadResult } from "@/app/(app)/np/actions";
 import type { NpSyncStep } from "@/app/(app)/np/actions";
+import type { NpCityOption, NpWarehouseOption } from "@/server/np/addresses";
 import type { NpOption } from "@/server/np/settings";
 import type { FormAction } from "../clientsPage/clientActions";
 
@@ -11,6 +12,9 @@ export interface NpActions {
     senderRef: string,
   ) => Promise<NpLoadResult<{ contacts: NpOption[]; addresses: NpOption[] }>>;
   saveSender: FormAction;
+  /** Підказки міст і відділень для адреси відправлення (довідник Нової Пошти). */
+  searchCities: (query: string) => Promise<NpCityOption[]>;
+  searchWarehouses: (cityRef: string, query: string) => Promise<NpWarehouseOption[]>;
   saveWeight: FormAction;
   sync: () => Promise<NpSyncStep>;
   autoResolve: FormAction;

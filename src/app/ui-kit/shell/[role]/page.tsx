@@ -193,8 +193,22 @@ async function previewOwnBoxes(): Promise<ClientOwnBoxOption[]> {
 async function previewAddresses(): Promise<ClientAddressOption[]> {
   "use server";
   return [
-    { id: "ad1", text: "Доставка: Кафе на Подолі, Київ, вул. Сагайдачного, 12", isDefault: true },
-    { id: "ad2", text: "Склад Нової Пошти: Львів, відділення № 14", isDefault: false },
+    {
+      id: "ad1",
+      text: "Доставка: Кафе на Подолі, Київ, вул. Сагайдачного, 12",
+      isDefault: true,
+      kind: "np_address",
+      recipientName: null,
+      recipientPhone: null,
+    },
+    {
+      id: "ad2",
+      text: "Склад Нової Пошти: Львів, відділення № 14",
+      isDefault: false,
+      kind: "np_warehouse",
+      recipientName: "Марія Петренко",
+      recipientPhone: "+380501234567",
+    },
   ];
 }
 
@@ -238,6 +252,7 @@ async function previewRepeat(): Promise<OrderTemplate | null> {
     recipientPhone: "+380501234567",
     boxTypeId: "box-46",
     boxCount: 2,
+    boxLines: [{ boxTypeId: "box-46", clientOwnBoxId: null, count: 2 }],
     boxOwnership: "ours",
     paymentKind: "fop",
     items: [
@@ -452,6 +467,8 @@ export default async function ShellPreviewPage({
           loadSenders={previewNpSenders}
           loadSenderDetails={previewNpSenderDetails}
           sync={previewNpSync}
+          searchCities={previewNpCities}
+          searchWarehouses={previewNpWarehouses}
         />
       ) : screen === "export" ? (
         <ExportAllContent canSeeJournal={can(knownRole, "audit_log", "read")} />

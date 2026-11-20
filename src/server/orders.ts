@@ -5,7 +5,6 @@ import { withActor } from "@/db/actor";
 import {
   boxTypes,
   clientAddresses,
-  clientOwnBoxes,
   clients,
   iceTypes,
   locations,
@@ -16,7 +15,13 @@ import {
   orderStatusHistory,
   profiles,
 } from "@/db/schema";
-import { boxOwnership, deliveryMethod, orderStatus, paymentKind } from "@/db/schema/enums";
+import {
+  boxOwnership,
+  deliveryMethod,
+  npDeliveryKind,
+  orderStatus,
+  paymentKind,
+} from "@/db/schema/enums";
 import type { AnyPgDatabase } from "@/db/types";
 import type { OrderStatus } from "@/constants/constants";
 import { isIsoDate } from "@/utils/isoDate";
@@ -24,6 +29,18 @@ import { computeKgToProduce, parseDecimal } from "@/utils/orderMath";
 import { normalizePhone } from "@/utils/phone";
 import { clientSearchCondition } from "./clients";
 import { parseInput, ValidationError } from "./errors";
+import {
+  type BoxLine,
+  type BoxLineInput,
+  deriveBoxOwnership,
+  boxSummary,
+  legacyBoxLines,
+  linesCapacity,
+  loadBoxLineViews,
+  loadOrderBoxLines,
+  normalizeBoxLines,
+  saveOrderBoxLines,
+} from "./order-boxes";
 import { ForbiddenError, type AppUser, requirePermission, requireRole } from "./guards";
 import { DEFAULT_UNIT, newItemSchema } from "./order-item-schema";
 import { canDeleteDraft, editPolicy, suggestMarkupPercent } from "./order-rules";
@@ -79,6 +96,16 @@ const dateField = z.string().refine(isIsoDate, "Вкажіть дату замо
 /** Ціна за кг: число, текст («60,50») або `null` («порахувати за прайсом»). Перевіряє `parsePricePerKg`. */
 const priceField = z.union([z.string(), z.number()]).nullable().optional();
 
+const boxLineSchema = z.object({
+  boxTypeId: optionalUuid,
+  clientOwnBoxId: optionalUuid,
+  count: z
+    .number("Кількість боксів має бути числом.")
+    .int("Кількість боксів має бути цілою.")
+    .min(1, "Кількість боксів від 1.")
+    .max(10_000, "Забагато боксів: перевірте число."),
+});
+
 const optionalFields = z
   .object({
     iceTypeId: optionalUuid,
@@ -86,6 +113,13 @@ const optionalFields = z
     kgToProduce: kgField,
     sourceId: optionalUuid,
     deliveryMethod: z.enum(deliveryMethod.enumValues, "Оберіть спосіб доставки зі списку."),
+    /** Лише для Нової Пошти: на відділення чи кур'єром. */
+    /** Тара рядками (D164, 20.11.2026); без неї діють поля `boxTypeId`, `boxCount`, `clientOwnBoxId`. */
+    boxes: z.array(boxLineSchema).max(20, "Забагато рядків тари.").optional(),
+    npDeliveryKind: z
+      .enum(npDeliveryKind.enumValues, "Оберіть вид відправки Новою Поштою.")
+      .nullable()
+      .optional(),
     addressId: optionalUuid,
     deliveryText: textField(500, "Текст доставки надто довгий."),
     timeWindow: textField(50, "Вікно часу надто довге."),
@@ -134,12 +168,14 @@ const CORE_KEYS = [
   "kgSold",
   "sourceId",
   "deliveryMethod",
+  "npDeliveryKind",
   "addressId",
   "deliveryText",
   "timeWindow",
   "recipientName",
   "recipientPhone",
   "boxTypeId",
+  "boxes",
   "clientOwnBoxId",
   "boxCount",
   "boxOwnership",
@@ -210,51 +246,6 @@ async function assertExists(
   if (!row) throw new ValidationError(message);
 }
 
-/** Бокс клієнта має належати саме цьому клієнту (D164). */
-async function assertOwnBoxOfClient(
-  db: AnyPgDatabase,
-  ownBoxId: string | null | undefined,
-  clientId: string,
-) {
-  if (!ownBoxId) return;
-  const [row] = await db
-    .select({ clientId: clientOwnBoxes.clientId })
-    .from(clientOwnBoxes)
-    .where(eq(clientOwnBoxes.id, ownBoxId))
-    .limit(1);
-  if (!row || row.clientId !== clientId) {
-    throw new ValidationError("Бокс не належить цьому клієнту.");
-  }
-}
-
-/**
- * Скільки кг вміщають усі бокси замовлення (D165): місткість бокса клієнта, якщо обрано його, інакше
- * місткість типу тари, помножена на кількість. `null`, якщо боксів немає чи місткість не задана.
- */
-export async function loadBoxesCapacity(
-  db: AnyPgDatabase,
-  box: { boxTypeId: string | null; clientOwnBoxId: string | null; boxCount: number },
-): Promise<number | null> {
-  if (box.boxCount <= 0) return null;
-  let capacity: string | null = null;
-  if (box.clientOwnBoxId) {
-    const [row] = await db
-      .select({ capacityKg: clientOwnBoxes.capacityKg })
-      .from(clientOwnBoxes)
-      .where(eq(clientOwnBoxes.id, box.clientOwnBoxId));
-    capacity = row?.capacityKg ?? null;
-  }
-  if (capacity === null && box.boxTypeId) {
-    const [row] = await db
-      .select({ capacityKg: boxTypes.capacityKg })
-      .from(boxTypes)
-      .where(eq(boxTypes.id, box.boxTypeId));
-    capacity = row?.capacityKg ?? null;
-  }
-  const perBox = capacity === null ? 0 : parseDecimal(capacity);
-  return perBox > 0 ? perBox * box.boxCount : null;
-}
-
 async function assertAddressOfClient(
   db: AnyPgDatabase,
   addressId: string | null | undefined,
@@ -269,6 +260,36 @@ async function assertAddressOfClient(
   if (!row || row.clientId !== clientId) {
     throw new ValidationError("Адреса не належить цьому клієнту.");
   }
+}
+
+/**
+ * Для Нової Пошти вид відправки й отримувач беруться з вибраної збереженої адреси (20.11.2026):
+ * адреса «для кур'єра» дає кур'єрську відправку, інша відправку на відділення чи поштомат.
+ */
+async function npFactsOfAddress(
+  db: AnyPgDatabase,
+  addressId: string | null | undefined,
+): Promise<{
+  kind: "warehouse" | "courier";
+  recipientName: string | null;
+  recipientPhone: string | null;
+} | null> {
+  if (!addressId) return null;
+  const [row] = await db
+    .select({
+      kind: clientAddresses.kind,
+      recipientName: clientAddresses.recipientName,
+      recipientPhone: clientAddresses.recipientPhone,
+    })
+    .from(clientAddresses)
+    .where(eq(clientAddresses.id, addressId))
+    .limit(1);
+  if (!row) return null;
+  return {
+    kind: row.kind === "np_address" ? "courier" : "warehouse",
+    recipientName: row.recipientName,
+    recipientPhone: row.recipientPhone,
+  };
 }
 
 function parsePhone(input: string | null | undefined): string | null {
@@ -289,11 +310,11 @@ async function autoValues(
     orderDate: string;
     deliveryMethod: string;
     kgSold: number;
-    box: { boxTypeId: string | null; clientOwnBoxId: string | null; boxCount: number };
+    boxLines: BoxLine[];
   },
 ) {
   const client = await loadClientContext(db, input.clientId);
-  const maxKg = await loadBoxesCapacity(db, input.box);
+  const maxKg = await linesCapacity(db, input.boxLines);
   const resolved = input.iceTypeId
     ? await resolvePrice(db, {
         clientId: input.clientId,
@@ -341,11 +362,32 @@ export async function createOrder(
   await assertActiveLocation(db, data.locationId);
   const iceTypeId = data.iceTypeId ?? null;
   const iceTypeName = iceTypeId ? await loadIceTypeName(db, iceTypeId) : null;
-  await assertExists(db, boxTypes, data.boxTypeId, "Тип тари не знайдено.");
   await assertExists(db, orderSources, data.sourceId, "Джерело не знайдено.");
   await assertAddressOfClient(db, data.addressId, data.clientId);
-  await assertOwnBoxOfClient(db, data.clientOwnBoxId, data.clientId);
-  const recipientPhone = parsePhone(data.recipientPhone);
+  const ownership = data.boxOwnership ?? "ours";
+  const legacyBox = {
+    boxTypeId: data.boxTypeId ?? null,
+    clientOwnBoxId: data.clientOwnBoxId ?? null,
+    boxCount: data.boxCount ?? 0,
+  };
+  const boxLines = await normalizeBoxLines(db, {
+    clientId: data.clientId,
+    dropClientBoxes: !data.boxes && ownership !== "client",
+    lines: data.boxes ?? legacyBoxLines(legacyBox),
+  });
+  // Чия тара: з рядків, якщо вони з форми (кожен рядок сам каже, чий він).
+  const boxOwnershipValue = data.boxes
+    ? await deriveBoxOwnership(db, boxLines, ownership)
+    : ownership;
+  const boxTotals = boxSummary(boxLines);
+  // Кількість без типу (бот не впізнав тип тари) зберігаємо числом, щоб її не втратити.
+  if (boxLines.length === 0 && !data.boxes) boxTotals.boxCount = legacyBox.boxCount;
+  const npFacts =
+    (data.deliveryMethod ?? "other") === "np" || data.deliveryMethod === "our_delivery"
+      ? await npFactsOfAddress(db, data.addressId)
+      : null;
+  // Для Нової Пошти телефон отримувача береться з вибраної адреси, якщо його не вказано окремо.
+  const recipientPhone = parsePhone(data.recipientPhone) ?? npFacts?.recipientPhone ?? null;
 
   const kgSold = data.kgSold ?? "0.000";
   const method = data.deliveryMethod ?? "other";
@@ -355,11 +397,7 @@ export async function createOrder(
     orderDate: data.orderDate,
     deliveryMethod: method,
     kgSold: parseDecimal(kgSold),
-    box: {
-      boxTypeId: data.boxTypeId ?? null,
-      clientOwnBoxId: data.clientOwnBoxId ?? null,
-      boxCount: data.boxCount ?? 0,
-    },
+    boxLines,
   });
 
   const hasManualPrice = data.price !== undefined && data.price !== null;
@@ -381,21 +419,24 @@ export async function createOrder(
         markupPercentApplied: auto.percent.toFixed(2),
         priceManual: hasManualPrice,
         deliveryMethod: method,
+        npDeliveryKind:
+          method === "np" ? (npFacts?.kind ?? data.npDeliveryKind ?? "warehouse") : null,
         addressId: data.addressId ?? null,
         deliveryText: data.deliveryText ?? null,
         timeWindow: data.timeWindow ?? null,
-        recipientName: data.recipientName ?? null,
+        recipientName: data.recipientName ?? npFacts?.recipientName ?? null,
         recipientPhone,
-        boxTypeId: data.boxTypeId ?? null,
-        clientOwnBoxId: data.clientOwnBoxId ?? null,
-        boxCount: data.boxCount ?? 0,
-        boxOwnership: data.boxOwnership ?? "ours",
+        boxTypeId: boxTotals.boxTypeId,
+        clientOwnBoxId: boxTotals.clientOwnBoxId,
+        boxCount: boxTotals.boxCount,
+        boxOwnership: boxOwnershipValue,
         paymentKind: data.paymentKind ?? "unknown",
         comment: data.comment ?? null,
         internalComment: data.internalComment ?? null,
       })
       .returning({ id: orders.id, number: orders.number });
 
+    await saveOrderBoxLines(tx, order!.id, boxLines);
     await tx.insert(orderItems).values({
       orderId: order!.id,
       kind: "ice",
@@ -512,15 +553,79 @@ export async function updateOrder(
     if (set[key] === null) delete set[key];
   }
 
-  // Бокс клієнта: лише його власного клієнта й лише для клієнтської тари; зміна клієнта чи чужа тара
-  // знімає вибір (D164).
+  // Тара рядками (D164): нові рядки з форми, або один рядок зі старих полів, або наявні рядки, коли
+  // змінили лише клієнта чи чию тару. Бокси клієнта лишаються тільки для клієнтської тари й свого
+  // клієнта; підсумок у колонках замовлення рахуємо тут.
   const boxOwnershipValue = changed.boxOwnership ?? order.boxOwnership;
-  let clientOwnBoxId =
-    "clientOwnBoxId" in changed ? (changed.clientOwnBoxId ?? null) : order.clientOwnBoxId;
-  if (touches("clientId") && !("clientOwnBoxId" in changed)) clientOwnBoxId = null;
-  if (boxOwnershipValue !== "client") clientOwnBoxId = null;
-  if (clientOwnBoxId !== order.clientOwnBoxId) set.clientOwnBoxId = clientOwnBoxId;
-  await assertOwnBoxOfClient(db, clientOwnBoxId, clientId);
+  let boxLines: BoxLine[] | null = null;
+  if (touches("boxes", "boxTypeId", "clientOwnBoxId", "boxCount", "boxOwnership", "clientId")) {
+    let base: BoxLineInput[];
+    let legacyCount: number | null = null;
+    if ("boxes" in changed) {
+      base = changed.boxes ?? [];
+    } else if (touches("boxTypeId", "clientOwnBoxId", "boxCount")) {
+      const legacy = {
+        boxTypeId: "boxTypeId" in changed ? (changed.boxTypeId ?? null) : order.boxTypeId,
+        clientOwnBoxId:
+          "clientOwnBoxId" in changed ? (changed.clientOwnBoxId ?? null) : order.clientOwnBoxId,
+        boxCount: changed.boxCount ?? order.boxCount,
+      };
+      base = legacyBoxLines(legacy);
+      if (base.length === 0) legacyCount = legacy.boxCount;
+    } else {
+      base = await loadOrderBoxLines(db, order.id);
+    }
+    if (touches("clientId") && !("boxes" in changed)) base = base.filter((l) => !l.clientOwnBoxId);
+    boxLines = await normalizeBoxLines(db, {
+      clientId,
+      dropClientBoxes: !("boxes" in changed) && boxOwnershipValue !== "client",
+      lines: base,
+    });
+    if ("boxes" in changed && !("boxOwnership" in changed)) {
+      const derived = await deriveBoxOwnership(db, boxLines, boxOwnershipValue);
+      if (derived !== order.boxOwnership) set.boxOwnership = derived;
+    }
+    const totals = boxSummary(boxLines);
+    if (legacyCount !== null) totals.boxCount = legacyCount;
+    set.boxTypeId = totals.boxTypeId;
+    set.clientOwnBoxId = totals.clientOwnBoxId;
+    set.boxCount = totals.boxCount;
+  }
+  delete (set as Record<string, unknown>).boxes;
+
+  // Вид відправки Новою Поштою: з вибраної збереженої адреси (кур'єр чи відділення), а для інших
+  // способів знімаємо. Отримувача підставляємо з адреси, якщо його не вказано.
+  {
+    const method = changed.deliveryMethod ?? order.deliveryMethod;
+    if (method !== "np" && order.npDeliveryKind !== null) set.npDeliveryKind = null;
+    if (method === "np" || method === "our_delivery") {
+      const addressId = "addressId" in changed ? changed.addressId : order.addressId;
+      const facts = await npFactsOfAddress(db, addressId);
+      if (method === "np") {
+        const kind =
+          facts?.kind ??
+          ("npDeliveryKind" in changed ? changed.npDeliveryKind : order.npDeliveryKind) ??
+          "warehouse";
+        if (kind !== order.npDeliveryKind) set.npDeliveryKind = kind;
+      }
+      if (
+        facts?.recipientName &&
+        touches("addressId") &&
+        !changed.recipientName &&
+        !("recipientName" in changed && changed.recipientName === null)
+      ) {
+        set.recipientName = facts.recipientName;
+      }
+      if (
+        facts?.recipientPhone &&
+        touches("addressId") &&
+        !changed.recipientPhone &&
+        !("recipientPhone" in changed && changed.recipientPhone === null)
+      ) {
+        set.recipientPhone = facts.recipientPhone;
+      }
+    }
+  }
 
   const kgSold = changed.kgSold ?? order.kgSold;
   const deliveryMethodValue = changed.deliveryMethod ?? order.deliveryMethod;
@@ -561,11 +666,8 @@ export async function updateOrder(
   }
 
   // «Виготовити»: перераховуємо лише якщо воно було підказаним, а не виправленим вручну (D53).
-  const oldCapacity = await loadBoxesCapacity(db, {
-    boxTypeId: order.boxTypeId,
-    clientOwnBoxId: order.clientOwnBoxId,
-    boxCount: order.boxCount,
-  });
+  const oldLines = await loadOrderBoxLines(db, order.id);
+  const oldCapacity = await linesCapacity(db, oldLines);
   const wasSuggested =
     parseDecimal(order.kgToProduce) ===
     computeKgToProduce(
@@ -580,6 +682,7 @@ export async function updateOrder(
       "kgSold",
       "deliveryMethod",
       "clientId",
+      "boxes",
       "boxTypeId",
       "boxCount",
       "clientOwnBoxId",
@@ -592,11 +695,7 @@ export async function updateOrder(
       orderDate,
       deliveryMethod: deliveryMethodValue,
       kgSold: parseDecimal(kgSold),
-      box: {
-        boxTypeId: "boxTypeId" in changed ? (changed.boxTypeId ?? null) : order.boxTypeId,
-        clientOwnBoxId,
-        boxCount: changed.boxCount ?? order.boxCount,
-      },
+      boxLines: boxLines ?? oldLines,
     });
     set.markupPercentApplied = auto.percent.toFixed(2);
     set.kgToProduce = auto.kgToProduce.toFixed(3);
@@ -617,6 +716,7 @@ export async function updateOrder(
       if (Object.keys(set).length > 0) {
         await tx.update(orders).set(set).where(eq(orders.id, order.id));
       }
+      if (boxLines) await saveOrderBoxLines(tx, order.id, boxLines);
       // Позиція «Лід» іде за полями замовлення (D55).
       const itemSet: Partial<typeof orderItems.$inferInsert> = {};
       if (touches("kgSold")) itemSet.qty = kgSold;
@@ -800,6 +900,7 @@ export async function getOrder(
     return null;
   }
 
+  const boxLines = (await loadBoxLineViews(db, [id])).get(id) ?? [];
   const sawMoney = can(actor.role, "order_money", "read");
   const [items, history, changes] = await Promise.all([
     db
@@ -845,6 +946,13 @@ export async function getOrder(
       iceTypeName: row.iceTypeName,
       sourceName: row.sourceName,
       boxTypeName: row.boxTypeName,
+      boxLines: boxLines.map((line) => ({
+        name: line.name,
+        count: line.count,
+        boxTypeId: line.boxTypeId,
+        clientOwnBoxId: line.clientOwnBoxId,
+        isClient: line.isClient,
+      })),
       addressText,
     },
     items,

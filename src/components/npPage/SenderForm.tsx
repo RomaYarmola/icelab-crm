@@ -9,12 +9,16 @@ import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
 import Form from "../shared/form/Form";
 import FormMessage from "../shared/form/FormMessage";
 import Notification from "../shared/notification/Notification";
+import NpPlaceFields from "../clientsPage/NpPlaceFields";
 import type { NpActions } from "./npTypes";
 
 interface SenderFormProps {
   locationId: string;
   currentPhone: string | null;
-  actions: Pick<NpActions, "loadSenders" | "loadSenderDetails" | "saveSender">;
+  actions: Pick<
+    NpActions,
+    "loadSenders" | "loadSenderDetails" | "saveSender" | "searchCities" | "searchWarehouses"
+  >;
 }
 
 const pick = (options: NpOption[]) => [
@@ -39,7 +43,15 @@ export default function SenderForm({ locationId, currentPhone, actions }: Sender
   );
   const [senderRef, setSenderRef] = useState("");
   const [contactRef, setContactRef] = useState("");
-  const [addressRef, setAddressRef] = useState("");
+  // Адреса відправлення: місто й відділення з довідника Нової Пошти (20.11.2026), бо в акаунті
+  // приватної особи збережених адрес часто немає.
+  const [place, setPlace] = useState({
+    cityRef: "",
+    cityName: "",
+    warehouseRef: "",
+    warehouseName: "",
+  });
+  const [placeComplete, setPlaceComplete] = useState(false);
 
   function loadSenders() {
     setError(null);
@@ -53,7 +65,6 @@ export default function SenderForm({ locationId, currentPhone, actions }: Sender
   function chooseSender(ref: string) {
     setSenderRef(ref);
     setContactRef("");
-    setAddressRef("");
     setDetails(null);
     setError(null);
     if (!ref) return;
@@ -85,10 +96,14 @@ export default function SenderForm({ locationId, currentPhone, actions }: Sender
       <input type="hidden" name="locationId" value={locationId} />
       <input type="hidden" name="senderName" value={nameOf(senders, senderRef)} />
       <input type="hidden" name="contactName" value={nameOf(details?.contacts ?? [], contactRef)} />
+      <input type="hidden" name="addressRef" value={place.warehouseRef} />
+      <input type="hidden" name="addressCityRef" value={place.cityRef} />
       <input
         type="hidden"
         name="addressName"
-        value={nameOf(details?.addresses ?? [], addressRef)}
+        value={
+          place.cityName && place.warehouseName ? `${place.cityName}, ${place.warehouseName}` : ""
+        }
       />
       {error ? <Notification variant="error">{error}</Notification> : null}
       <CustomizedSelect
@@ -108,14 +123,12 @@ export default function SenderForm({ locationId, currentPhone, actions }: Sender
         disabled={!details}
         required
       />
-      <CustomizedSelect
-        name="addressRef"
-        label="Адреса відправлення"
-        options={pick(details?.addresses ?? [])}
-        value={addressRef}
-        onChange={(event) => setAddressRef(event.target.value)}
-        disabled={!details}
-        required
+      <NpPlaceFields
+        withWarehouse
+        defaults={{ cityText: "", cityRef: "", warehouseNumber: "", warehouseRef: "" }}
+        actions={actions}
+        onComplete={setPlaceComplete}
+        onSelect={setPlace}
       />
       <CustomizedInput
         name="phone"
@@ -129,7 +142,12 @@ export default function SenderForm({ locationId, currentPhone, actions }: Sender
         required
       />
       <FormMessage state={state} />
-      <MainButton type="submit" isLoading={isSaving || isLoading} loadingText="Зберігаємо…">
+      <MainButton
+        type="submit"
+        isLoading={isSaving || isLoading}
+        loadingText="Зберігаємо…"
+        disabled={!placeComplete}
+      >
         Зберегти відправника
       </MainButton>
     </Form>

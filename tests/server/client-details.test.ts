@@ -191,11 +191,15 @@ describe("контакти й адреси клієнта", () => {
         label: "Склад",
       });
       await addAddress(db, users.manager, id, {
+        label: "Адреса",
         kind: "np_warehouse",
         cityText: "Київ",
         npWarehouseNumber: "15",
+        recipientName: "Іван Петренко",
+        recipientPhone: "+380501234567",
       });
       await addAddress(db, users.manager, id, {
+        label: "Адреса",
         kind: "bus",
         cityText: "Бровари",
         isDefault: true,
@@ -210,27 +214,39 @@ describe("контакти й адреси клієнта", () => {
 
     it("потрібне місто, адреса або номер відділення; вид зі списку", async () => {
       const id = await newClient();
-      await expect(addAddress(db, users.manager, id, { kind: "delivery" })).rejects.toThrow(
-        "місто, адресу або номер",
-      );
       await expect(
-        addAddress(db, users.manager, id, { kind: "delivery", addressText: "   " }),
+        addAddress(db, users.manager, id, { label: "Адреса", kind: "delivery" }),
+      ).rejects.toThrow("місто, адресу або номер");
+      await expect(
+        addAddress(db, users.manager, id, {
+          label: "Адреса",
+          kind: "delivery",
+          addressText: "   ",
+        }),
       ).rejects.toThrow("місто, адресу");
       await expect(
-        addAddress(db, users.manager, id, { kind: "teleport" as never, addressText: "х" }),
+        addAddress(db, users.manager, id, {
+          label: "Адреса",
+          kind: "teleport" as never,
+          addressText: "х",
+        }),
       ).rejects.toThrow("вид адреси");
     });
 
     it("змінює адресу, робить за замовчуванням, скидає зіставлення з Новою Поштою", async () => {
       const id = await newClient();
       const first = await addAddress(db, users.manager, id, {
+        label: "Адреса",
         kind: "delivery",
         addressText: "вул. Стара, 1",
       });
       const second = await addAddress(db, users.manager, id, {
+        label: "Адреса",
         kind: "np_address",
         cityText: "Львів",
         addressText: "вул. Друга, 2",
+        recipientName: "Іван Петренко",
+        recipientPhone: "+380501234567",
       });
       await db
         .update(clientAddresses)
@@ -238,10 +254,12 @@ describe("контакти й адреси клієнта", () => {
         .where(eq(clientAddresses.id, second.id));
 
       await updateAddress(db, users.manager, second.id, {
+        label: "Адреса",
         kind: "np_address",
         cityText: "Львів",
         addressText: "вул. Нова, 5",
         recipientName: "Іван",
+        recipientPhone: "050 111 22 33",
         timeWindow: "9-11",
         isDefault: true,
       });
@@ -250,7 +268,9 @@ describe("контакти й адреси клієнта", () => {
       expect(changed).toMatchObject({
         addressText: "вул. Нова, 5",
         recipientName: "Іван",
-        timeWindow: "9-11",
+        recipientPhone: "+380501112233",
+        // Для Нової Пошти вікна доставки немає (20.11.2026).
+        timeWindow: null,
         isDefault: true,
         isResolved: false,
       });
@@ -261,11 +281,23 @@ describe("контакти й адреси клієнта", () => {
       const id = await newClient();
       // Порядок «найстарішої» йде за часом створення: між записами пауза, щоб час не збігся в мілісекунді.
       const pause = () => new Promise((resolve) => setTimeout(resolve, 5));
-      const a = await addAddress(db, users.manager, id, { kind: "delivery", addressText: "А" });
+      const a = await addAddress(db, users.manager, id, {
+        label: "Адреса",
+        kind: "delivery",
+        addressText: "А",
+      });
       await pause();
-      await addAddress(db, users.manager, id, { kind: "delivery", addressText: "Б" });
+      await addAddress(db, users.manager, id, {
+        label: "Адреса",
+        kind: "delivery",
+        addressText: "Б",
+      });
       await pause();
-      await addAddress(db, users.manager, id, { kind: "delivery", addressText: "В" });
+      await addAddress(db, users.manager, id, {
+        label: "Адреса",
+        kind: "delivery",
+        addressText: "В",
+      });
       await deleteAddress(db, users.manager, a.id);
       expect((await addressesOf(id)).map((x) => [x.addressText, x.isDefault])).toEqual([
         ["Б", true],
@@ -276,27 +308,35 @@ describe("контакти й адреси клієнта", () => {
     it("неіснуюча адреса, видалений клієнт: помилка; права як у контактів", async () => {
       const id = await newClient();
       await expect(
-        updateAddress(db, users.manager, crypto.randomUUID(), { kind: "bus", cityText: "х" }),
+        updateAddress(db, users.manager, crypto.randomUUID(), {
+          label: "Адреса",
+          kind: "bus",
+          cityText: "х",
+        }),
       ).rejects.toThrow("Адресу не знайдено");
       await expect(deleteAddress(db, users.manager, crypto.randomUUID())).rejects.toThrow(
         "Адресу не знайдено",
       );
-      const address = await addAddress(db, users.manager, id, { kind: "bus", cityText: "Ірпінь" });
+      const address = await addAddress(db, users.manager, id, {
+        label: "Адреса",
+        kind: "bus",
+        cityText: "Ірпінь",
+      });
       for (const role of ["location_lead", "accountant", "production", "driver"] as const) {
         await expect(
-          addAddress(db, users[role], id, { kind: "bus", cityText: "х" }),
+          addAddress(db, users[role], id, { label: "Адреса", kind: "bus", cityText: "х" }),
           role,
         ).rejects.toBeInstanceOf(ForbiddenError);
       }
       await deleteClient(db, users.owner, id);
       await expect(
-        addAddress(db, users.manager, id, { kind: "bus", cityText: "х" }),
+        addAddress(db, users.manager, id, { label: "Адреса", kind: "bus", cityText: "х" }),
       ).rejects.toThrow("видалено");
       await expect(deleteAddress(db, users.manager, address.id)).rejects.toThrow("видалено");
     });
   });
 
-  describe("власні бокси клієнта (D164)", () => {
+  describe("бокси клієнта (D164)", () => {
     it("додати, змінити, видалити; усе, крім назви, необов'язкове", async () => {
       const clientId = await newClient();
       const { id } = await addOwnBox(db, users.manager, clientId, {

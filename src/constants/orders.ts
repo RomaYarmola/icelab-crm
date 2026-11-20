@@ -4,11 +4,25 @@ import { ORDER_STATUS_LABELS, type OrderStatus } from "./constants";
 
 export const DELIVERY_METHOD_LABELS = {
   pickup: "Самовивіз",
-  our_delivery: "Наша доставка",
+  our_delivery: "Власна доставка",
   np: "Нова Пошта",
   bus: "Автобус",
   other: "Інше",
 } as const;
+
+/**
+ * Способи доставки, які можна обрати в формі замовлення (Роман, 20.11.2026): самовивіз, Нова Пошта
+ * і власна адресна доставка. «Автобус» та «Інше» лишаються в базі для старих замовлень.
+ */
+/** Нова Пошта: два варіанти відправки (Роман, 20.11.2026). */
+export const NP_DELIVERY_KIND_LABELS = {
+  warehouse: "На відділення або поштомат",
+  courier: "Адресна, кур'єром",
+} as const;
+
+export type NpDeliveryKindValue = keyof typeof NP_DELIVERY_KIND_LABELS;
+
+export const SELECTABLE_DELIVERY_METHODS = ["pickup", "np", "our_delivery"] as const;
 
 export type DeliveryMethodValue = keyof typeof DELIVERY_METHOD_LABELS;
 

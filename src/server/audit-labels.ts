@@ -4,6 +4,7 @@ import { NP_PAYER_LABELS, SHIPMENT_STATUS_LABELS } from "@/constants/np";
 import {
   BOX_OWNERSHIP_LABELS,
   DELIVERY_METHOD_LABELS,
+  NP_DELIVERY_KIND_LABELS,
   PAYMENT_KIND_LABELS,
 } from "@/constants/orders";
 import { BOX_STATUS_LABELS } from "./box-rules";
@@ -149,6 +150,7 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       price_per_kg_snapshot: moneyPerKg("Ціна за кг"),
       price_manual: bool("Ціну вказано вручну"),
       delivery_method: choice("Спосіб доставки", DELIVERY_METHOD_LABELS),
+      np_delivery_kind: choice("Вид відправки Новою Поштою", NP_DELIVERY_KIND_LABELS),
       address_id: ref("Адреса", "address"),
       delivery_text: text("Доставка (текст)"),
       time_window: text("Вікно часу"),
@@ -304,6 +306,7 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       city_text: text("Місто"),
       address_text: text("Адреса"),
       recipient_name: text("Отримувач"),
+      recipient_phone: text("Телефон отримувача"),
       np_city_ref: hidden("Місто Нової Пошти"),
       np_warehouse_ref: hidden("Відділення Нової Пошти"),
       np_warehouse_number: text("Відділення"),
