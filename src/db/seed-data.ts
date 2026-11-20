@@ -47,14 +47,19 @@ export const CLIENT_APPLICATIONS = [
   { code: "other", name: "Інше" },
 ];
 
-// TODO питання 2: повний список тари, місткість, вага порожнього бокса, що продається і за скільки.
-// Нижче шість типів із ТЗ. Місткість лише там, де вона є в назві.
+// Типи тари (дані Романа, 20.11.2026): три наші бокси з EPS (стінка 45 мм) і загальний «Бокс клієнта».
+// Розміри зовнішні, мм (В×Ш×Д); місткість у кг льоду; порожній бокс у середньому 0,6 кг. Бокси
+// самих клієнтів ведемо в картці клієнта (D164). Типи «50 кг білий» і «60 кг» прибрано.
 export const BOX_TYPES = [
   {
     code: "ours_long_46",
     name: "Наш довгий 46 л",
     volumeL: 46,
-    capacityKg: null, // у ТЗ діапазон 25-30 кг, точне значення уточнити
+    capacityKg: "33",
+    emptyWeightKg: "0.6",
+    heightMm: 390,
+    widthMm: 350,
+    lengthMm: 680,
     isReturnable: true,
     isClientOwned: false,
     sort: 1,
@@ -63,7 +68,11 @@ export const BOX_TYPES = [
     code: "ours_small_19",
     name: "Наш малий 19 л",
     volumeL: 19,
-    capacityKg: "10",
+    capacityKg: "16",
+    emptyWeightKg: "0.6",
+    heightMm: 330,
+    widthMm: 340,
+    lengthMm: 410,
     isReturnable: true,
     isClientOwned: false,
     sort: 2,
@@ -72,28 +81,14 @@ export const BOX_TYPES = [
     code: "mini_9",
     name: "mini 9 л",
     volumeL: 9,
-    capacityKg: "5",
+    capacityKg: "7",
+    emptyWeightKg: "0.6",
+    heightMm: 310,
+    widthMm: 260,
+    lengthMm: 340,
     isReturnable: true,
     isClientOwned: false,
     sort: 3,
-  },
-  {
-    code: "white_50",
-    name: "50 кг білий",
-    volumeL: null,
-    capacityKg: "50",
-    isReturnable: true,
-    isClientOwned: false,
-    sort: 4,
-  },
-  {
-    code: "box_60",
-    name: "60 кг",
-    volumeL: null,
-    capacityKg: "60",
-    isReturnable: true,
-    isClientOwned: false,
-    sort: 5,
   },
   {
     code: "client_box",
@@ -102,7 +97,7 @@ export const BOX_TYPES = [
     capacityKg: null,
     isReturnable: false,
     isClientOwned: true,
-    sort: 6,
+    sort: 4,
   },
 ];
 
@@ -116,6 +111,7 @@ export const SETTINGS = [
   { key: "payment.date_window_days", value: 14 },
   { key: "np.default_payer", value: "Recipient" }, // TODO питання 7
   { key: "report.daily_time", value: "18:00" },
+  { key: "np.default_empty_box_kg", value: 1 },
 ];
 
 // Області для коду клієнта (D24): позначки з автомобільних номерів України, карту дав Роман.

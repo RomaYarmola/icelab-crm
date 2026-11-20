@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import {
   clientAddressesAction,
+  clientOwnBoxesAction,
   createOrderAction,
   findDuplicateOrdersAction,
   orderPricingAction,
@@ -72,6 +73,7 @@ export default async function NewOrderPage({
         submit: createOrderAction,
         searchClients: searchClientsForOrderAction,
         clientAddresses: clientAddressesAction,
+        clientOwnBoxes: clientOwnBoxesAction,
         pricing: orderPricingAction,
         findDuplicates: findDuplicateOrdersAction,
         repeatLast: repeatLastOrderAction,

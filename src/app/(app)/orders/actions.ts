@@ -24,8 +24,10 @@ import {
 } from "@/server/order-duplicates";
 import {
   type ClientAddressOption,
+  type ClientOwnBoxOption,
   getOrderPricing,
   listClientAddressOptions,
+  listClientOwnBoxOptions,
   type OrderPricing,
   searchClientsForOrder,
 } from "@/server/order-form";
@@ -136,6 +138,7 @@ function readCreateFields(formData: FormData): CreateOrderInput {
     recipientName: optional(formData, "recipientName"),
     recipientPhone: optional(formData, "recipientPhone"),
     boxTypeId: optional(formData, "boxTypeId"),
+    clientOwnBoxId: optional(formData, "clientOwnBoxId"),
     boxCount: boxCount === null ? undefined : boxCount,
     boxOwnership: optional(formData, "boxOwnership") as CreateOrderInput["boxOwnership"],
     paymentKind: optional(formData, "paymentKind") as CreateOrderInput["paymentKind"],
@@ -161,6 +164,7 @@ function readUpdateFields(formData: FormData): UpdateOrderInput {
     "recipientName",
     "recipientPhone",
     "boxTypeId",
+    "clientOwnBoxId",
     "comment",
     "internalComment",
   ];
@@ -452,6 +456,23 @@ export async function searchClientsForOrderAction(query: string): Promise<Client
   const actor = await requireUser();
   try {
     return await searchClientsForOrder(getDb(), actor, typeof query === "string" ? query : "");
+  } catch (error) {
+    if (!(error instanceof ValidationError || error instanceof ForbiddenError)) {
+      await reportError({ source: "form_action", error });
+    }
+    return [];
+  }
+}
+
+/** Власні бокси вибраного клієнта для списку в формі. Помилка дає порожній список. */
+export async function clientOwnBoxesAction(clientId: string): Promise<ClientOwnBoxOption[]> {
+  const actor = await requireUser();
+  try {
+    return await listClientOwnBoxOptions(
+      getDb(),
+      actor,
+      typeof clientId === "string" ? clientId : "",
+    );
   } catch (error) {
     if (!(error instanceof ValidationError || error instanceof ForbiddenError)) {
       await reportError({ source: "form_action", error });

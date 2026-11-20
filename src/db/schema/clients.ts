@@ -155,6 +155,47 @@ export const clientAddresses = pgTable(
 ).enableRLS();
 
 /**
+ * Власні бокси клієнта (D164): клієнти надсилають нам свої бокси, і вони різні за об'ємом,
+ * місткістю, вагою й розмірами. Усе, крім назви, необов'язкове й орієнтовне. Дані беруться в
+ * накладну Нової Пошти й у підказку «виготовити» (місткість).
+ */
+export const clientOwnBoxes = pgTable(
+  "client_own_boxes",
+  {
+    id: pk(),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    volumeL: integer("volume_l"),
+    /** Скільки кг льоду вміщає. */
+    capacityKg: kg("capacity_kg"),
+    /** Вага порожнього бокса, кг. */
+    emptyWeightKg: kg("empty_weight_kg"),
+    /** Зовнішні розміри, мм. */
+    heightMm: integer("height_mm"),
+    widthMm: integer("width_mm"),
+    lengthMm: integer("length_mm"),
+    note: text("note"),
+    createdBy: createdBy(),
+    ...timestamps,
+  },
+  (t) => [
+    index("client_own_boxes_client_id_idx").on(t.clientId),
+    index("client_own_boxes_created_by_idx").on(t.createdBy),
+    check(
+      "client_own_boxes_positive",
+      sql`(${t.volumeL} is null or ${t.volumeL} > 0)
+        and (${t.capacityKg} is null or ${t.capacityKg} > 0)
+        and (${t.emptyWeightKg} is null or ${t.emptyWeightKg} >= 0)
+        and (${t.heightMm} is null or ${t.heightMm} > 0)
+        and (${t.widthMm} is null or ${t.widthMm} > 0)
+        and (${t.lengthMm} is null or ${t.lengthMm} > 0)`,
+    ),
+  ],
+).enableRLS();
+
+/**
  * Індивідуальні ціни клієнта. Поточна ціна: запис із `valid_to is null` і найбільшим
  * `min_kg`, що не перевищує кількість. Зміна ціни: закрити стару (`valid_to`) і додати нову.
  */

@@ -17,6 +17,9 @@ export interface ClientCardActions {
   addAddress: FormAction;
   updateAddress: FormAction;
   deleteAddress: FormAction;
+  addOwnBox: FormAction;
+  updateOwnBox: FormAction;
+  deleteOwnBox: FormAction;
   changePrice: FormAction;
   /** Підбір адреси в довідниках Нової Пошти (B10); немає там, де підбір не потрібен. */
   np?: NpPickerActions;

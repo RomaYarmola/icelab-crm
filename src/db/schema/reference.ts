@@ -79,6 +79,10 @@ export const boxTypes = pgTable("box_types", {
   capacityKg: kg("capacity_kg"),
   /** Вага порожнього бокса, кг: додається до ваги посилки в накладній Нової Пошти (D127). */
   emptyWeightKg: kg("empty_weight_kg"),
+  /** Зовнішні розміри, мм (для об'ємної ваги накладної, D158). */
+  heightMm: integer("height_mm"),
+  widthMm: integer("width_mm"),
+  lengthMm: integer("length_mm"),
   isReturnable: boolean("is_returnable").notNull().default(true),
   isClientOwned: boolean("is_client_owned").notNull().default(false),
   salePrice: money("sale_price"),

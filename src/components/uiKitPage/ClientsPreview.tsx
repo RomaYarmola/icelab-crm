@@ -64,7 +64,7 @@ const OPTIONS: ClientFormOptions = {
     { id: "src-site", name: "Сайт" },
     { id: "src-phone", name: "Телефон" },
   ],
-  boxTypes: [{ id: "box-46", name: "Наш довгий 46 л" }],
+  boxTypes: [{ id: "box-46", name: "Наш довгий 46 л", capacityKg: "33.000" }],
   managers: [
     { id: "mgr-1", name: "Олена Коваль" },
     { id: "mgr-2", name: "Марія Менеджер" },
@@ -384,6 +384,9 @@ export default function ClientsPreview({
         addAddress: noop,
         updateAddress: noop,
         deleteAddress: noop,
+        addOwnBox: noop,
+        updateOwnBox: noop,
+        deleteOwnBox: noop,
         changePrice: noop,
         np: npPicker,
       }}

@@ -33,6 +33,7 @@ const ORDER_BASE_FIELDS = [
   "recipientName",
   "recipientPhone",
   "boxTypeId",
+  "clientOwnBoxId",
   "boxCount",
   "boxOwnership",
   "comment",

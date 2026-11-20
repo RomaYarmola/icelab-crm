@@ -16,10 +16,14 @@ import {
   type AddressInput,
   addAddress,
   addContact,
+  addOwnBox,
   deleteAddress,
   deleteContact,
+  deleteOwnBox,
+  type OwnBoxInput,
   updateAddress,
   updateContact,
+  updateOwnBox,
 } from "@/server/client-details";
 import { mergeClients } from "@/server/client-merge";
 import {
@@ -390,6 +394,78 @@ export async function deleteAddressAction(
       refresh();
     },
     { success: "Адресу видалено." },
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Власні бокси клієнта (D164)
+// ---------------------------------------------------------------------------------------------
+
+const OWN_BOX_FIELD_NAMES = [
+  "name",
+  "volumeL",
+  "capacityKg",
+  "emptyWeightKg",
+  "heightMm",
+  "widthMm",
+  "lengthMm",
+  "note",
+];
+
+function readOwnBox(formData: FormData): OwnBoxInput {
+  return {
+    name: readText(formData, "name"),
+    volumeL: readOptionalText(formData, "volumeL"),
+    capacityKg: readOptionalText(formData, "capacityKg"),
+    emptyWeightKg: readOptionalText(formData, "emptyWeightKg"),
+    heightMm: readOptionalText(formData, "heightMm"),
+    widthMm: readOptionalText(formData, "widthMm"),
+    lengthMm: readOptionalText(formData, "lengthMm"),
+    note: readOptionalText(formData, "note"),
+  };
+}
+
+export async function addOwnBoxAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const values = echo(formData, OWN_BOX_FIELD_NAMES);
+  return runFormAction(
+    async () => {
+      await addOwnBox(getDb(), actor, readId(formData, "clientId"), readOwnBox(formData));
+      refresh();
+    },
+    { success: "Бокс додано.", values },
+  );
+}
+
+export async function updateOwnBoxAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const values = echo(formData, OWN_BOX_FIELD_NAMES);
+  return runFormAction(
+    async () => {
+      await updateOwnBox(getDb(), actor, readId(formData), readOwnBox(formData));
+      refresh();
+    },
+    { success: "Бокс збережено.", values },
+  );
+}
+
+export async function deleteOwnBoxAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  return runFormAction(
+    async () => {
+      await deleteOwnBox(getDb(), actor, readId(formData));
+      refresh();
+    },
+    { success: "Бокс видалено." },
   );
 }
 

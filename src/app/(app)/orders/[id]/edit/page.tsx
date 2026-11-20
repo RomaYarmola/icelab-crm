@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import {
   clientAddressesAction,
+  clientOwnBoxesAction,
   findDuplicateOrdersAction,
   orderPricingAction,
   repeatLastOrderAction,
@@ -66,6 +67,7 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
         submit: updateOrderAction,
         searchClients: searchClientsForOrderAction,
         clientAddresses: clientAddressesAction,
+        clientOwnBoxes: clientOwnBoxesAction,
         pricing: orderPricingAction,
         findDuplicates: findDuplicateOrdersAction,
         repeatLast: repeatLastOrderAction,

@@ -13,6 +13,7 @@ const EXPECTED_TABLES = [
   "client_addresses",
   "client_applications",
   "client_contacts",
+  "client_own_boxes",
   "client_prices",
   "client_statuses",
   "clients",
@@ -50,7 +51,7 @@ describe("структура бази", () => {
     await ctx.client.close();
   });
 
-  it("містить усі 17 таблиць блоку B1, невдалі входи з B2, журнал помилок з B3, області з B4 зміни цін замовлень з B5, готівку з B6, журнал експортів з B8, бокси з B9 Нову Пошту з B10 і приймання заявок з B11", async () => {
+  it("містить усі 17 таблиць блоку B1, невдалі входи з B2, журнал помилок з B3, області з B4 зміни цін замовлень з B5, готівку з B6, журнал експортів з B8, бокси з B9 Нову Пошту з B10 і приймання заявок з B11, власні бокси клієнтів", async () => {
     const result = await ctx.db.execute(
       sql`select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );

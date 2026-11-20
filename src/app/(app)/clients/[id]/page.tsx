@@ -7,6 +7,9 @@ import {
   assignRegionAction,
   changeClientPriceAction,
   deleteAddressAction,
+  addOwnBoxAction,
+  updateOwnBoxAction,
+  deleteOwnBoxAction,
   deleteClientAction,
   deleteContactAction,
   resolveAddressAction,
@@ -26,6 +29,7 @@ import { addLegacyDebtAction, resolveLegacyDebtAction } from "@/app/(app)/boxes/
 import { listBoxDebts, listClientBoxes, listLegacyDebts } from "@/server/box-debts";
 import { listBoxTypeOptions } from "@/server/boxes";
 import { getClientFormOptions } from "@/server/client-options";
+import { listOwnBoxes } from "@/server/client-details";
 import { getClient } from "@/server/clients";
 import { can } from "@/server/permissions";
 import { listDefaultPrices } from "@/server/prices";
@@ -70,6 +74,9 @@ export default async function ClientPage({
       ? await listEntityHistory(db, user, { kind: "client", id })
       : null;
 
+  // Вкладка «Власні бокси»: дані вантажимо лише з нею (D164).
+  const ownBoxes = query.tab === "own_boxes" ? await listOwnBoxes(db, user, id) : [];
+
   // Вкладка «Бокси»: борги клієнта бачать усі, крім виробництва (D113); дані вантажимо лише з нею.
   const canSeeBoxes = can(user.role, "box_debts_stock", "read") && user.role !== "production";
   const boxes =
@@ -87,6 +94,7 @@ export default async function ClientPage({
       defaultPrices={defaultPrices}
       canSeeHistory={canSeeHistory}
       history={history}
+      ownBoxes={ownBoxes}
       boxes={boxes}
       today={todayIso()}
       notice={query.created ? "created" : query.merged ? "merged" : undefined}
@@ -106,6 +114,9 @@ export default async function ClientPage({
         addAddress: addAddressAction,
         updateAddress: updateAddressAction,
         deleteAddress: deleteAddressAction,
+        addOwnBox: addOwnBoxAction,
+        updateOwnBox: updateOwnBoxAction,
+        deleteOwnBox: deleteOwnBoxAction,
         changePrice: changeClientPriceAction,
         np: {
           searchCities: searchNpCitiesAction,

@@ -1,13 +1,22 @@
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { z } from "zod";
-import { boxTypes, clientAddresses, clients, locations, orders, shipments } from "@/db/schema";
+import {
+  boxTypes,
+  clientAddresses,
+  clientOwnBoxes,
+  clients,
+  locations,
+  orders,
+  shipments,
+} from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { SHIPMENT_STATUS_LABELS, type ShipmentStatus } from "@/constants/np";
 import { isIsoDate } from "@/utils/isoDate";
 import { parseInput, ValidationError } from "../errors";
 import { type AppUser, locationScope, requirePermission } from "../guards";
 import { loadSender } from "./shipments";
-import { shipmentBlockers, shipmentParams } from "./shipment-rules";
+import { boxSpec, shipmentBlockers, shipmentParams } from "./shipment-rules";
+import { getDefaultEmptyBoxKg } from "./settings";
 
 /**
  * «ТТН на день» (B10, ТЗ 6.8): замовлення Нової Пошти на дату з тим, що заважає створити накладну, і
@@ -67,7 +76,18 @@ export async function listShipmentDay(
       locationName: locations.name,
       address: clientAddresses,
       shipment: shipments,
-      emptyWeightKg: boxTypes.emptyWeightKg,
+      boxType: {
+        emptyWeightKg: boxTypes.emptyWeightKg,
+        heightMm: boxTypes.heightMm,
+        widthMm: boxTypes.widthMm,
+        lengthMm: boxTypes.lengthMm,
+      },
+      ownBox: {
+        emptyWeightKg: clientOwnBoxes.emptyWeightKg,
+        heightMm: clientOwnBoxes.heightMm,
+        widthMm: clientOwnBoxes.widthMm,
+        lengthMm: clientOwnBoxes.lengthMm,
+      },
     })
     .from(orders)
     .innerJoin(clients, eq(clients.id, orders.clientId))
@@ -75,6 +95,7 @@ export async function listShipmentDay(
     .leftJoin(clientAddresses, eq(clientAddresses.id, orders.addressId))
     .leftJoin(shipments, eq(shipments.orderId, orders.id))
     .leftJoin(boxTypes, eq(boxTypes.id, orders.boxTypeId))
+    .leftJoin(clientOwnBoxes, eq(clientOwnBoxes.id, orders.clientOwnBoxId))
     .where(
       and(
         isNull(orders.deletedAt),
@@ -98,9 +119,11 @@ export async function listShipmentDay(
     senderReady.set(locationIdValue, (await loadSender(db, locationIdValue)) !== null);
   }
 
+  const defaultEmptyKg = await getDefaultEmptyBoxKg(db);
+
   return {
     date,
-    rows: rows.map(({ order, clientName, locationName, address, shipment, emptyWeightKg }) => {
+    rows: rows.map(({ order, clientName, locationName, address, shipment, boxType, ownBox }) => {
       const hasTtn = Boolean(shipment?.npRef);
       const blockers = hasTtn
         ? []
@@ -125,10 +148,13 @@ export async function listShipmentDay(
             senderReady: senderReady.get(order.locationId) ?? false,
             hasActiveShipment: false,
           });
+      const spec = boxSpec(order.clientOwnBoxId ? ownBox : null, boxType);
       const params = shipmentParams({
         kgToProduce: order.kgToProduce,
         boxCount: order.boxCount,
-        emptyWeightKg,
+        emptyWeightKg: spec.emptyWeightKg,
+        defaultEmptyKg,
+        dimensions: spec.dimensions,
       });
       return {
         orderId: order.id,

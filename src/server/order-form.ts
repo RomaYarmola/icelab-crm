@@ -1,7 +1,7 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 import { ADDRESS_KIND_LABELS } from "@/constants/clients";
-import { clientAddresses } from "@/db/schema";
+import { clientAddresses, clientOwnBoxes } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { isIsoDate } from "@/utils/isoDate";
 import { type ClientListItem } from "./client-views";
@@ -37,6 +37,27 @@ export async function searchClientsForOrder(
   if (search.length < 2) return [];
   const page = await listClients(db, actor, { search, limit: CLIENT_SEARCH_LIMIT });
   return page.items;
+}
+
+export type ClientOwnBoxOption = { id: string; name: string; capacityKg: string | null };
+
+/** Власні бокси клієнта для вибору в замовленні з клієнтською тарою (D164). */
+export async function listClientOwnBoxOptions(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  clientId: string,
+): Promise<ClientOwnBoxOption[]> {
+  requireOrderAuthor(actor);
+  const id = parseInput(uuid, clientId);
+  return db
+    .select({
+      id: clientOwnBoxes.id,
+      name: clientOwnBoxes.name,
+      capacityKg: clientOwnBoxes.capacityKg,
+    })
+    .from(clientOwnBoxes)
+    .where(eq(clientOwnBoxes.clientId, id))
+    .orderBy(asc(clientOwnBoxes.name));
 }
 
 export type ClientAddressOption = { id: string; text: string; isDefault: boolean };

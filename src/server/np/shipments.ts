@@ -5,6 +5,7 @@ import {
   boxTypes,
   clientAddresses,
   clientContacts,
+  clientOwnBoxes,
   clients,
   locations,
   orders,
@@ -18,7 +19,9 @@ import { parseInput, ValidationError } from "../errors";
 import { type AppUser, requirePermission } from "../guards";
 import { can, canAccessLocation } from "../permissions";
 import { callNp, NpError } from "./client";
+import { getDefaultEmptyBoxKg } from "./settings";
 import {
+  boxSpec,
   NP_SERVICE_TYPE,
   normalizeNpPhone,
   npDate,
@@ -60,7 +63,15 @@ export type ShipmentCard = {
   /** Чого бракує для створення (порожньо, якщо можна). */
   blockers: string[];
   /** Вага й місця, які підуть у накладну. */
-  params: { weightKg: number; seats: number; emptyWeightKnown: boolean };
+  params: {
+    weightKg: number;
+    seats: number;
+    emptyWeightKnown: boolean;
+    /** Скільки кг порожніх боксів додано до ваги (орієнтовно, якщо вага бокса невідома). */
+    emptyBoxesKg: number;
+    /** Вага визначена за об'ємом (D158). */
+    byVolume: boolean;
+  };
   canWrite: boolean;
   canSeeMoney: boolean;
 };
@@ -113,6 +124,9 @@ async function loadContext(db: AnyPgDatabase, orderId: string) {
   const [address] = order.addressId
     ? await db.select().from(clientAddresses).where(eq(clientAddresses.id, order.addressId))
     : [];
+  const [ownBox] = order.clientOwnBoxId
+    ? await db.select().from(clientOwnBoxes).where(eq(clientOwnBoxes.id, order.clientOwnBoxId))
+    : [];
   const [boxType] = order.boxTypeId
     ? await db.select().from(boxTypes).where(eq(boxTypes.id, order.boxTypeId))
     : [];
@@ -123,9 +137,23 @@ async function loadContext(db: AnyPgDatabase, orderId: string) {
     client: client!,
     address: address ?? null,
     boxType: boxType ?? null,
+    ownBox: ownBox ?? null,
+    defaultEmptyKg: await getDefaultEmptyBoxKg(db),
     shipment,
     sender,
   };
+}
+
+/** Вага й місця накладної: бокс клієнта сильніший за тип тари (D164), типова вага за D166. */
+function paramsFor(ctx: Context) {
+  const spec = boxSpec(ctx.ownBox, ctx.boxType);
+  return shipmentParams({
+    kgToProduce: ctx.order.kgToProduce,
+    boxCount: ctx.order.boxCount,
+    emptyWeightKg: spec.emptyWeightKg,
+    defaultEmptyKg: ctx.defaultEmptyKg,
+    dimensions: spec.dimensions,
+  });
 }
 
 function blockersFor(ctx: Context): string[] {
@@ -189,11 +217,7 @@ export async function getShipmentCard(
   if (ctx.order.deliveryMethod !== "np" && !ctx.shipment) return null;
   if (!canAccessLocation(actor, ctx.order.locationId)) return null;
   const canSeeMoney = can(actor.role, "order_money", "read");
-  const params = shipmentParams({
-    kgToProduce: ctx.order.kgToProduce,
-    boxCount: ctx.order.boxCount,
-    emptyWeightKg: ctx.boxType?.emptyWeightKg ?? null,
-  });
+  const params = paramsFor(ctx);
   return {
     shipment: ctx.shipment ? toView(ctx.shipment, canSeeMoney) : null,
     blockers: ctx.shipment?.npRef ? [] : blockersFor(ctx),
@@ -201,6 +225,8 @@ export async function getShipmentCard(
       weightKg: params.weightKg,
       seats: params.seats,
       emptyWeightKnown: params.emptyWeightKnown,
+      emptyBoxesKg: params.emptyBoxesKg,
+      byVolume: params.byVolume,
     },
     canWrite: true,
     canSeeMoney,
@@ -328,11 +354,7 @@ export type ShipmentInput = z.input<typeof inputSchema>;
 function prepare(ctx: Context, payer: NpPayerValue) {
   const blockers = blockersFor(ctx);
   if (blockers.length > 0) throw new ValidationError(blockers[0]!);
-  const params = shipmentParams({
-    kgToProduce: ctx.order.kgToProduce,
-    boxCount: ctx.order.boxCount,
-    emptyWeightKg: ctx.boxType?.emptyWeightKg ?? null,
-  });
+  const params = paramsFor(ctx);
   const sender = ctx.sender!;
   const address = ctx.address!;
   const common = {

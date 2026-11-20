@@ -17,9 +17,14 @@ const PERCENT_SCALE = 100;
 /**
  * Скільки кг виготовити: `floor(продано × (1 + p/100))` (D53, змінено D162): 25 кг з надбавкою 10%
  * це 27, а не 28 (27,5 округлюємо вниз). Менше, ніж продано, не буває: нецілі кг продажу піднімаємо
- * до цілого. `percent` від 0 до 100, `kgSold` з точністю до грама. Повертає ціле число кілограмів.
+ * до цілого. Не більше `maxKg` (місткість усіх боксів, D165). `percent` від 0 до 100, `kgSold` з точністю до грама. Повертає ціле число кілограмів.
  */
-export function computeKgToProduce(kgSold: number, percent: number): number {
+export function computeKgToProduce(
+  kgSold: number,
+  percent: number,
+  /** Скільки кг вміщають усі бокси разом (D165); `null`, якщо невідомо чи боксів немає. */
+  maxKg: number | null = null,
+): number {
   if (!Number.isFinite(kgSold) || kgSold <= 0) return 0;
   const percentage = Number.isFinite(percent) ? Math.min(Math.max(percent, 0), 100) : 0;
   const grams = Math.round(kgSold * GRAMS);
@@ -28,7 +33,12 @@ export function computeKgToProduce(kgSold: number, percent: number): number {
   const denominator = GRAMS * 100 * PERCENT_SCALE;
   const withExtra = Math.floor(numerator / denominator);
   const atLeastSold = Math.ceil(grams / GRAMS);
-  return Math.max(withExtra, atLeastSold);
+  // Більше, ніж вміщають бокси, не кладемо (D165), але й менше проданого не буває.
+  const capped =
+    maxKg !== null && Number.isFinite(maxKg) && maxKg > 0
+      ? Math.min(withExtra, Math.floor(maxKg))
+      : withExtra;
+  return Math.max(capped, atLeastSold);
 }
 
 /** Сума позиції: `round(кількість × ціна, 2)`, у гривнях рядком «2250.00» (як рахує база, D12). */

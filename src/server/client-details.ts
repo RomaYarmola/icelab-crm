@@ -1,7 +1,7 @@
 import { and, asc, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "@/db/actor";
-import { clientAddresses, clientContacts, clients } from "@/db/schema";
+import { clientAddresses, clientContacts, clientOwnBoxes, clients } from "@/db/schema";
 import { addressKind } from "@/db/schema/enums";
 import type { AnyPgDatabase } from "@/db/types";
 import { normalizePhone } from "@/utils/phone";
@@ -306,4 +306,147 @@ export async function deleteAddress(
           .where(eq(clientAddresses.id, next.id));
     }
   });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Бокси клієнта (D164)
+// ---------------------------------------------------------------------------------------------
+
+/** Число з поля форми (з комою): порожнє дає `undefined`, не число чи не цілий мм дають помилку. */
+const optionalNumber = (label: string, opts: { integer?: boolean; max: number; min?: number }) =>
+  z
+    .union([z.string(), z.number(), z.null()])
+    .optional()
+    .transform((value, ctx) => {
+      if (value === undefined || value === null || String(value).trim() === "") return null;
+      const parsed = Number(String(value).trim().replace(",", "."));
+      if (
+        !Number.isFinite(parsed) ||
+        parsed < (opts.min ?? 0) ||
+        parsed > opts.max ||
+        (opts.integer && !Number.isInteger(parsed))
+      ) {
+        ctx.addIssue({
+          code: "custom",
+          message: `${label}: вкажіть ${opts.integer ? "ціле " : ""}число від ${opts.min ?? 0} до ${opts.max}.`,
+        });
+        return z.NEVER;
+      }
+      return parsed;
+    });
+
+const ownBoxSchema = z.object({
+  name: z.string().trim().min(1, "Вкажіть назву бокса.").max(100, "Назва бокса надто довга."),
+  volumeL: optionalNumber("Об'єм, л", { integer: true, min: 1, max: 1000 }),
+  capacityKg: optionalNumber("Вміщає, кг", { min: 0.001, max: 1000 }),
+  emptyWeightKg: optionalNumber("Вага порожнього, кг", { max: 200 }),
+  heightMm: optionalNumber("Висота, мм", { integer: true, min: 1, max: 3000 }),
+  widthMm: optionalNumber("Ширина, мм", { integer: true, min: 1, max: 3000 }),
+  lengthMm: optionalNumber("Довжина, мм", { integer: true, min: 1, max: 3000 }),
+  note: text(300, "Примітка надто довга."),
+});
+
+export type OwnBoxInput = z.input<typeof ownBoxSchema>;
+
+const ownBoxValues = (data: z.output<typeof ownBoxSchema>) => ({
+  name: data.name,
+  volumeL: data.volumeL,
+  capacityKg: data.capacityKg === null ? null : data.capacityKg.toFixed(3),
+  emptyWeightKg: data.emptyWeightKg === null ? null : data.emptyWeightKg.toFixed(3),
+  heightMm: data.heightMm,
+  widthMm: data.widthMm,
+  lengthMm: data.lengthMm,
+  note: blankToNull(data.note),
+});
+
+export async function addOwnBox(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  clientId: string,
+  input: OwnBoxInput,
+): Promise<{ id: string }> {
+  requirePermission(actor, "clients", "write");
+  const id = parseInput(uuid, clientId);
+  const data = parseInput(ownBoxSchema, input);
+  await assertEditableClient(db, id);
+  return withActor(db, actor.id, async (tx) => {
+    const [row] = await tx
+      .insert(clientOwnBoxes)
+      .values({ clientId: id, ...ownBoxValues(data) })
+      .returning({ id: clientOwnBoxes.id });
+    return row!;
+  });
+}
+
+export async function updateOwnBox(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  boxId: string,
+  input: OwnBoxInput,
+): Promise<void> {
+  requirePermission(actor, "clients", "write");
+  const id = parseInput(uuid, boxId);
+  const data = parseInput(ownBoxSchema, input);
+  const [box] = await db.select().from(clientOwnBoxes).where(eq(clientOwnBoxes.id, id)).limit(1);
+  if (!box) throw new ValidationError("Бокс не знайдено.");
+  await assertEditableClient(db, box.clientId);
+  await withActor(db, actor.id, async (tx) => {
+    await tx.update(clientOwnBoxes).set(ownBoxValues(data)).where(eq(clientOwnBoxes.id, id));
+  });
+}
+
+/** Видаляє бокс; замовлення, що його використовували, лишаються без вибраного бокса. */
+export async function deleteOwnBox(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  boxId: string,
+): Promise<void> {
+  requirePermission(actor, "clients", "write");
+  const id = parseInput(uuid, boxId);
+  const [box] = await db.select().from(clientOwnBoxes).where(eq(clientOwnBoxes.id, id)).limit(1);
+  if (!box) throw new ValidationError("Бокс не знайдено.");
+  await assertEditableClient(db, box.clientId);
+  await withActor(db, actor.id, async (tx) => {
+    await tx.delete(clientOwnBoxes).where(eq(clientOwnBoxes.id, id));
+  });
+}
+
+export type OwnBoxView = {
+  id: string;
+  name: string;
+  volumeL: number | null;
+  capacityKg: string | null;
+  emptyWeightKg: string | null;
+  heightMm: number | null;
+  widthMm: number | null;
+  lengthMm: number | null;
+  note: string | null;
+};
+
+/** Бокси клієнта для картки клієнта й форми замовлення. */
+export async function listOwnBoxes(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  clientId: string,
+): Promise<OwnBoxView[]> {
+  requirePermission(actor, "clients", "read");
+  const id = parseInput(uuid, clientId);
+  const rows = await db
+    .select()
+    .from(clientOwnBoxes)
+    .where(eq(clientOwnBoxes.clientId, id))
+    .orderBy(asc(clientOwnBoxes.name));
+  return rows.map(
+    ({ id, name, volumeL, capacityKg, emptyWeightKg, heightMm, widthMm, lengthMm, note }) => ({
+      id,
+      name,
+      volumeL,
+      capacityKg,
+      emptyWeightKg,
+      heightMm,
+      widthMm,
+      lengthMm,
+      note,
+    }),
+  );
 }

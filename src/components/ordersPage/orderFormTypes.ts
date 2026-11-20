@@ -1,6 +1,6 @@
 import type { ClientListItem } from "@/server/client-views";
 import type { DuplicateOrder, OrderTemplate } from "@/server/order-duplicates";
-import type { ClientAddressOption, OrderPricing } from "@/server/order-form";
+import type { ClientAddressOption, ClientOwnBoxOption, OrderPricing } from "@/server/order-form";
 import type { FormAction } from "../clientsPage/clientActions";
 
 /** Клієнт, вибраний у формі замовлення. */
@@ -21,6 +21,7 @@ export interface OrderFormValues {
   recipientName: string;
   recipientPhone: string;
   boxTypeId: string;
+  clientOwnBoxId: string;
   boxCount: string;
   boxOwnership: string;
   paymentKind: string;
@@ -33,7 +34,8 @@ export interface OrderFormOptions {
   locations: { id: string; name: string }[];
   iceTypes: { id: string; name: string }[];
   sources: { id: string; name: string }[];
-  boxTypes: { id: string; name: string }[];
+  /** `capacityKg`: скільки кг вміщає бокс (для підказки «виготовити», D165). */
+  boxTypes: { id: string; name: string; capacityKg?: string | null }[];
 }
 
 /** Додаткова позиція, що створюється разом із замовленням. */
@@ -50,6 +52,8 @@ export interface OrderFormActions {
   submit: FormAction;
   searchClients: (query: string) => Promise<ClientListItem[]>;
   clientAddresses: (clientId: string) => Promise<ClientAddressOption[]>;
+  /** Власні бокси клієнта для вибору, коли тара клієнтська (D164). */
+  clientOwnBoxes: (clientId: string) => Promise<ClientOwnBoxOption[]>;
   pricing: (input: {
     clientId: string;
     iceTypeId?: string | null;

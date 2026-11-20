@@ -1,6 +1,13 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { clientAddresses, clients, orderItems, orders } from "@/db/schema";
+import {
+  boxTypes,
+  clientAddresses,
+  clientOwnBoxes,
+  clients,
+  orderItems,
+  orders,
+} from "@/db/schema";
 import { findForbiddenFields } from "@/server/dto";
 import { ValidationError } from "@/server/errors";
 import { ForbiddenError } from "@/server/guards";
@@ -81,6 +88,59 @@ describe("замовлення: створення, зміна, список, к
         kgToProduce: "31.000",
         markupPercentApplied: "5.00",
       });
+    });
+
+    it("надбавка не більша за місткість боксів (D165): 30 кг + 10% і два бокси по 16 кг дають 32", async () => {
+      const own = await makeClient(t.db, {
+        name: "Надбавка 10 ємність",
+        markupPercentOverride: "10.00",
+      });
+      const small = (
+        await t.db.select().from(boxTypes).where(eq(boxTypes.code, "ours_small_19"))
+      )[0]!;
+      expect(small.capacityKg).toBe("16.000");
+      const capped = await t.create({ clientId: own.id, boxTypeId: small.id, boxCount: 2 });
+      expect((await row(capped.id)).kgToProduce).toBe("32.000");
+      // Без боксів обмеження немає, бокси ще не рахуються.
+      const free = await t.create({ clientId: own.id });
+      expect((await row(free.id)).kgToProduce).toBe("33.000");
+      // Зміна кількості боксів у чернетці перераховує «виготовити».
+      await updateOrder(t.db, t.users.manager, free.id, { boxTypeId: small.id, boxCount: 2 });
+      expect((await row(free.id)).kgToProduce).toBe("32.000");
+    });
+
+    it("бокс клієнта (D164): його місткість обмежує, чужий бокс відхиляється, не клієнтська тара знімає вибір", async () => {
+      const own = await makeClient(t.db, {
+        name: "Клієнт з боксами",
+        markupPercentOverride: "10.00",
+      });
+      const other = await makeClient(t.db, { name: "Інший з боксами" });
+      const [grey] = await t.db
+        .insert(clientOwnBoxes)
+        .values({ clientId: own.id, name: "Сірий", capacityKg: "20" })
+        .returning();
+      const [foreign] = await t.db
+        .insert(clientOwnBoxes)
+        .values({ clientId: other.id, name: "Чужий" })
+        .returning();
+      await expect(
+        t.create({
+          clientId: own.id,
+          boxOwnership: "client",
+          clientOwnBoxId: foreign!.id,
+          boxCount: 1,
+        }),
+      ).rejects.toThrow("не належить цьому клієнту");
+      const made = await t.create({
+        clientId: own.id,
+        boxOwnership: "client",
+        clientOwnBoxId: grey!.id,
+        boxCount: 1,
+      });
+      // 30 кг + 10% = 33, але бокс вміщає 20; не менше проданого, тому 30.
+      expect(await row(made.id)).toMatchObject({ clientOwnBoxId: grey!.id, kgToProduce: "30.000" });
+      await updateOrder(t.db, t.users.manager, made.id, { boxOwnership: "ours" });
+      expect((await row(made.id)).clientOwnBoxId).toBeNull();
     });
 
     it("ціна клієнта сильніша за прайс, «менеджер вказав» ціну вручну", async () => {

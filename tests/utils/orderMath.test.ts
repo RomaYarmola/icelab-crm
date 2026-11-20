@@ -86,3 +86,19 @@ describe("число з рядка бази чи поля форми", () => {
     expect(parseDecimal("1e3")).toBeNaN();
   });
 });
+
+describe("надбавка й місткість боксів (D165)", () => {
+  it("30 кг + 10% = 33, але два бокси по 16 кг вміщають 32", () => {
+    expect(computeKgToProduce(30, 10, 32)).toBe(32);
+  });
+
+  it("місткість не обмежує, коли вона більша, невідома чи боксів немає", () => {
+    expect(computeKgToProduce(30, 10, 40)).toBe(33);
+    expect(computeKgToProduce(30, 10, null)).toBe(33);
+    expect(computeKgToProduce(30, 10)).toBe(33);
+  });
+
+  it("менше проданого не буває, навіть коли бокси замалі", () => {
+    expect(computeKgToProduce(40, 10, 32)).toBe(40);
+  });
+});

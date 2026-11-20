@@ -4,10 +4,14 @@ import { clientAddresses, clientContacts } from "@/db/schema";
 import {
   addAddress,
   addContact,
+  addOwnBox,
   deleteAddress,
   deleteContact,
+  deleteOwnBox,
+  listOwnBoxes,
   updateAddress,
   updateContact,
+  updateOwnBox,
 } from "@/server/client-details";
 import { createClient, deleteClient } from "@/server/clients";
 import { seedReferenceData } from "@/db/seed";
@@ -289,6 +293,54 @@ describe("контакти й адреси клієнта", () => {
         addAddress(db, users.manager, id, { kind: "bus", cityText: "х" }),
       ).rejects.toThrow("видалено");
       await expect(deleteAddress(db, users.manager, address.id)).rejects.toThrow("видалено");
+    });
+  });
+
+  describe("власні бокси клієнта (D164)", () => {
+    it("додати, змінити, видалити; усе, крім назви, необов'язкове", async () => {
+      const clientId = await newClient();
+      const { id } = await addOwnBox(db, users.manager, clientId, {
+        name: "Сірий великий",
+        capacityKg: "18,5",
+        emptyWeightKg: "2",
+        heightMm: "400",
+        widthMm: "300",
+        lengthMm: "500",
+      });
+      expect(await listOwnBoxes(db, users.manager, clientId)).toEqual([
+        {
+          id,
+          name: "Сірий великий",
+          volumeL: null,
+          capacityKg: "18.500",
+          emptyWeightKg: "2.000",
+          heightMm: 400,
+          widthMm: 300,
+          lengthMm: 500,
+          note: null,
+        },
+      ]);
+      await updateOwnBox(db, users.manager, id, { name: "Сірий", note: " товсті стінки " });
+      const [changed] = await listOwnBoxes(db, users.manager, clientId);
+      expect(changed).toMatchObject({ name: "Сірий", capacityKg: null, note: "товсті стінки" });
+      await deleteOwnBox(db, users.manager, id);
+      expect(await listOwnBoxes(db, users.manager, clientId)).toEqual([]);
+    });
+
+    it("помилки: без назви, дробові розміри, від'ємна вага, чужі ролі", async () => {
+      const clientId = await newClient();
+      await expect(addOwnBox(db, users.manager, clientId, { name: " " })).rejects.toThrow(
+        "Вкажіть назву",
+      );
+      await expect(
+        addOwnBox(db, users.manager, clientId, { name: "А", heightMm: "10,5" }),
+      ).rejects.toThrow("Висота, мм");
+      await expect(
+        addOwnBox(db, users.manager, clientId, { name: "А", emptyWeightKg: "-1" }),
+      ).rejects.toThrow("Вага порожнього");
+      await expect(addOwnBox(db, users.production, clientId, { name: "А" })).rejects.toThrow(
+        ForbiddenError,
+      );
     });
   });
 });
