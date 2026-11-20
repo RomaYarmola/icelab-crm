@@ -47,10 +47,13 @@ describe("екрани клієнтів: правила оформлення", (
 
   it("жодної горизонтальної прокрутки: немає overflow-x-auto і фіксованих широких блоків", () => {
     for (const file of screenFiles) {
+      // Єдиний виняток: вкладки гортаються, коли не вміщаються на вузькому екрані (20.11.2026).
+      if (file.endsWith("TabLinks.tsx")) continue;
       const source = readFileSync(join(ROOT, file), "utf8");
       expect(source, file).not.toContain("overflow-x-auto");
       expect(source, file).not.toContain("overflow-x-scroll");
     }
+    expect(read("src/components/shared/tabs/TabLinks.tsx")).toContain("overflow-x-auto");
   });
 
   it("кнопки, посилання й підписи, що натискаються, мають висоту від 44 px", () => {

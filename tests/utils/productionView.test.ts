@@ -5,14 +5,14 @@ import { dayLabel, describeBoxes, formatClock, formatKgPlain } from "@/utils/pro
 describe("екран виробництва: підписи", () => {
   describe("тара", () => {
     it("наша тара з кількістю, без тари нічого", () => {
-      expect(
-        describeBoxes({ boxTypeName: "Наш довгий 46 л", boxCount: 2, boxOwnership: "ours" }),
-      ).toBe("Наш довгий 46 л × 2");
+      expect(describeBoxes({ boxTypeName: "Довгий 46 л", boxCount: 2, boxOwnership: "ours" })).toBe(
+        "Довгий 46 л × 2",
+      );
       expect(describeBoxes({ boxTypeName: null, boxCount: 3, boxOwnership: "ours" })).toBe(
         "Тара × 3",
       );
       expect(
-        describeBoxes({ boxTypeName: "Наш довгий 46 л", boxCount: 0, boxOwnership: "ours" }),
+        describeBoxes({ boxTypeName: "Довгий 46 л", boxCount: 0, boxOwnership: "ours" }),
       ).toBeNull();
     });
 

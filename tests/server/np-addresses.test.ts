@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { clientAddresses, npCities, npWarehouses } from "@/db/schema";
-import { updateAddress } from "@/server/client-details";
+import { addAddress, updateAddress } from "@/server/client-details";
 import { ForbiddenError } from "@/server/guards";
 import {
   autoResolveAddresses,
@@ -57,6 +57,83 @@ describe("підбір адрес у довідниках Нової Пошти 
     )[0]!;
   const reload = async (id: string) =>
     (await t.db.select().from(clientAddresses).where(eq(clientAddresses.id, id)))[0]!;
+
+  it("адреса Нової Пошти з довідника (20.11.2026): місто й відділення зіставляються одразу, текстової адреси немає", async () => {
+    const added = await addAddress(t.db, owner(), t.client.id, {
+      label: "Склад Київ",
+      kind: "np_warehouse",
+      npCityRef: "kyiv",
+      npWarehouseRef: "w5",
+      recipientName: "Іван Петренко",
+      recipientPhone: "050 123 45 67",
+      timeWindow: "9-11",
+    });
+    expect(await reload(added.id)).toMatchObject({
+      cityText: "Київ",
+      addressText: null,
+      npCityRef: "kyiv",
+      npWarehouseRef: "w5",
+      npWarehouseNumber: "5",
+      recipientName: "Іван Петренко",
+      recipientPhone: "+380501234567",
+      timeWindow: null,
+      isResolved: true,
+    });
+    // Кур'єр: лише місто з довідника, адреса текстом обов'язкова, зіставлено без відділення.
+    const courier = await addAddress(t.db, owner(), t.client.id, {
+      label: "Кур'єр",
+      kind: "np_address",
+      npCityRef: "lviv",
+      addressText: "вул. Шевченка, 1",
+      recipientName: "Марія",
+      recipientPhone: "0671112233",
+    });
+    expect(await reload(courier.id)).toMatchObject({
+      cityText: "Львів",
+      npCityRef: "lviv",
+      npWarehouseRef: null,
+      isResolved: true,
+    });
+  });
+
+  it("адреса Нової Пошти: отримувач і телефон обов'язкові, відділення має бути з вибраного міста", async () => {
+    const base = {
+      label: "А",
+      kind: "np_warehouse" as const,
+      npCityRef: "kyiv",
+      npWarehouseRef: "w1",
+    };
+    await expect(addAddress(t.db, owner(), t.client.id, base)).rejects.toThrow(
+      "Вкажіть отримувача",
+    );
+    await expect(
+      addAddress(t.db, owner(), t.client.id, { ...base, recipientName: "Іван Петренко" }),
+    ).rejects.toThrow("Вкажіть телефон отримувача");
+    await expect(
+      addAddress(t.db, owner(), t.client.id, {
+        ...base,
+        recipientName: "Іван Петренко",
+        recipientPhone: "не телефон",
+      }),
+    ).rejects.toThrow("Не вдалося розпізнати телефон");
+    await expect(
+      addAddress(t.db, owner(), t.client.id, {
+        ...base,
+        npCityRef: "lviv",
+        recipientName: "Іван Петренко",
+        recipientPhone: "0501234567",
+      }),
+    ).rejects.toThrow("не знайдено в цьому місті");
+    await expect(
+      addAddress(t.db, owner(), t.client.id, {
+        label: "К",
+        kind: "np_address",
+        npCityRef: "lviv",
+        recipientName: "Марія",
+        recipientPhone: "0671112233",
+      }),
+    ).rejects.toThrow("вулицю й будинок");
+  });
 
   it("пошук міст: від двох літер, спершу точний збіг, потім початок назви, неактивні не показуємо", async () => {
     expect(await searchNpCities(t.db, owner(), "К")).toEqual([]);
@@ -151,9 +228,12 @@ describe("підбір адрес у довідниках Нової Пошти 
       isResolved: true,
     });
     await updateAddress(t.db, owner(), a.id, {
+      label: "Адреса",
       kind: "np_warehouse",
       cityText: "Київ",
       npWarehouseNumber: "5",
+      recipientName: "Іван Петренко",
+      recipientPhone: "+380501234567",
     });
     expect(await reload(a.id)).toMatchObject({
       npCityRef: null,

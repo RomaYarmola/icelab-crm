@@ -62,7 +62,7 @@ describe("список замовлень на завтра о 18:00 для Ки
 
     const text = formatTomorrowList(TOMORROW, data);
     expect(text).toContain("Замовлення на завтра");
-    expect(text).toContain("1. Кафе Тест · 30 кг · 09:00-11:00 · Наша доставка, Київ, Оболонь");
+    expect(text).toContain("1. Кафе Тест · 30 кг · 09:00-11:00 · Власна доставка, Київ, Оболонь");
     expect(text).toContain("2. Кафе Тест · 50 кг · 14:00 · самовивіз");
     expect(text).toContain("Разом: 2 замовл., 80 кг.");
     expect(text).toContain("Чекають підтвердження: 1.");

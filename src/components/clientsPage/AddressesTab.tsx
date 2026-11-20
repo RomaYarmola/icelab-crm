@@ -30,16 +30,20 @@ export default function AddressesTab({ clientId, addresses, actions, canEdit }: 
             mode="add"
             clientId={clientId}
             defaults={{
-              kind: "delivery",
+              kind: "np_warehouse",
               label: "",
               cityText: "",
               addressText: "",
               recipientName: "",
+              recipientPhone: "",
+              npCityRef: "",
+              npWarehouseRef: "",
               npWarehouseNumber: "",
               timeWindow: "",
               isDefault: addresses.length === 0,
             }}
             action={actions.addAddress}
+            np={actions.np}
             submitLabel="Додати адресу"
           />
         </Disclosure>
@@ -75,6 +79,9 @@ export default function AddressesTab({ clientId, addresses, actions, canEdit }: 
               ) : null}
               {address.recipientName ? (
                 <Text variant="muted">Отримувач: {address.recipientName}</Text>
+              ) : null}
+              {address.recipientPhone ? (
+                <Text variant="muted">Телефон отримувача: {address.recipientPhone}</Text>
               ) : null}
               {address.timeWindow ? (
                 <Text variant="muted">Вікно доставки: {address.timeWindow}</Text>
@@ -112,11 +119,15 @@ export default function AddressesTab({ clientId, addresses, actions, canEdit }: 
                         cityText: address.cityText ?? "",
                         addressText: address.addressText ?? "",
                         recipientName: address.recipientName ?? "",
+                        recipientPhone: address.recipientPhone ?? "",
+                        npCityRef: address.npCityRef ?? "",
+                        npWarehouseRef: address.npWarehouseRef ?? "",
                         npWarehouseNumber: address.npWarehouseNumber ?? "",
                         timeWindow: address.timeWindow ?? "",
                         isDefault: address.isDefault,
                       }}
                       action={actions.updateAddress}
+                      np={actions.np}
                       submitLabel="Зберегти адресу"
                     />
                   </Disclosure>

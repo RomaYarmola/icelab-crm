@@ -7,7 +7,10 @@ import { z } from "zod";
 
 export const ICE_CODES = ["3mm", "16mm", "19mm"] as const;
 export const BOX_OWNERSHIPS = ["ours", "client", "sold"] as const;
-export const DELIVERY_METHODS = ["pickup", "our_delivery", "np", "bus", "other"] as const;
+/** Способи доставки, які розуміє бот (Роман, 20.11.2026): самовивіз, власна доставка, Нова Пошта. */
+export const DELIVERY_METHODS = ["pickup", "our_delivery", "np"] as const;
+/** Нова Пошта: на відділення чи поштомат, або адресно кур'єром. */
+export const NP_KINDS = ["warehouse", "courier"] as const;
 export const PAYMENT_HINTS = ["cash", "fop", "company"] as const;
 
 const text = z.string().trim().max(500).nullable();
@@ -51,6 +54,7 @@ export const parseResultSchema = z.object({
   }),
   delivery: z.object({
     method: z.enum(DELIVERY_METHODS).nullable(),
+    np_kind: z.enum(NP_KINDS).nullable().optional(),
     city: text,
     np_warehouse_number: z.string().trim().max(20).nullable(),
     address: text,

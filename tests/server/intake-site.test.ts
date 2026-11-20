@@ -9,6 +9,7 @@ import {
   dedupeKey,
   locationFromText,
   methodFromText,
+  npKindFromText,
   isConsultation,
   receiveSiteLead,
   summarizeItems,
@@ -51,9 +52,12 @@ describe("заявки з сайту (B11, PR 4)", () => {
   it("допоміжні: спосіб отримання, локація, позиції, ключ дубліката", () => {
     expect(methodFromText("Самовивіз зі складу")).toBe("pickup");
     expect(methodFromText("Нова пошта, відділення 5")).toBe("np");
+    // Власна доставка за адресою; автобус і невідоме дають null, менеджер обирає вручну.
     expect(methodFromText("Доставка кур'єром")).toBe("our_delivery");
-    expect(methodFromText("автобус")).toBe("bus");
-    expect(methodFromText("не знаю")).toBe("other");
+    expect(methodFromText("автобус")).toBeNull();
+    expect(methodFromText("не знаю")).toBeNull();
+    expect(npKindFromText("Нова пошта, відділення 5")).toBe("warehouse");
+    expect(npKindFromText("Нова пошта, кур'єром на адресу")).toBe("courier");
     expect(methodFromText(undefined)).toBeNull();
     expect(locationFromText("Самовивіз зі складу у Львові")).toBe("lviv");
     expect(locationFromText("Доставка")).toBe("kyiv");

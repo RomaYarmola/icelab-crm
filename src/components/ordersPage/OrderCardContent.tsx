@@ -8,7 +8,6 @@ import type { OrderBox } from "@/server/boxes";
 import EntityHistory from "../auditPage/EntityHistory";
 import OrderBoxes from "../boxesPage/OrderBoxes";
 import type { ShipmentCard } from "@/server/np/shipments";
-import type { FormAction } from "../clientsPage/clientActions";
 import DeleteRecordForm from "../clientsPage/DeleteRecordForm";
 import StatusChip from "../shared/chips/StatusChip";
 import ButtonLink from "../shared/buttons/ButtonLink";
@@ -20,7 +19,6 @@ import SectionTitle from "../shared/titles/SectionTitle";
 import type { OrderCardActions } from "./orderActions";
 import OrderHistory from "./OrderHistory";
 import OrderShipment, { type ShipmentActions } from "./OrderShipment";
-import OrderItemsEditor from "./OrderItemsEditor";
 import OrderItemsList from "./OrderItemsList";
 import OrderPriceForm from "./OrderPriceForm";
 import OrderSummary from "./OrderSummary";
@@ -38,9 +36,7 @@ interface OrderCardContentProps {
     /** Роль може змінювати щось у замовленні (кнопка «Змінити»). */
     canEdit: boolean;
     /** Роль керує додатковими позиціями (власник і менеджер, поки основні поля відкриті). */
-    canEditItems: boolean;
     /** Зміни позицій потребують причини: замовлення вже у виробництві. */
-    itemsNeedNote: boolean;
   };
   actions: OrderCardActions;
   /** Посилання «Готівка» на екран готівки (ролі, що читають готівку, по готівкових замовленнях). */
@@ -49,7 +45,6 @@ interface OrderCardContentProps {
   changeHistory?: AuditPage | null;
   /** Бокси замовлення з кодами (ролі, що бачать бокси) і дія «Продати бокс» (власник, старший локації). */
   boxes?: OrderBox[] | null;
-  sellBoxAction?: FormAction | null;
   /** Блок «Нова Пошта» (B10): лише ролі з правом на накладні й замовлення зі способом «Нова Пошта». */
   shipment?: { card: ShipmentCard; actions: ShipmentActions } | null;
   /** Замовлення щойно створено: показуємо підтвердження. */
@@ -68,7 +63,6 @@ export default function OrderCardContent({
   cashHref,
   changeHistory,
   boxes,
-  sellBoxAction,
   shipment,
   notice,
 }: OrderCardContentProps) {
@@ -137,17 +131,7 @@ export default function OrderCardContent({
         lockedPrice={order.pricePerKgSnapshot}
         priceChanges={order.priceChanges}
       />
-      {permissions.canEditItems ? (
-        <OrderItemsEditor
-          orderId={order.id}
-          items={order.items.filter((item) => item.kind !== "ice")}
-          needsNote={permissions.itemsNeedNote}
-          actions={actions}
-        />
-      ) : null}
-      {boxes ? (
-        <OrderBoxes orderId={order.id} boxes={boxes} sellAction={sellBoxAction ?? null} />
-      ) : null}
+      {boxes ? <OrderBoxes boxes={boxes} /> : null}
       {shipment ? (
         <OrderShipment orderId={order.id} card={shipment.card} actions={shipment.actions} />
       ) : null}

@@ -47,6 +47,7 @@ export type TomorrowRow = {
   kg: number;
   timeWindow: string | null;
   deliveryMethod: keyof typeof DELIVERY_METHOD_LABELS;
+  npDeliveryKind?: "warehouse" | "courier" | null;
   deliveryText: string | null;
 };
 
@@ -75,6 +76,7 @@ export async function collectTomorrow(db: AnyPgDatabase, day: string): Promise<T
       kg: orders.kgSold,
       timeWindow: orders.timeWindow,
       deliveryMethod: orders.deliveryMethod,
+      npDeliveryKind: orders.npDeliveryKind,
       deliveryText: orders.deliveryText,
     })
     .from(orders)
@@ -87,6 +89,8 @@ export async function collectTomorrow(db: AnyPgDatabase, day: string): Promise<T
     .where(and(base, eq(orders.status, "draft")));
   return { rows: rows.map((row) => ({ ...row, kg: num(row.kg) })), drafts: draftRow?.n ?? 0 };
 }
+
+const NP_DELIVERY_KIND_SHORT = { warehouse: "відділення", courier: "кур'єр" } as const;
 
 const fmt = (value: number) => value.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
 
@@ -101,7 +105,12 @@ export function formatTomorrowList(day: string, data: TomorrowData): string {
       const where =
         row.deliveryMethod === "pickup"
           ? "самовивіз"
-          : [DELIVERY_METHOD_LABELS[row.deliveryMethod], row.deliveryText]
+          : [
+              row.deliveryMethod === "np" && row.npDeliveryKind
+                ? `${DELIVERY_METHOD_LABELS.np} (${NP_DELIVERY_KIND_SHORT[row.npDeliveryKind]})`
+                : DELIVERY_METHOD_LABELS[row.deliveryMethod],
+              row.deliveryText,
+            ]
               .filter(Boolean)
               .join(", ");
       const parts = [row.clientName, `${fmt(row.kg)} кг`, row.timeWindow, where].filter(Boolean);

@@ -6,6 +6,8 @@ interface NpPreviewProps {
   loadSenders: NpActions["loadSenders"];
   loadSenderDetails: NpActions["loadSenderDetails"];
   sync: NpActions["sync"];
+  searchCities: NpActions["searchCities"];
+  searchWarehouses: NpActions["searchWarehouses"];
 }
 
 /** Екран «Нова Пошта» з вигаданими даними для каталогу `/ui-kit`. */
@@ -14,6 +16,8 @@ export default function NpPreview({
   loadSenders,
   loadSenderDetails,
   sync,
+  searchCities,
+  searchWarehouses,
 }: NpPreviewProps) {
   return (
     <NpSettingsContent
@@ -22,6 +26,8 @@ export default function NpPreview({
         loadSenders,
         loadSenderDetails,
         saveSender: formAction,
+        searchCities,
+        searchWarehouses,
         saveWeight: formAction,
         sync,
         autoResolve: formAction,
@@ -86,8 +92,8 @@ export default function NpPreview({
           },
         ],
         boxTypes: [
-          { id: "t1", name: "Наш довгий 46 л", emptyWeightKg: "2.500" },
-          { id: "t2", name: "Наш малий 19 л", emptyWeightKg: null },
+          { id: "t1", name: "Довгий 46 л", emptyWeightKg: "2.500" },
+          { id: "t2", name: "Малий 19 л", emptyWeightKg: null },
         ],
       }}
     />

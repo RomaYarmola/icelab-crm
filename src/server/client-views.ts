@@ -47,6 +47,9 @@ export type AddressView = Pick<
   | "cityText"
   | "addressText"
   | "recipientName"
+  | "recipientPhone"
+  | "npCityRef"
+  | "npWarehouseRef"
   | "npWarehouseNumber"
   | "timeWindow"
   | "isDefault"
@@ -61,6 +64,9 @@ export function toAddressView(address: AddressRow): AddressView {
     cityText: address.cityText,
     addressText: address.addressText,
     recipientName: address.recipientName,
+    recipientPhone: address.recipientPhone,
+    npCityRef: address.npCityRef,
+    npWarehouseRef: address.npWarehouseRef,
     npWarehouseNumber: address.npWarehouseNumber,
     timeWindow: address.timeWindow,
     isDefault: address.isDefault,

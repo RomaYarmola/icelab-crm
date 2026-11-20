@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import {
-  BOX_OWNERSHIP_LABELS,
   DELIVERY_METHOD_LABELS,
+  SELECTABLE_DELIVERY_METHODS,
   PAYMENT_KIND_LABELS,
 } from "@/constants/orders";
 import type { DuplicateOrder, OrderTemplate } from "@/server/order-duplicates";
@@ -20,16 +21,14 @@ import Card from "../shared/cards/Card";
 import CustomizedInput from "../shared/customizedInput/CustomizedInput";
 import PhoneField from "../shared/customizedInput/PhoneField";
 import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
-import Disclosure from "../shared/disclosure/Disclosure";
 import Form from "../shared/form/Form";
 import FormMessage from "../shared/form/FormMessage";
 import MainLink from "../shared/links/MainLink";
 import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import ClientPicker from "./ClientPicker";
-import OrderFormItems from "./OrderFormItems";
+import OrderBoxesField from "./OrderBoxesField";
 import type {
-  DraftItem,
   OrderFormActions,
   OrderFormOptions,
   OrderFormValues,
@@ -97,9 +96,10 @@ export default function OrderForm({
   const [client, setClient] = useState<PickedClient | null>(initialClient);
   const [price, setPrice] = useState("");
   const [toProduceTouched, setToProduceTouched] = useState(false);
-  const [items, setItems] = useState<DraftItem[]>([]);
   const [note, setNote] = useState("");
   const [templateApplied, setTemplateApplied] = useState(false);
+  /** Адресу змінили вручну: тоді підстановка за замовчуванням її не перебиває. */
+  const [addressTouched, setAddressTouched] = useState(false);
 
   const set = <K extends keyof OrderFormValues>(name: K, value: OrderFormValues[K]) =>
     setValues((current) => ({ ...current, [name]: value }));
@@ -158,22 +158,36 @@ export default function OrderForm({
     actions.clientAddresses(clientId).then((data) => {
       if (!isCurrent) return;
       setAddressesResult({ key: clientId, data });
-      // Нове замовлення: підставляємо адресу клієнта за замовчуванням, якщо ще нічого не вибрано.
-      if (isCreate) {
-        const preferred = data.find((address) => address.isDefault);
-        if (preferred)
-          setValues((current) =>
-            current.addressId ? current : { ...current, addressId: preferred.id },
-          );
-      }
     });
     return () => {
       isCurrent = false;
     };
-  }, [clientId, isCreate, actions]);
+  }, [clientId, actions]);
   const addresses = addressesResult?.key === clientId ? addressesResult.data : [];
 
-  // Власні бокси клієнта: обираємо, коли тара клієнтська (D164).
+  // Адреси доставки: для Нової Пошти лише збережені адреси Нової Пошти (відділення, поштомат чи
+  // кур'єр); їх додають у картці клієнта. Нове замовлення одразу підставляє адресу за замовчуванням,
+  // менеджер може змінити її у списку. Вибрану вручну адресу не чіпаємо.
+  const isNp = values.deliveryMethod === "np";
+  // Власна адресна доставка (Роман, 20.11.2026): адреса зі збережених адрес клієнта виду «доставка».
+  const isOwn = values.deliveryMethod === "our_delivery";
+  const isPickup = values.deliveryMethod === "pickup";
+  const fromSaved = isNp || isOwn;
+  const fitsMethod = (address: ClientAddressOption) =>
+    isNp
+      ? address.kind === "np_warehouse" || address.kind === "np_address"
+      : address.kind === "delivery";
+  const shownAddresses = fromSaved
+    ? addresses.filter((address) => fitsMethod(address) || address.id === values.addressId)
+    : addresses;
+  const autoAddressId =
+    isCreate && !addressTouched && fromSaved
+      ? (shownAddresses.find((a) => a.isDefault) ?? shownAddresses[0])?.id
+      : undefined;
+  const addressId = autoAddressId ?? values.addressId;
+  const chosenAddress = addresses.find((address) => address.id === addressId) ?? null;
+
+  // Бокси клієнта: обираємо, коли тара клієнтська (D164).
   const [ownBoxesResult, setOwnBoxesResult] = useState<{
     key: string;
     data: ClientOwnBoxOption[];
@@ -251,37 +265,42 @@ export default function OrderForm({
       timeWindow: source.timeWindow ?? "",
       recipientName: source.recipientName ?? "",
       recipientPhone: source.recipientPhone ?? "",
-      boxTypeId: source.boxTypeId ?? "",
-      boxCount: String(source.boxCount),
+      boxLines: source.boxLines.map((line, index) => ({
+        key: index + 1,
+        owner: (line.clientOwnBoxId ? "client" : "ours") as "ours" | "client",
+        boxTypeId: line.boxTypeId ?? "",
+        clientOwnBoxId: line.clientOwnBoxId ?? "",
+        count: String(line.count),
+      })),
       boxOwnership: source.boxOwnership,
       paymentKind: source.paymentKind,
     }));
-    setItems(
-      source.items.map((item, index) => ({
-        key: index + 1,
-        kind: item.kind,
-        title: item.title,
-        qty: String(parseDecimal(item.qty)),
-        price: "",
-      })),
-    );
     setToProduceTouched(false);
     setPrice("");
+    setAddressTouched(true);
     setTemplateApplied(true);
   }
 
   // --- Що показати й що надіслати.
   const kg = parseDecimal(values.kgSold);
-  // Більше, ніж вміщають бокси, не пропонуємо (D165): місткість бокса клієнта чи типу тари.
-  const ownBox =
-    values.boxOwnership === "client"
-      ? ownBoxes.find((box) => box.id === values.clientOwnBoxId)
-      : null;
-  const boxCapacity = Number(
-    ownBox?.capacityKg ?? options.boxTypes.find((type) => type.id === values.boxTypeId)?.capacityKg,
-  );
-  const boxCountNumber = parseInt(values.boxCount, 10);
-  const maxKg = boxCapacity > 0 && boxCountNumber > 0 ? boxCapacity * boxCountNumber : null;
+  // Більше, ніж вміщають бокси, не пропонуємо (D165): сума «кількість × місткість» за рядками тари;
+  // якщо в якогось рядка місткість невідома, обмеження немає.
+  let maxKg: number | null = 0;
+  for (const line of values.boxLines) {
+    const count = parseInt(line.count, 10);
+    if (!(count > 0) || (!line.boxTypeId && !line.clientOwnBoxId)) continue;
+    const capacity = Number(
+      line.clientOwnBoxId
+        ? ownBoxes.find((box) => box.id === line.clientOwnBoxId)?.capacityKg
+        : options.boxTypes.find((type) => type.id === line.boxTypeId)?.capacityKg,
+    );
+    if (!(capacity > 0)) {
+      maxKg = null;
+      break;
+    }
+    maxKg += capacity * count;
+  }
+  if (maxKg === 0) maxKg = null;
   const suggestedToProduce = computeKgToProduce(kg, pricing?.markupPercent ?? 0, maxKg);
   const toProduceShown = toProduceTouched
     ? values.kgToProduce
@@ -293,22 +312,7 @@ export default function OrderForm({
   const autoPrice = pricing?.pricePerKg ? parseDecimal(pricing.pricePerKg) : null;
   const currentPriceNumber = currentPrice ? parseDecimal(currentPrice) : null;
   const effectivePrice = manualPrice ?? autoPrice ?? currentPriceNumber ?? 0;
-  const itemsTotal = items.map((item) =>
-    lineAmount(parseDecimal(item.qty) || 0, parseDecimal(item.price) || 0),
-  );
-  const total = sumAmounts([
-    lineAmount(Number.isFinite(kg) ? kg : 0, effectivePrice),
-    ...itemsTotal,
-  ]);
-
-  const itemsJson = JSON.stringify(
-    items.map((item) => ({
-      kind: item.kind,
-      title: item.title,
-      qty: item.qty,
-      price: item.price.trim() === "" ? undefined : item.price,
-    })),
-  );
+  const total = sumAmounts([lineAmount(Number.isFinite(kg) ? kg : 0, effectivePrice)]);
 
   const coreLocked = policy.core === "none";
   const isDisabled = !isCreate && coreLocked;
@@ -468,101 +472,123 @@ export default function OrderForm({
         <CustomizedSelect
           name="deliveryMethod"
           label="Спосіб доставки"
-          options={Object.entries(DELIVERY_METHOD_LABELS).map(([value, label]) => ({
-            value,
-            label,
-          }))}
+          options={Object.entries(DELIVERY_METHOD_LABELS)
+            .filter(
+              ([value]) =>
+                (SELECTABLE_DELIVERY_METHODS as readonly string[]).includes(value) ||
+                value === values.deliveryMethod,
+            )
+            .map(([value, label]) => ({ value, label }))}
           value={values.deliveryMethod}
           onChange={(event) => set("deliveryMethod", event.target.value)}
         />
-        {addresses.length > 0 ? (
+        {fromSaved ? (
+          shownAddresses.length > 0 ? (
+            <>
+              <CustomizedSelect
+                name="addressId"
+                label={isNp ? "Адреса Нової Пошти" : "Адреса доставки"}
+                options={[
+                  { value: "", label: "Не вибрано" },
+                  ...shownAddresses.map((address) => ({ value: address.id, label: address.text })),
+                ]}
+                value={addressId}
+                onChange={(event) => {
+                  setAddressTouched(true);
+                  set("addressId", event.target.value);
+                }}
+                hint={
+                  isNp
+                    ? "Відділення, поштомат чи адреса для кур'єра з картки клієнта."
+                    : "Адреса власної доставки з картки клієнта."
+                }
+              />
+              {chosenAddress?.recipientName ? (
+                <Text variant="muted">
+                  Отримувач: {chosenAddress.recipientName}
+                  {chosenAddress.recipientPhone ? `, ${chosenAddress.recipientPhone}` : ""}
+                </Text>
+              ) : null}
+            </>
+          ) : clientId ? (
+            <Text variant="muted">
+              {isNp
+                ? "У клієнта немає збережених адрес Нової Пошти."
+                : "У клієнта немає збережених адрес доставки."}{" "}
+              <Link
+                href={`/clients/${clientId}?tab=addresses`}
+                target="_blank"
+                className="font-semibold text-navy underline"
+              >
+                Додайте адресу в картці клієнта
+              </Link>{" "}
+              (вкладка «Адреси») і поверніться сюди: список оновиться після повторного вибору
+              клієнта.
+            </Text>
+          ) : (
+            <Text variant="muted">Спочатку оберіть клієнта, щоб вибрати його адресу.</Text>
+          )
+        ) : null}
+        {!fromSaved && shownAddresses.length > 0 ? (
           <CustomizedSelect
             name="addressId"
-            label="Адреса клієнта"
+            label={isPickup ? "Адреса клієнта (необов'язково)" : "Адреса клієнта"}
             options={[
               { value: "", label: "Не вибрано" },
-              ...addresses.map((address) => ({ value: address.id, label: address.text })),
+              ...shownAddresses.map((address) => ({ value: address.id, label: address.text })),
             ]}
-            value={values.addressId}
-            onChange={(event) => set("addressId", event.target.value)}
+            value={addressId}
+            onChange={(event) => {
+              setAddressTouched(true);
+              set("addressId", event.target.value);
+            }}
           />
         ) : null}
-        <CustomizedInput
-          name="deliveryText"
-          label="Адреса текстом"
-          as="textarea"
-          value={values.deliveryText}
-          onChange={(event) => set("deliveryText", event.target.value)}
-          hint="Необов'язково: якщо адреси немає в списку клієнта."
-        />
-        <CustomizedInput
-          name="timeWindow"
-          label="Вікно часу"
-          autoComplete="off"
-          value={values.timeWindow}
-          onChange={(event) => set("timeWindow", event.target.value)}
-          hint="Необов'язково: наприклад, 10:00-14:00."
-        />
-        <CustomizedInput
-          name="recipientName"
-          label="Отримувач"
-          autoComplete="off"
-          value={values.recipientName}
-          onChange={(event) => set("recipientName", event.target.value)}
-        />
-        <PhoneField
-          name="recipientPhone"
-          label="Телефон отримувача"
-          value={values.recipientPhone}
-          onChange={(event) => set("recipientPhone", event.target.value)}
-        />
+        {!fromSaved && !isPickup ? (
+          <CustomizedInput
+            name="deliveryText"
+            label="Адреса текстом"
+            as="textarea"
+            value={values.deliveryText}
+            onChange={(event) => set("deliveryText", event.target.value)}
+          />
+        ) : null}
+        {!isNp ? (
+          <CustomizedInput
+            name="timeWindow"
+            label="Вікно часу"
+            autoComplete="off"
+            value={values.timeWindow}
+            onChange={(event) => set("timeWindow", event.target.value)}
+            hint="Необов'язково: наприклад, 10:00-14:00."
+          />
+        ) : null}
+        {!fromSaved ? (
+          <CustomizedInput
+            name="recipientName"
+            label="Отримувач"
+            autoComplete="off"
+            value={values.recipientName}
+            onChange={(event) => set("recipientName", event.target.value)}
+          />
+        ) : null}
+        {!fromSaved ? (
+          <PhoneField
+            name="recipientPhone"
+            label="Телефон отримувача"
+            value={values.recipientPhone}
+            onChange={(event) => set("recipientPhone", event.target.value)}
+          />
+        ) : null}
 
         <SectionTitle>Тара й оплата</SectionTitle>
-        <CustomizedSelect
-          name="boxTypeId"
-          label="Тара"
-          options={[
-            { value: "", label: "Не вказано" },
-            ...options.boxTypes.map((item) => ({ value: item.id, label: item.name })),
-          ]}
-          value={values.boxTypeId}
-          onChange={(event) => set("boxTypeId", event.target.value)}
+        <OrderBoxesField
+          lines={values.boxLines}
+          onChange={(lines) => set("boxLines", lines)}
+          boxTypes={options.boxTypes.filter((type) => !type.isClientOwned)}
+          ownBoxes={ownBoxes}
+          clientId={clientId}
         />
-        <CustomizedInput
-          name="boxCount"
-          label="Кількість тари"
-          inputMode="numeric"
-          autoComplete="off"
-          value={values.boxCount}
-          onChange={(event) => set("boxCount", event.target.value)}
-        />
-        <CustomizedSelect
-          name="boxOwnership"
-          label="Чия тара"
-          options={Object.entries(BOX_OWNERSHIP_LABELS).map(([value, label]) => ({ value, label }))}
-          value={values.boxOwnership}
-          onChange={(event) => set("boxOwnership", event.target.value)}
-        />
-        {values.boxOwnership === "client" ? (
-          ownBoxes.length > 0 ? (
-            <CustomizedSelect
-              name="clientOwnBoxId"
-              label="Бокс клієнта"
-              options={[
-                { value: "", label: "Не вибрано" },
-                ...ownBoxes.map((box) => ({ value: box.id, label: box.name })),
-              ]}
-              value={values.clientOwnBoxId}
-              onChange={(event) => set("clientOwnBoxId", event.target.value)}
-              hint="Вага й розміри бокса йдуть у накладну Нової Пошти."
-            />
-          ) : client ? (
-            <Text variant="muted">
-              У клієнта ще немає власних боксів. Додайте їх у картці клієнта, вкладка «Власні
-              бокси».
-            </Text>
-          ) : null
-        ) : null}
         <CustomizedSelect
           name="paymentKind"
           label="Спосіб оплати"
@@ -610,16 +636,6 @@ export default function OrderForm({
             hint="Лише для власника й менеджерів."
           />
         </fieldset>
-      ) : null}
-
-      {isCreate ? (
-        <Disclosure
-          summary={`Додаткові позиції${items.length > 0 ? ` · ${items.length}` : ""}`}
-          defaultOpen={items.length > 0}
-        >
-          <OrderFormItems items={items} onChange={setItems} />
-          <input type="hidden" name="itemsJson" value={items.length > 0 ? itemsJson : ""} />
-        </Disclosure>
       ) : null}
 
       {!isCreate && policy.core === "owner_note" ? (

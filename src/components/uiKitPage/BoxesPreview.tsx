@@ -11,14 +11,14 @@ export const BOX_PREVIEW_SCREENS = ["boxes", "boxes-empty", "box", "new-boxes"] 
 export type BoxPreviewScreen = (typeof BOX_PREVIEW_SCREENS)[number];
 
 const TYPES = [
-  { id: "t1", name: "Наш довгий 46 л" },
-  { id: "t2", name: "Наш малий 19 л" },
+  { id: "t1", name: "Довгий 46 л" },
+  { id: "t2", name: "Малий 19 л" },
 ];
 
 const item = (n: number, overrides: Partial<BoxListItem> = {}): BoxListItem => ({
   id: `b${n}`,
   code: `K-${String(n).padStart(4, "0")}`,
-  boxTypeName: "Наш довгий 46 л",
+  boxTypeName: "Довгий 46 л",
   locationName: "Київ",
   status: "in_stock",
   statusLabel: "На складі",
@@ -35,7 +35,7 @@ const ITEMS: BoxListItem[] = [
     issuedAt: "2026-11-10T09:00:00Z",
   }),
   item(13),
-  item(12, { boxTypeName: "Наш малий 19 л" }),
+  item(12, { boxTypeName: "Малий 19 л" }),
   item(11, { status: "sold", statusLabel: "Продано" }),
   item(10, { status: "lost", statusLabel: "Втрачено" }),
 ];
@@ -43,7 +43,7 @@ const ITEMS: BoxListItem[] = [
 const CARD: BoxCard = {
   id: "b14",
   code: "K-0014",
-  boxTypeName: "Наш довгий 46 л",
+  boxTypeName: "Довгий 46 л",
   locationId: "l1",
   locationName: "Київ",
   status: "at_client",

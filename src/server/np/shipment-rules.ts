@@ -10,6 +10,8 @@ export const SHIPMENT_ORDER_STATUSES = ["confirmed", "in_production", "packed"] 
 export type ShipmentOrderInput = {
   status: string;
   deliveryMethod: string;
+  /** Вид відправки Новою Поштою: відділення чи кур'єр (`null`, якщо не задано). */
+  npDeliveryKind?: string | null;
   recipientName: string | null;
   recipientPhone: string | null;
   kgToProduce: string;
@@ -42,7 +44,13 @@ export function shipmentBlockers(input: ShipmentPrerequisites): string[] {
     blockers.push("ТТН створюють для замовлення від «Підтверджено» до «Запаковано».");
   }
   if (input.hasActiveShipment) blockers.push("ТТН для цього замовлення вже є.");
-  if (!address) {
+  if (order.npDeliveryKind === "courier") {
+    // Адресна доставка кур'єром потребує вулиці з довідника Нової Пошти: окремий крок, який
+    // перевіряємо на справжньому ключі. Поки лише відділення й поштомати.
+    blockers.push(
+      "Адресну доставку кур'єром поки не підтримуємо: оберіть відправку на відділення.",
+    );
+  } else if (!address) {
     blockers.push("У замовленні немає адреси клієнта.");
   } else if (address.kind === "np_address") {
     // Доставка кур'єром за адресою потребує вулиці з довідника Нової Пошти: окремий крок, який
@@ -150,7 +158,10 @@ export function shipmentParams(input: {
   /** Типова вага порожнього бокса, кг (налаштування `np.default_empty_box_kg`). */
   defaultEmptyKg?: number;
   dimensions?: BoxDimensions | null;
+  /** Тара рядками (20.11.2026): кожен рядок зі своєю вагою порожнього й розмірами. */
+  lines?: { count: number; emptyWeightKg: string | null; dimensions: BoxDimensions | null }[];
 }): ShipmentParams {
+  if (input.lines && input.lines.length > 0) return shipmentParamsByLines(input, input.lines);
   const ice = Number(input.kgToProduce) || 0;
   const emptyWeight = input.emptyWeightKg === null ? null : Number(input.emptyWeightKg);
   const emptyKnown = emptyWeight !== null && Number.isFinite(emptyWeight) && emptyWeight > 0;
@@ -166,6 +177,56 @@ export function shipmentParams(input: {
     emptyBoxesKg,
     seats: Math.max(boxes, 1),
     emptyWeightKnown: emptyKnown || boxes === 0,
+  };
+}
+
+/** Рядки тари замовлення в форму для розрахунку ваги накладної. */
+export function boxLinesForShipment(
+  views: {
+    count: number;
+    emptyWeightKg: string | null;
+    heightMm: number | null;
+    widthMm: number | null;
+    lengthMm: number | null;
+  }[],
+) {
+  return views.map((view) => ({
+    count: view.count,
+    emptyWeightKg: view.emptyWeightKg,
+    dimensions:
+      view.heightMm && view.widthMm && view.lengthMm
+        ? { heightMm: view.heightMm, widthMm: view.widthMm, lengthMm: view.lengthMm }
+        : null,
+  }));
+}
+
+function shipmentParamsByLines(
+  input: { kgToProduce: string; defaultEmptyKg?: number },
+  lines: { count: number; emptyWeightKg: string | null; dimensions: BoxDimensions | null }[],
+): ShipmentParams {
+  const ice = Number(input.kgToProduce) || 0;
+  const fallback = input.defaultEmptyKg ?? DEFAULT_EMPTY_BOX_KG;
+  let boxes = 0;
+  let emptyBoxesKg = 0;
+  let volumetric = 0;
+  let allKnown = true;
+  for (const line of lines) {
+    const empty = line.emptyWeightKg === null ? null : Number(line.emptyWeightKg);
+    const known = empty !== null && Number.isFinite(empty) && empty > 0;
+    if (!known) allKnown = false;
+    boxes += line.count;
+    emptyBoxesKg += line.count * (known ? empty! : fallback);
+    if (line.dimensions) volumetric += line.count * volumetricWeightKg(line.dimensions);
+  }
+  emptyBoxesKg = round3(emptyBoxesKg);
+  volumetric = round3(volumetric);
+  const actual = round3(ice + emptyBoxesKg);
+  return {
+    weightKg: Math.max(actual, volumetric),
+    byVolume: volumetric > actual,
+    emptyBoxesKg,
+    seats: Math.max(boxes, 1),
+    emptyWeightKnown: allKnown,
   };
 }
 

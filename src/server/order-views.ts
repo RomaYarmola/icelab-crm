@@ -116,6 +116,14 @@ export function toPriceChangeView(
 export type OrderNames = OrderListNames & {
   sourceName: string | null;
   boxTypeName: string | null;
+  /** Тара рядками: що й скільки (20.11.2026); порожньо, якщо тари немає. */
+  boxLines: {
+    name: string;
+    count: number;
+    boxTypeId: string | null;
+    clientOwnBoxId: string | null;
+    isClient: boolean;
+  }[];
   /** Адреса клієнта, вибрана в замовленні, одним рядком. */
   addressText: string | null;
 };

@@ -74,7 +74,7 @@ export default async function ClientPage({
       ? await listEntityHistory(db, user, { kind: "client", id })
       : null;
 
-  // Вкладка «Власні бокси»: дані вантажимо лише з нею (D164).
+  // Вкладка «Бокси клієнта»: дані вантажимо лише з нею (D164).
   const ownBoxes = query.tab === "own_boxes" ? await listOwnBoxes(db, user, id) : [];
 
   // Вкладка «Бокси»: борги клієнта бачать усі, крім виробництва (D113); дані вантажимо лише з нею.

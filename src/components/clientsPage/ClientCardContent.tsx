@@ -44,7 +44,7 @@ interface ClientCardContentProps {
   defaultPrices: DefaultPriceHistoryItem[] | null;
   /** Дані вкладки «Бокси»; `null`, якщо роль боргів не бачить (виробництво). */
   boxes?: ClientBoxesData | null;
-  /** Власні бокси клієнта для вкладки «Власні бокси» (D164). */
+  /** Бокси клієнта для вкладки «Бокси клієнта» (D164). */
   ownBoxes?: OwnBoxView[];
   /** Сьогоднішня дата `YYYY-MM-DD`. */
   today: string;
@@ -86,7 +86,7 @@ export default function ClientCardContent({
   const details = [client.statusName, client.managerName].filter(Boolean).join(" · ");
 
   return (
-    <div className="flex max-w-xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <BackLink href="/clients">Клієнти</BackLink>
 
       {notice === "created" ? (

@@ -49,7 +49,17 @@ const NAMES = {
   locationName: "Київ",
   iceTypeName: "16 мм",
   sourceName: "Телефон",
-  boxTypeName: "Наш довгий 46 л",
+  boxTypeName: "Довгий 46 л",
+  boxLines: [
+    {
+      name: "Довгий 46 л",
+      count: 1,
+      boxTypeId: "box-46",
+      clientOwnBoxId: null,
+      isClient: false,
+    },
+    { name: "Міні 9 л", count: 1, boxTypeId: "box-9", clientOwnBoxId: null, isClient: false },
+  ],
   addressText: "Київ, вул. Сагайдачного, 12",
 };
 
@@ -78,6 +88,7 @@ function orderRow(status: OrderStatus, overrides: Partial<OrderRow> = {}): Order
     recipientPhone: "+380501234567",
     boxTypeId: "box-46",
     clientOwnBoxId: null,
+    npDeliveryKind: null,
     boxCount: 2,
     boxOwnership: "ours",
     comment: "Пакувати в два бокси, привезти до 10:00.",
@@ -242,7 +253,10 @@ const FORM_OPTIONS: OrderFormOptions = {
     { id: "src-phone", name: "Телефон" },
     { id: "src-site", name: "Сайт" },
   ],
-  boxTypes: [{ id: "box-46", name: "Наш довгий 46 л" }],
+  boxTypes: [
+    { id: "box-46", name: "Довгий 46 л" },
+    { id: "box-9", name: "Міні 9 л" },
+  ],
 };
 
 interface OrdersPreviewProps {
@@ -335,8 +349,6 @@ export default function OrdersPreview({
         canDeleteDraft: canDeleteDraft(current, role),
         canEdit:
           policy.core !== "none" || policy.produce || policy.comment || policy.internalComment,
-        canEditItems: isOffice && policy.core !== "none",
-        itemsNeedNote: policy.core === "owner_note",
       }}
       cashHref={cashLinkFor(role, order)}
       // Історія змін (D91): лише ролям, що бачать гроші.
@@ -350,9 +362,6 @@ export default function OrdersPreview({
         transition: action,
         changePrice: action,
         remove: action,
-        addItem: action,
-        updateItem: action,
-        deleteItem: action,
       }}
     />
   );

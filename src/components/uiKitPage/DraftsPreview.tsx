@@ -14,7 +14,7 @@ const base: IntakeDraft = {
   deliveryLabel: "Самовивіз",
   deliveryText: null,
   timeWindow: null,
-  boxText: "2 × Наш довгий 46 л",
+  boxText: "2 × Довгий 46 л",
   comment: null,
   unclear: [],
   source: "telegram",

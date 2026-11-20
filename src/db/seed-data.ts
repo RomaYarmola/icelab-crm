@@ -53,7 +53,7 @@ export const CLIENT_APPLICATIONS = [
 export const BOX_TYPES = [
   {
     code: "ours_long_46",
-    name: "Наш довгий 46 л",
+    name: "Довгий 46 л",
     volumeL: 46,
     capacityKg: "33",
     emptyWeightKg: "0.6",
@@ -66,7 +66,7 @@ export const BOX_TYPES = [
   },
   {
     code: "ours_small_19",
-    name: "Наш малий 19 л",
+    name: "Малий 19 л",
     volumeL: 19,
     capacityKg: "16",
     emptyWeightKg: "0.6",
@@ -79,7 +79,7 @@ export const BOX_TYPES = [
   },
   {
     code: "mini_9",
-    name: "mini 9 л",
+    name: "Міні 9 л",
     volumeL: 9,
     capacityKg: "7",
     emptyWeightKg: "0.6",

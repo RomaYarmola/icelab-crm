@@ -14,7 +14,14 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { kg, money, percent, pk, restrict, timestamps } from "./_common";
-import { boxOwnership, deliveryMethod, orderItemKind, orderStatus, paymentKind } from "./enums";
+import {
+  boxOwnership,
+  deliveryMethod,
+  npDeliveryKind,
+  orderItemKind,
+  orderStatus,
+  paymentKind,
+} from "./enums";
 import { clientAddresses, clientOwnBoxes, clients } from "./clients";
 import { boxTypes, createdBy, iceTypes, locations, orderSources, profiles } from "./reference";
 
@@ -51,6 +58,8 @@ export const orders = pgTable(
      */
     priceManual: boolean("price_manual").notNull().default(false),
     deliveryMethod: deliveryMethod("delivery_method").notNull().default("other"),
+    /** Лише для Нової Пошти: відділення чи кур'єр. `null` для інших способів. */
+    npDeliveryKind: npDeliveryKind("np_delivery_kind"),
     addressId: uuid("address_id").references(() => clientAddresses.id, restrict),
     deliveryText: text("delivery_text"),
     timeWindow: text("time_window"),
@@ -156,6 +165,35 @@ export const orderItems = pgTable(
     index("order_items_box_type_id_idx").on(t.boxTypeId),
     index("order_items_created_by_idx").on(t.createdBy),
     check("order_items_values_ok", sql`${t.qty} >= 0 and ${t.price} >= 0`),
+  ],
+).enableRLS();
+
+/**
+ * Тара замовлення рядками (Роман, 20.11.2026): можна кілька видів, наприклад 2 × Міні 9 л або
+ * 1 × mini і 1 × довгий. Рядок: або наш тип тари, або бокс клієнта (D164), і кількість. Колонки
+ * `orders.box_type_id`, `box_count`, `client_own_box_id` лишаються підсумком (перший рядок і
+ * загальна кількість), який рахує сервер при збереженні.
+ */
+export const orderBoxes = pgTable(
+  "order_boxes",
+  {
+    id: pk(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    boxTypeId: uuid("box_type_id").references(() => boxTypes.id, restrict),
+    clientOwnBoxId: uuid("client_own_box_id").references(() => clientOwnBoxes.id, {
+      onDelete: "set null",
+    }),
+    count: integer("count").notNull(),
+    sort: integer("sort").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [
+    index("order_boxes_order_id_idx").on(t.orderId),
+    index("order_boxes_box_type_id_idx").on(t.boxTypeId),
+    index("order_boxes_client_own_box_id_idx").on(t.clientOwnBoxId),
+    check("order_boxes_count_ok", sql`${t.count} > 0 and ${t.count} <= 10000`),
   ],
 ).enableRLS();
 

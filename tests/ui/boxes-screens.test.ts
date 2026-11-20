@@ -104,9 +104,10 @@ describe("сканер боксів (B9, PR 3)", () => {
     expect(route).toContain("notifyOrderChange");
   });
 
-  it("продаж бокса лише власнику й старшому локації, лічильник боксів на картці цеху", () => {
+  it("продажу боксів на картці замовлення немає (ми продаємо лише лід), лічильник боксів на картці цеху є", () => {
     const order = read("src/app/(app)/orders/[id]/page.tsx");
-    expect(order).toContain('user.role === "owner" || user.role === "location_lead"');
+    expect(order).not.toContain("sellBoxAction");
+    expect(read("src/components/boxesPage/OrderBoxes.tsx")).not.toContain("Продати бокс");
     expect(read("src/components/productionPage/ProductionCard.tsx")).toContain("boxesIssued");
   });
 });

@@ -1,5 +1,6 @@
 import {
   DELIVERY_METHOD_LABELS,
+  SELECTABLE_DELIVERY_METHODS,
   ORDER_STATUS_LABELS,
   ORDER_STATUS_ORDER,
 } from "@/constants/orders";
@@ -18,9 +19,10 @@ const STATUS_OPTIONS = ORDER_STATUS_ORDER.map((status) => ({
   label: ORDER_STATUS_LABELS[status],
 }));
 
-const DELIVERY_OPTIONS = Object.entries(DELIVERY_METHOD_LABELS).map(([value, label]) => ({
+// У фільтрі лише способи, які можна обрати в замовленні (Роман, 20.11.2026).
+const DELIVERY_OPTIONS = SELECTABLE_DELIVERY_METHODS.map((value) => ({
   value,
-  label,
+  label: DELIVERY_METHOD_LABELS[value],
 }));
 
 /** Фільтри списку замовлень за статусом, менеджером клієнта й способом доставки, згорнуті в один блок. */

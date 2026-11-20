@@ -37,6 +37,9 @@ export const deliveryMethod = pgEnum("delivery_method", [
   "other",
 ]);
 
+/** Нова Пошта: на відділення чи поштомат, або адресно кур'єром (Роман, 20.11.2026). */
+export const npDeliveryKind = pgEnum("np_delivery_kind", ["warehouse", "courier"]);
+
 export const boxOwnership = pgEnum("box_ownership", ["ours", "client", "sold"]);
 
 export const orderItemKind = pgEnum("order_item_kind", ["ice", "delivery", "box_sale", "other"]);

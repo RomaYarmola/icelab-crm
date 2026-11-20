@@ -9,7 +9,9 @@ import CustomizedInput from "../shared/customizedInput/CustomizedInput";
 import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
 import Form from "../shared/form/Form";
 import FormMessage from "../shared/form/FormMessage";
-import type { FormAction } from "./clientActions";
+import type { FormAction, NpPickerActions } from "./clientActions";
+import NpPlaceFields from "./NpPlaceFields";
+import PhoneField from "../shared/customizedInput/PhoneField";
 
 export interface AddressFormDefaults {
   kind: AddressKindValue;
@@ -17,6 +19,9 @@ export interface AddressFormDefaults {
   cityText: string;
   addressText: string;
   recipientName: string;
+  recipientPhone: string;
+  npCityRef: string;
+  npWarehouseRef: string;
   npWarehouseNumber: string;
   timeWindow: string;
   isDefault: boolean;
@@ -29,12 +34,12 @@ interface AddressFormProps {
   defaults: AddressFormDefaults;
   action: FormAction;
   submitLabel: string;
+  /** Пошук міст і відділень у довіднику Нової Пошти (підказки). */
+  np?: NpPickerActions;
 }
 
-const KIND_OPTIONS = Object.entries(ADDRESS_KIND_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
+/** Види адрес (Роман, 20.11.2026): Нова Пошта (відділення чи кур'єр) і власна доставка; «Автобус» лишається для наявних. */
+const SELECTABLE_KINDS: readonly string[] = ["np_warehouse", "np_address", "delivery"];
 
 /**
  * Форма адреси: вид (доставка, склад чи адреса Нової Пошти, автобус), місто, адреса, отримувач.
@@ -48,43 +53,68 @@ export default function AddressForm({
   defaults,
   action,
   submitLabel,
+  np,
 }: AddressFormProps) {
   const [state, formAction, isPending] = useActionState(action, INITIAL_FORM_STATE);
   const values = { ...defaults, ...state.values };
   const [kind, setKind] = useState<string>(values.kind);
+  const isNp = kind === "np_warehouse" || kind === "np_address";
+  const withPicker = isNp && np !== undefined;
+  // Вибір з довідника повний: без нього адресу Нової Пошти не зберегти.
+  const [placeComplete, setPlaceComplete] = useState(false);
 
   return (
     <Form action={formAction}>
       {mode === "add" ? <input type="hidden" name="clientId" value={clientId} /> : null}
       {mode === "edit" ? <input type="hidden" name="id" value={addressId} /> : null}
-      <CustomizedSelect
-        name="kind"
-        label="Вид адреси"
-        options={KIND_OPTIONS}
-        value={kind}
-        onChange={(event) => setKind(event.target.value)}
-      />
       <CustomizedInput
         name="label"
         label="Назва адреси"
         autoComplete="off"
         defaultValue={values.label}
-        hint="Необов'язково: наприклад, «Склад» чи «Офіс»."
+        hint="Обов'язково: наприклад, «Склад» чи «Офіс». Так адреса буде видна в замовленні."
       />
-      <CustomizedInput
-        name="cityText"
-        label="Місто"
-        autoComplete="off"
-        defaultValue={values.cityText}
+      <CustomizedSelect
+        name="kind"
+        label="Вид адреси"
+        options={Object.entries(ADDRESS_KIND_LABELS)
+          .filter(([value]) => SELECTABLE_KINDS.includes(value) || value === defaults.kind)
+          .map(([value, label]) => ({ value, label }))}
+        value={kind}
+        onChange={(event) => setKind(event.target.value)}
       />
-      <CustomizedInput
-        name="addressText"
-        label="Адреса"
-        as="textarea"
-        defaultValue={values.addressText}
-        hint="Вулиця, будинок, орієнтири."
-      />
-      {kind === "np_warehouse" ? (
+      {withPicker ? (
+        <NpPlaceFields
+          key={kind}
+          withWarehouse={kind === "np_warehouse"}
+          defaults={{
+            cityText: values.cityText,
+            cityRef: values.npCityRef,
+            warehouseNumber: values.npWarehouseNumber,
+            warehouseRef: values.npWarehouseRef,
+          }}
+          actions={np}
+          onComplete={setPlaceComplete}
+        />
+      ) : (
+        <CustomizedInput
+          name="cityText"
+          label="Місто"
+          autoComplete="off"
+          defaultValue={values.cityText}
+        />
+      )}
+      {kind !== "np_warehouse" ? (
+        <CustomizedInput
+          name="addressText"
+          label="Адреса"
+          as="textarea"
+          defaultValue={values.addressText}
+          hint={isNp ? "Обов'язково: вулиця й будинок для кур'єра." : "Вулиця, будинок, орієнтири."}
+          required={isNp}
+        />
+      ) : null}
+      {kind === "np_warehouse" && !withPicker ? (
         <CustomizedInput
           name="npWarehouseNumber"
           label="Номер відділення"
@@ -98,15 +128,25 @@ export default function AddressForm({
         label="Отримувач"
         autoComplete="off"
         defaultValue={values.recipientName}
-        hint="Необов'язково: хто забирає."
+        hint={isNp ? "Обов'язково: ПІБ, хто забирає посилку." : "Необов'язково: хто забирає."}
+        required={isNp}
       />
-      <CustomizedInput
-        name="timeWindow"
-        label="Вікно доставки"
-        autoComplete="off"
-        defaultValue={values.timeWindow}
-        hint="Необов'язково: наприклад, 10:00-14:00."
+      <PhoneField
+        name="recipientPhone"
+        label="Телефон отримувача"
+        defaultValue={values.recipientPhone}
+        hint={isNp ? "Обов'язково." : "Необов'язково."}
+        required={isNp}
       />
+      {!isNp ? (
+        <CustomizedInput
+          name="timeWindow"
+          label="Вікно доставки"
+          autoComplete="off"
+          defaultValue={values.timeWindow}
+          hint="Необов'язково: наприклад, 10:00-14:00."
+        />
+      ) : null}
       <Checkbox
         name="isDefault"
         label="Адреса за замовчуванням"
@@ -114,7 +154,12 @@ export default function AddressForm({
         hint="Підставляється в нове замовлення."
       />
       <FormMessage state={state} />
-      <MainButton type="submit" isLoading={isPending} loadingText="Зберігаємо…">
+      <MainButton
+        type="submit"
+        isLoading={isPending}
+        loadingText="Зберігаємо…"
+        disabled={withPicker && !placeComplete}
+      >
         {submitLabel}
       </MainButton>
     </Form>

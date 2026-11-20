@@ -41,7 +41,7 @@ export async function searchClientsForOrder(
 
 export type ClientOwnBoxOption = { id: string; name: string; capacityKg: string | null };
 
-/** Власні бокси клієнта для вибору в замовленні з клієнтською тарою (D164). */
+/** Бокси клієнта для вибору в замовленні з клієнтською тарою (D164). */
 export async function listClientOwnBoxOptions(
   db: AnyPgDatabase,
   actor: AppUser,
@@ -60,7 +60,16 @@ export async function listClientOwnBoxOptions(
     .orderBy(asc(clientOwnBoxes.name));
 }
 
-export type ClientAddressOption = { id: string; text: string; isDefault: boolean };
+export type ClientAddressOption = {
+  id: string;
+  text: string;
+  isDefault: boolean;
+  /** Отримувач і його телефон з адреси: підставляються в замовлення для Нової Пошти. */
+  recipientName: string | null;
+  recipientPhone: string | null;
+  /** Вид адреси: для Нової Пошти форма показує лише відповідні (відділення чи кур'єр). */
+  kind: string;
+};
 
 /** Адреси клієнта для вибору в замовленні: вид і текст одним рядком, адреса за замовчуванням першою. */
 export async function listClientAddressOptions(
@@ -77,15 +86,18 @@ export async function listClientAddressOptions(
     .orderBy(desc(clientAddresses.isDefault), asc(clientAddresses.createdAt));
   return rows.map((row) => {
     const parts = [
-      row.label,
       row.cityText,
       row.addressText,
       row.npWarehouseNumber ? `відділення № ${row.npWarehouseNumber}` : null,
     ].filter(Boolean);
     return {
       id: row.id,
-      text: `${ADDRESS_KIND_LABELS[row.kind]}: ${parts.join(", ") || "без опису"}`,
+      // Спочатку назва, яку дали адресі; без назви вид адреси.
+      text: `${row.label || ADDRESS_KIND_LABELS[row.kind]}: ${parts.join(", ") || "без опису"}`,
       isDefault: row.isDefault,
+      recipientName: row.recipientName,
+      recipientPhone: row.recipientPhone,
+      kind: row.kind,
     };
   });
 }

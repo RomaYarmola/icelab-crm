@@ -1,3 +1,4 @@
+import { type BoxLine, loadOrderBoxLines } from "./order-boxes";
 import { and, desc, eq, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import { orderItems, orders } from "@/db/schema";
@@ -91,6 +92,8 @@ export type OrderTemplate = {
   recipientPhone: string | null;
   boxTypeId: string | null;
   boxCount: number;
+  /** Тара рядками (20.11.2026). */
+  boxLines: BoxLine[];
   boxOwnership: typeof orders.$inferSelect.boxOwnership;
   paymentKind: typeof orders.$inferSelect.paymentKind;
   /** Додаткові позиції («Доставка», «Продаж боксу», «Інше»): «Лід» створюється з полів замовлення. */
@@ -140,6 +143,7 @@ export async function repeatLastOrder(
     recipientPhone: last.recipientPhone,
     boxTypeId: last.boxTypeId,
     boxCount: last.boxCount,
+    boxLines: await loadOrderBoxLines(db, last.id),
     boxOwnership: last.boxOwnership,
     paymentKind: last.paymentKind,
     items: items

@@ -9,9 +9,9 @@ export const LEGAL_TYPE_LABELS = {
 export type LegalTypeValue = keyof typeof LEGAL_TYPE_LABELS;
 
 export const ADDRESS_KIND_LABELS = {
-  delivery: "Доставка",
-  np_warehouse: "Склад Нової Пошти",
-  np_address: "Адреса Нової Пошти",
+  delivery: "Адреса власної доставки",
+  np_warehouse: "Відділення чи поштомат Нової Пошти",
+  np_address: "Адреса для кур'єра Нової Пошти",
   bus: "Автобус",
 } as const;
 
@@ -39,7 +39,7 @@ export const CLIENT_TAB_LABELS: Record<ClientTab, string> = {
   main: "Основне",
   contacts: "Контакти",
   addresses: "Адреси",
-  own_boxes: "Власні бокси",
+  own_boxes: "Бокси клієнта",
   boxes: "Бокси",
   prices: "Ціни",
   history: "Історія",

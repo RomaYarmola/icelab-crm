@@ -2,18 +2,14 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { z } from "zod";
 import {
-  addOrderItemAction,
   changeOrderPriceAction,
   deleteDraftOrderAction,
-  deleteOrderItemAction,
   transitionOrderAction,
-  updateOrderItemAction,
 } from "@/app/(app)/orders/actions";
 import OrderCardContent from "@/components/ordersPage/OrderCardContent";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { canDeleteDraft, editPolicy, transitionOptions } from "@/server/order-rules";
-import { sellBoxAction } from "@/app/(app)/boxes/actions";
 import {
   createShipmentAction,
   deleteShipmentAction,
@@ -57,10 +53,8 @@ export default async function OrderPage({
   const boxes = can(user.role, "box_debts_stock", "read")
     ? await listOrderBoxes(getDb(), id)
     : null;
-  const canSellBox = user.role === "owner" || user.role === "location_lead";
   // Накладна Нової Пошти (B10): власник, менеджер і старший локації (своєї локації).
   const shipmentCard = await getShipmentCard(getDb(), user, id);
-  const isOffice = user.role === "owner" || user.role === "manager";
 
   return (
     <OrderCardContent
@@ -71,13 +65,10 @@ export default async function OrderPage({
         canDeleteDraft: canDeleteDraft(order.status, user.role),
         canEdit:
           policy.core !== "none" || policy.produce || policy.comment || policy.internalComment,
-        canEditItems: isOffice && policy.core !== "none",
-        itemsNeedNote: policy.core === "owner_note",
       }}
       cashHref={cashLinkFor(user.role, order)}
       changeHistory={changeHistory}
       boxes={boxes}
-      sellBoxAction={canSellBox ? sellBoxAction : null}
       shipment={
         shipmentCard
           ? {
@@ -96,9 +87,6 @@ export default async function OrderPage({
         transition: transitionOrderAction,
         changePrice: changeOrderPriceAction,
         remove: deleteDraftOrderAction,
-        addItem: addOrderItemAction,
-        updateItem: updateOrderItemAction,
-        deleteItem: deleteOrderItemAction,
       }}
     />
   );

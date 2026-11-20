@@ -133,6 +133,8 @@ export const clientAddresses = pgTable(
     cityText: text("city_text"),
     addressText: text("address_text"),
     recipientName: text("recipient_name"),
+    /** Телефон отримувача (+380…): для адрес Нової Пошти обов'язковий, йде в замовлення й накладну. */
+    recipientPhone: text("recipient_phone"),
     npCityRef: text("np_city_ref"),
     npWarehouseRef: text("np_warehouse_ref"),
     npWarehouseNumber: text("np_warehouse_number"),
@@ -155,7 +157,7 @@ export const clientAddresses = pgTable(
 ).enableRLS();
 
 /**
- * Власні бокси клієнта (D164): клієнти надсилають нам свої бокси, і вони різні за об'ємом,
+ * Бокси клієнта (D164): клієнти надсилають нам свої бокси, і вони різні за об'ємом,
  * місткістю, вагою й розмірами. Усе, крім назви, необов'язкове й орієнтовне. Дані беруться в
  * накладну Нової Пошти й у підказку «виготовити» (місткість).
  */

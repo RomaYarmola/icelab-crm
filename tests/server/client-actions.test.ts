@@ -278,9 +278,12 @@ describe("серверні дії розділу «Клієнти»", () => {
       expect(
         await run(addAddressAction, {
           clientId,
+          label: "Склад",
           kind: "np_warehouse",
           cityText: "Київ",
           npWarehouseNumber: "15",
+          recipientName: "Іван Петренко",
+          recipientPhone: "050 123 45 67",
           isDefault: "on",
         }),
       ).toMatchObject({ status: "success" });
@@ -294,7 +297,7 @@ describe("серверні дії розділу «Клієнти»", () => {
         npWarehouseNumber: "15",
         isDefault: true,
       });
-      const noText = await run(addAddressAction, { clientId, kind: "delivery" });
+      const noText = await run(addAddressAction, { clientId, label: "Х", kind: "delivery" });
       expect(noText.message).toContain("місто, адресу або номер");
     });
 
