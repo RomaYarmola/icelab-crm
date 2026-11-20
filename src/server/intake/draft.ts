@@ -114,6 +114,20 @@ export async function buildDraft(
   },
 ): Promise<DraftBuild> {
   const unclear = [...parsed.unclear];
+  // Лід продаємо лише цілими кілограмами (Роман, 20.11.2026): дробове число округлюємо вниз.
+  const whole = (value: number | null | undefined, what: string): number | null => {
+    if (value == null || Number.isInteger(value)) return value ?? null;
+    const floored = Math.floor(value);
+    unclear.push(
+      `${what}: ${value} кг не ціле, поставлено ${floored} кг (лід продаємо цілими кг).`,
+    );
+    return floored;
+  };
+  parsed = {
+    ...parsed,
+    kg_sold: whole(parsed.kg_sold, "Продано"),
+    kg_to_produce: whole(parsed.kg_to_produce, "Виготовити"),
+  };
   const resolved = await resolveClient(db, parsed.client);
   const isPlaceholder = resolved === null;
   const clientId = resolved ?? (await ensurePlaceholderClient(db));
@@ -170,6 +184,10 @@ export async function buildDraft(
     orderDate,
     iceTypeId: ice?.id ?? null,
     kgSold: parsed.kg_sold ?? 0,
+    // «Фактично N кг» з повідомлення: це кг на виготовлення, а продане лишається як є (D162).
+    ...(parsed.kg_to_produce != null && parsed.kg_to_produce > 0
+      ? { kgToProduce: parsed.kg_to_produce.toFixed(3) }
+      : {}),
     sourceId: source?.id ?? null,
     deliveryMethod: parsed.delivery.method ?? "other",
     deliveryText: clip(deliveryText, 500),
@@ -182,5 +200,24 @@ export async function buildDraft(
     paymentKind: parsed.payment_hint ? PAYMENT_KINDS[parsed.payment_hint] : "unknown",
     comment: clip(parsed.comment, 2000),
   };
+  // Ціна доставки з повідомлення стає позицією «Доставка» (D161); ціну боксів беремо з довідника.
+  if (parsed.delivery_price != null && parsed.delivery_price > 0) {
+    input.items = [{ kind: "delivery", title: "Доставка", qty: 1, price: parsed.delivery_price }];
+  }
+  // Ціна за кг з повідомлення діє лише для нового клієнта (D161, Роман 20.11.2026: бот ставить її
+  // сам): вона стає ціною чернетки з позначкою «вказано вручну». Коли клієнт відомий, його прайс
+  // сильніший, а ціна з повідомлення лишається підказкою.
+  if (parsed.price_per_kg != null && parsed.price_per_kg > 0) {
+    if (isPlaceholder) {
+      input.price = parsed.price_per_kg;
+      unclear.push(
+        `Ціну ${parsed.price_per_kg} грн/кг взято з повідомлення (новий клієнт). Перевірте її.`,
+      );
+    } else {
+      unclear.push(
+        `У повідомленні ціна ${parsed.price_per_kg} грн/кг; діє прайс клієнта, перевірте, чи збігається.`,
+      );
+    }
+  }
   return { input, clientId, isPlaceholder, unclear };
 }

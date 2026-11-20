@@ -85,7 +85,7 @@ describe("серверні дії розділу «Замовлення»", () =
       expect(target).toBe(`/orders/${created.id}?created=1`);
       expect(created).toMatchObject({
         status: "draft",
-        kgToProduce: "33.000",
+        kgToProduce: "30.000",
         recipientPhone: "+380501234567",
         total: "2250.00",
       });
@@ -272,7 +272,7 @@ describe("серверні дії розділу «Замовлення»", () =
           orderDate: ORDER_DATE,
           deliveryMethod: "np",
         }),
-      ).toMatchObject({ source: "default", pricePerKg: "75.00", markupPercent: 10 });
+      ).toMatchObject({ source: "default", pricePerKg: "75.00", markupPercent: 0 });
       expect(await orderPricingAction({ clientId: "ні", orderDate: ORDER_DATE })).toBeNull();
       as("accountant");
       expect(await searchClientsForOrderAction("Кафе Тест")).toEqual([]);

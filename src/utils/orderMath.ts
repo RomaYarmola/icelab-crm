@@ -1,6 +1,6 @@
 /**
  * Кілограми, ціни й суми замовлення (D53, D55). Усе рахуємо цілими числами (міліграми й копійки),
- * а не дробами: `30 × 1,1` у дробах дає 33,00000000000004, і `ceil` помилково повернув би 34.
+ * а не дробами: `30 × 1,1` у дробах дає 33,00000000000004, і округлення вгору помилково дало б 34.
  * Чисті функції без бази.
  */
 
@@ -15,8 +15,9 @@ const GRAMS = 1000;
 const PERCENT_SCALE = 100;
 
 /**
- * Скільки кг виготовити: `ceil(продано × (1 + p/100))` (D53). `percent` від 0 до 100, `kgSold` з
- * точністю до грама. Повертає ціле число кілограмів (округлення вгору).
+ * Скільки кг виготовити: `floor(продано × (1 + p/100))` (D53, змінено D162): 25 кг з надбавкою 10%
+ * це 27, а не 28 (27,5 округлюємо вниз). Менше, ніж продано, не буває: нецілі кг продажу піднімаємо
+ * до цілого. `percent` від 0 до 100, `kgSold` з точністю до грама. Повертає ціле число кілограмів.
  */
 export function computeKgToProduce(kgSold: number, percent: number): number {
   if (!Number.isFinite(kgSold) || kgSold <= 0) return 0;
@@ -25,8 +26,9 @@ export function computeKgToProduce(kgSold: number, percent: number): number {
   const scaledPercent = Math.round(percentage * PERCENT_SCALE);
   const numerator = grams * (100 * PERCENT_SCALE + scaledPercent);
   const denominator = GRAMS * 100 * PERCENT_SCALE;
-  const whole = Math.floor(numerator / denominator);
-  return numerator % denominator === 0 ? whole : whole + 1;
+  const withExtra = Math.floor(numerator / denominator);
+  const atLeastSold = Math.ceil(grams / GRAMS);
+  return Math.max(withExtra, atLeastSold);
 }
 
 /** Сума позиції: `round(кількість × ціна, 2)`, у гривнях рядком «2250.00» (як рахує база, D12). */

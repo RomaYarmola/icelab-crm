@@ -4,7 +4,6 @@ import {
   allowedTransitions,
   canDeleteDraft,
   checkTransition,
-  DEFAULT_MARKUP_SETTINGS,
   editPolicy,
   isLikelyDuplicate,
   isReadyToClose,
@@ -280,41 +279,15 @@ describe("що можна змінювати (D58)", () => {
   });
 });
 
-describe("надбавка (D53)", () => {
-  const base = { deliveryMethod: "pickup", applicationCode: null, clientOverridePercent: null };
-
-  it("без Нової Пошти й особливого застосування 0%", () => {
-    expect(suggestMarkupPercent(base)).toBe(0);
-    expect(suggestMarkupPercent({ ...base, applicationCode: "bar" })).toBe(0);
+describe("надбавка (D53, змінено 20.11.2026)", () => {
+  it("без окремої надбавки в картці клієнта 0%, хоч би яка доставка чи застосування", () => {
+    expect(suggestMarkupPercent({ clientOverridePercent: null })).toBe(0);
   });
 
-  it("Нова Пошта 10%, «Важкий дим» і «Дитячі свята» 10%", () => {
-    expect(suggestMarkupPercent({ ...base, deliveryMethod: "np" })).toBe(10);
-    expect(suggestMarkupPercent({ ...base, applicationCode: "heavy_smoke" })).toBe(10);
-    expect(suggestMarkupPercent({ ...base, applicationCode: "kids_parties" })).toBe(10);
-  });
-
-  it("значення беруться з налаштувань (наприклад, 15% для подій)", () => {
-    const settings = { npPercent: 10, eventPercent: 15 };
-    expect(suggestMarkupPercent({ ...base, applicationCode: "heavy_smoke", settings })).toBe(15);
-    expect(
-      suggestMarkupPercent({
-        ...base,
-        deliveryMethod: "np",
-        applicationCode: "heavy_smoke",
-        settings,
-      }),
-    ).toBe(15);
-    expect(DEFAULT_MARKUP_SETTINGS).toEqual({ npPercent: 10, eventPercent: 10 });
-  });
-
-  it("окрема надбавка клієнта сильніша за загальну, навіть нуль", () => {
-    expect(suggestMarkupPercent({ ...base, deliveryMethod: "np", clientOverridePercent: 5 })).toBe(
-      5,
-    );
-    expect(suggestMarkupPercent({ ...base, deliveryMethod: "np", clientOverridePercent: 0 })).toBe(
-      0,
-    );
+  it("береться окрема надбавка з картки клієнта, навіть нуль", () => {
+    expect(suggestMarkupPercent({ clientOverridePercent: 10 })).toBe(10);
+    expect(suggestMarkupPercent({ clientOverridePercent: 5 })).toBe(5);
+    expect(suggestMarkupPercent({ clientOverridePercent: 0 })).toBe(0);
   });
 });
 

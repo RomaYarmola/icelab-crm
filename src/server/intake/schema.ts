@@ -24,6 +24,25 @@ export const parseResultSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .nullable(),
   kg_sold: z.number().min(0).max(100_000).nullable(),
+  /** «Фактично N кг»: скільки класти в коробку (D162); `kg_sold` лишається проданим. */
+  kg_to_produce: z.number().min(0).max(100_000).nullable().optional(),
+  /** Ціна за кг, названа в повідомленні (D161): застосовується лише для нового клієнта. */
+  price_per_kg: z.number().min(0).max(100_000).nullable().optional(),
+  /** Ціна доставки з повідомлення (D161): стає позицією «Доставка». */
+  delivery_price: z.number().min(0).max(1_000_000).nullable().optional(),
+  /**
+   * Інші дні з того ж повідомлення (D159): «ср 4 кг, п'ятниця 6 кг» це два замовлення. Перший день
+   * іде в `order_date` і `kg_sold`, решта сюди; усе інше (клієнт, лід, доставка) спільне.
+   */
+  additional_days: z
+    .array(
+      z.object({
+        order_date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+        kg_sold: z.number().min(0).max(100_000),
+      }),
+    )
+    .max(10)
+    .optional(),
   ice_type: z.enum(ICE_CODES).nullable(),
   box: z.object({
     type_code: z.string().trim().max(60).nullable(),

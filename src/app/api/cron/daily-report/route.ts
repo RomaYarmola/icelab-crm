@@ -2,6 +2,7 @@ import { getDb } from "@/db/client";
 import { isCronRequest } from "@/server/cron-auth";
 import { reportError } from "@/server/error-log";
 import { runDailyReport } from "@/server/telegram/daily-report";
+import { runTomorrowList } from "@/server/telegram/tomorrow-list";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -18,8 +19,11 @@ async function handle(request: Request): Promise<Response> {
     return Response.json({ error: "Немає доступу." }, { status: 401, headers: noStore });
   }
   try {
-    const result = await runDailyReport(getDb());
-    return Response.json(result, { headers: noStore });
+    const db = getDb();
+    const result = await runDailyReport(db);
+    // Той самий розклад щопівгодини веде й список замовлень на завтра для Києва (D160).
+    const tomorrow = await runTomorrowList(db).catch(() => ({ sent: false, reason: "failed" }));
+    return Response.json({ ...result, tomorrow }, { headers: noStore });
   } catch (error) {
     await reportError({ source: "route", error, path: "/api/cron/daily-report" });
     return Response.json({ error: "Помилка сервера." }, { status: 500, headers: noStore });

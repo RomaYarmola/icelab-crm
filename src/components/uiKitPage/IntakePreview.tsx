@@ -16,6 +16,7 @@ export default function IntakePreview({ formAction }: IntakePreviewProps) {
         cancelCapture: formAction,
         createCode: formAction,
         unlink: formAction,
+        setConfirmer: formAction,
       }}
       status={{
         hasToken: true,
@@ -29,13 +30,21 @@ export default function IntakePreview({ formAction }: IntakePreviewProps) {
           botUsername: "icelab_bot",
         },
         users: [
-          { id: "u1", fullName: "Олена Коваль", role: "owner", locationName: null, isLinked: true },
+          {
+            id: "u1",
+            fullName: "Олена Коваль",
+            role: "owner",
+            locationName: null,
+            isLinked: true,
+            isConfirmer: true,
+          },
           {
             id: "u2",
             fullName: "Марія Менеджер",
             role: "manager",
             locationName: null,
             isLinked: false,
+            isConfirmer: false,
           },
           {
             id: "u3",
@@ -43,8 +52,10 @@ export default function IntakePreview({ formAction }: IntakePreviewProps) {
             role: "manager",
             locationName: null,
             isLinked: true,
+            isConfirmer: true,
           },
         ],
+        anyoneConfirms: false,
       }}
     />
   );

@@ -54,30 +54,31 @@ describe("замовлення: створення, зміна, список, к
       });
     });
 
-    it("«виготовити»: самовивіз без надбавки, Нова Пошта +10%", async () => {
-      const pickup = await t.create({ deliveryMethod: "pickup" });
-      expect(await row(pickup.id)).toMatchObject({
-        kgToProduce: "30.000",
-        markupPercentApplied: "0.00",
-      });
-      const np = await t.create({ deliveryMethod: "np" });
-      expect(await row(np.id)).toMatchObject({
-        kgToProduce: "33.000",
-        markupPercentApplied: "10.00",
-      });
+    it("кілограми лише цілі: дробове число відхиляється", async () => {
+      await expect(t.create({ kgSold: 12.5 })).rejects.toThrow("цілими кілограмами");
     });
 
-    it("«Важкий дим» дає +10%, окрема надбавка клієнта сильніша за загальну", async () => {
+    it("«виготовити»: без надбавки в картці клієнта її немає ні для самовивозу, ні для Нової Пошти", async () => {
+      for (const deliveryMethod of ["pickup", "np"] as const) {
+        const order = await t.create({ deliveryMethod });
+        expect(await row(order.id)).toMatchObject({
+          kgToProduce: "30.000",
+          markupPercentApplied: "0.00",
+        });
+      }
+    });
+
+    it("застосування «Важкий дим» надбавки не дає, лише окрема надбавка з картки клієнта", async () => {
       const smoke = await makeClient(t.db, {
         name: "Дим",
         applicationId: await t.applicationId("heavy_smoke"),
       });
       const a = await t.create({ clientId: smoke.id });
-      expect((await row(a.id)).kgToProduce).toBe("33.000");
+      expect((await row(a.id)).kgToProduce).toBe("30.000");
       const custom = await makeClient(t.db, { name: "Окрема", markupPercentOverride: "5.00" });
       const b = await t.create({ clientId: custom.id, deliveryMethod: "np" });
       expect(await row(b.id)).toMatchObject({
-        kgToProduce: "32.000",
+        kgToProduce: "31.000",
         markupPercentApplied: "5.00",
       });
     });
@@ -182,7 +183,8 @@ describe("замовлення: створення, зміна, список, к
     };
 
     it("у чернетці зміна кг тягне за собою «виготовити», позицію й суму", async () => {
-      const { id } = await t.create({ deliveryMethod: "np" });
+      const own = await makeClient(t.db, { name: "Надбавка 10", markupPercentOverride: "10.00" });
+      const { id } = await t.create({ clientId: own.id, deliveryMethod: "np" });
       await updateOrder(t.db, t.users.manager, id, { kgSold: 40 });
       expect(await row(id)).toMatchObject({
         kgSold: "40.000",
@@ -199,12 +201,14 @@ describe("замовлення: створення, зміна, список, к
       expect((await row(id)).kgToProduce).toBe("50.000");
     });
 
-    it("спосіб доставки Нова Пошта додає надбавку, самовивіз прибирає", async () => {
-      const { id } = await t.create({ deliveryMethod: "pickup" });
+    it("спосіб доставки на надбавку не впливає: вона лише з картки клієнта", async () => {
+      const own = await makeClient(t.db, { name: "Надбавка 10 б", markupPercentOverride: "10.00" });
+      const { id } = await t.create({ clientId: own.id, deliveryMethod: "pickup" });
+      expect((await row(id)).kgToProduce).toBe("33.000");
       await updateOrder(t.db, t.users.manager, id, { deliveryMethod: "np" });
       expect((await row(id)).kgToProduce).toBe("33.000");
       await updateOrder(t.db, t.users.manager, id, { deliveryMethod: "pickup" });
-      expect((await row(id)).kgToProduce).toBe("30.000");
+      expect((await row(id)).kgToProduce).toBe("33.000");
     });
 
     it("зміна типу льоду в чернетці бере нову ціну за прайсом і назву", async () => {

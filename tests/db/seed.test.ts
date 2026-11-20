@@ -19,7 +19,7 @@ const EXPECTED_COUNTS = {
   client_applications: 7,
   box_types: 6,
   regions: 27,
-  settings: 8,
+  settings: 6,
 };
 
 describe("початкові дані довідників", () => {
@@ -67,12 +67,11 @@ describe("початкові дані довідників", () => {
     const rows = await db.select().from(settings);
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     expect(byKey).toMatchObject({
-      "markup.np_percent": 10,
       "box.reminder_days": 14,
       "client.inactive_days_default": 30,
       "payment.amount_tolerance_uah": 0,
       "payment.date_window_days": 14,
-      "report.daily_time": "21:00",
+      "report.daily_time": "18:00",
     });
   });
 

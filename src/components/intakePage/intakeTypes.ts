@@ -8,4 +8,5 @@ export interface IntakeActions {
   cancelCapture: FormAction;
   createCode: FormAction;
   unlink: FormAction;
+  setConfirmer: FormAction;
 }

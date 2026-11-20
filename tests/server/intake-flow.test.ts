@@ -208,6 +208,18 @@ describe("чернетка в Telegram: відповідь бота й кноп�
     expect(outcome.status).toBe("drafted");
   });
 
+  it("«Підтвердити» не з списку підтверджувачів (D151): відмова, чернетка лишається", async () => {
+    reset();
+    const { orderId } = await draft();
+    const { setConfirmer } = await import("@/server/intake/confirmers");
+    await setConfirmer(t.db, t.users.owner, t.users.owner.id, true);
+    const outcome = await handleCallback(t.db, callback(callbackData(orderId, "confirm")), deps);
+    expect(outcome).toEqual({ kind: "denied" });
+    expect(answers.at(-1)!.text).toBe("Підтверджувати заявки можуть лише призначені люди.");
+    expect((await orderOf(orderId)).status).toBe("draft");
+    await setConfirmer(t.db, t.users.owner, t.users.owner.id, false);
+  });
+
   it("«Підтвердити»: замовлення підтверджено, повідомлення змінено, заявка «підтверджено», повторне натискання нічого не міняє", async () => {
     reset();
     const { row, orderId, number } = await draft();

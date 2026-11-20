@@ -1,3 +1,4 @@
+import { canConfirmDrafts, NOT_CONFIRMER_MESSAGE } from "./confirmers";
 import { and, eq, isNull } from "drizzle-orm";
 import {
   boxTypes,
@@ -194,6 +195,20 @@ export async function processAndReply(
       buttons: draftButtons(outcome.orderId, described.isPlaceholder),
     }),
   );
+  // Інші дні з того ж повідомлення: кожен окремою відповіддю зі своїми кнопками (D159).
+  if (outcome.status === "drafted") {
+    for (const extraId of outcome.extraOrderIds) {
+      const extra = await describeDraft(db, extraId);
+      if (!extra) continue;
+      await safely(() =>
+        telegram.send({
+          ...target,
+          text: extra.text,
+          buttons: draftButtons(extraId, extra.isPlaceholder),
+        }),
+      );
+    }
+  }
   // Чернетка без клієнта: автору заявки окремо, щоб не загубилась у групі.
   if (described.isPlaceholder && message.telegramUserId) {
     await safely(() =>
@@ -320,6 +335,10 @@ export async function handleCallback(
     return { kind: "rejected", orderId: order.id };
   }
 
+  if (!(await canConfirmDrafts(db, actor.id))) {
+    await alert(NOT_CONFIRMER_MESSAGE);
+    return { kind: "denied" };
+  }
   try {
     await transitionOrder(db, actor, order.id, "confirmed");
   } catch (error) {

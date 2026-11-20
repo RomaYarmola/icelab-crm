@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, gte, isNull, ne } from "drizzle-orm";
 import { z } from "zod";
 import { withActor } from "@/db/actor";
 import { clientContacts, clients, orders, profiles, siteLeads } from "@/db/schema";
@@ -11,6 +11,7 @@ import { buildDraft } from "./draft";
 import { kyivDay, loadDictionaries } from "./prompt";
 import { locations } from "@/db/schema";
 import type { ParseResult } from "./schema";
+import { LOCATION_PENDING_NOTE, REPEAT_CONTACT_NOTE } from "@/constants/intake";
 
 /**
  * Заявки з форми на сайті icelab.com.ua (B11, ТЗ 8.1, D141, D146): сайт надсилає `{lead, message,
@@ -85,7 +86,10 @@ export function methodFromText(text: string | undefined): ParseResult["delivery"
   return "other";
 }
 
-/** Локація заявки: львівський склад чи місто Львів у способі отримання, інакше Київ (D146). */
+/**
+ * Тимчасова локація заявки: львівський склад чи місто Львів у способі отримання, інакше Київ (D146).
+ * Остаточний склад обирає менеджер (D152): чернетка отримує позначку, і без неї не підтвердити.
+ */
 export function locationFromText(text: string | undefined): "kyiv" | "lviv" {
   return /льв[іо]в/i.test(text ?? "") ? "lviv" : "kyiv";
 }
@@ -131,6 +135,23 @@ async function systemAuthor(db: AnyPgDatabase): Promise<AppUser | null> {
   };
 }
 
+/** Чи вже була заявка з сайту з цим телефоном (за останні 180 днів, перед цією). */
+async function hadEarlierLead(
+  db: AnyPgDatabase,
+  phone: string,
+  beforeId: string,
+): Promise<boolean> {
+  const since = new Date(Date.now() - 180 * 86_400_000);
+  const rows = await db
+    .select({ id: siteLeads.id, payload: siteLeads.payload })
+    .from(siteLeads)
+    .where(and(gte(siteLeads.receivedAt, since), ne(siteLeads.id, beforeId)));
+  return rows.some((row) => {
+    const other = (row.payload as { lead?: { phone?: string } } | null)?.lead?.phone;
+    return other ? normalizePhone(other) === phone : false;
+  });
+}
+
 /** Єдиний активний клієнт із цим телефоном; кілька чи жодного: `null`. */
 async function clientByPhone(
   db: AnyPgDatabase,
@@ -149,6 +170,12 @@ async function clientByPhone(
     )
     .limit(2);
   return rows.length === 1 ? rows[0]! : null;
+}
+
+/** Консультації чернетки не створюють (D153): менеджери ведуть їх окремо. */
+export function isConsultation(body: unknown): boolean {
+  const parsed = siteLeadSchema.safeParse(body);
+  return parsed.success && /консульт/i.test(parsed.data.lead.type ?? "");
 }
 
 /** Перевірка тіла запиту без бази: схема й телефон. `null`, якщо все гаразд. */
@@ -223,6 +250,7 @@ export async function receiveSiteLead(
       return { ok: false as const, status: 503 as const, error: "Локацію не знайдено." };
 
     const client = await clientByPhone(txDb, phone);
+    const repeat = client !== null || (await hadEarlierLead(txDb, phone, inserted[0]!.id));
     const items = summarizeItems(lead.items);
     const notes = [
       lead.type && lead.type.toLowerCase() !== "замовлення" ? `Тип заявки: ${lead.type}.` : null,
@@ -252,7 +280,11 @@ export async function receiveSiteLead(
       },
       payment_hint: null,
       comment: notes.join(" ") || null,
-      unclear: ["Заявка з сайту: перевірте позиції й клієнта."],
+      unclear: [
+        "Заявка з сайту: перевірте позиції й клієнта.",
+        LOCATION_PENDING_NOTE,
+        ...(repeat ? [REPEAT_CONTACT_NOTE] : []),
+      ],
     };
     const draft = await buildDraft(txDb, parsed, {
       locationId: location.id,
@@ -269,6 +301,8 @@ export async function receiveSiteLead(
             source: "site",
             unclear: draft.unclear,
             isPlaceholder: draft.isPlaceholder,
+            locationPending: true,
+            repeat,
             siteLeadId: inserted[0]!.id,
           },
         })

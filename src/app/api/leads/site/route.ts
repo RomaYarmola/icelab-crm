@@ -1,6 +1,6 @@
 import { getDb } from "@/db/client";
 import { reportError } from "@/server/error-log";
-import { receiveSiteLead, validateSiteLead } from "@/server/intake/site-lead";
+import { isConsultation, receiveSiteLead, validateSiteLead } from "@/server/intake/site-lead";
 import { isSiteRequest } from "@/server/intake/site-auth";
 import { notifySiteLead } from "@/server/telegram/notify";
 
@@ -28,6 +28,9 @@ export async function POST(request: Request): Promise<Response> {
   const invalid = validateSiteLead(body);
   if (invalid)
     return Response.json({ error: invalid.error }, { status: invalid.status, headers: noStore });
+  if (isConsultation(body)) {
+    return Response.json({ skipped: "consultation" }, { headers: noStore });
+  }
   try {
     const result = await receiveSiteLead(getDb(), body);
     if (!result.ok) {

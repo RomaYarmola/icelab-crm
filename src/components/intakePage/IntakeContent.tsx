@@ -106,6 +106,11 @@ export default function IntakeContent({ status, actions }: IntakeContentProps) {
           Заявки приймаємо лише від підключених менеджерів і власника. Створіть код, користувач
           надсилає його боту в Telegram: /start КОД.
         </Text>
+        <Text variant="muted" className="max-w-xl">
+          {status.anyoneConfirms
+            ? "Підтверджувати заявки зараз може кожен менеджер і власник. Щоб обмежити, позначте потрібних людей кнопкою «Може підтверджувати заявки»."
+            : "Підтверджувати заявки можуть лише позначені люди. Відхиляти й виправляти чернетки можуть усі."}
+        </Text>
         <ul className="grid gap-4 lg:grid-cols-2">
           {status.users.map((user) => (
             <Card as="li" key={user.id} className="flex flex-col gap-3">
@@ -117,7 +122,10 @@ export default function IntakeContent({ status, actions }: IntakeContentProps) {
                     {user.locationName ? ` · ${user.locationName}` : ""}
                   </Text>
                 </div>
-                <Tag className="shrink-0">{user.isLinked ? "Підключено" : "Не підключено"}</Tag>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  <Tag>{user.isLinked ? "Підключено" : "Не підключено"}</Tag>
+                  {user.isConfirmer ? <Tag>Підтверджує заявки</Tag> : null}
+                </div>
               </div>
               <ActionForm
                 action={actions.createCode}
@@ -125,6 +133,14 @@ export default function IntakeContent({ status, actions }: IntakeContentProps) {
                 label={user.isLinked ? "Підключити заново (новий код)" : "Створити код"}
                 loadingText="Створюємо…"
                 disabled={!status.hasToken}
+              />
+              <ActionForm
+                action={actions.setConfirmer}
+                fields={{ profileId: user.id, allowed: user.isConfirmer ? "no" : "yes" }}
+                label={
+                  user.isConfirmer ? "Забрати право підтверджувати" : "Може підтверджувати заявки"
+                }
+                loadingText="Зачекайте…"
               />
               {user.isLinked ? (
                 <ActionForm
