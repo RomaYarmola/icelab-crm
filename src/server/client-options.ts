@@ -25,7 +25,7 @@ export type ClientFormOptions = {
   applications: Option[];
   statuses: Option[];
   sources: Option[];
-  boxTypes: Option[];
+  boxTypes: (Option & { capacityKg: string | null })[];
   /** Хто може бути менеджером клієнта: активні менеджери й власники. */
   managers: Option[];
 };
@@ -71,7 +71,7 @@ export async function getClientFormOptions(
         .where(eq(orderSources.isActive, true))
         .orderBy(asc(orderSources.name)),
       db
-        .select({ id: boxTypes.id, name: boxTypes.name })
+        .select({ id: boxTypes.id, name: boxTypes.name, capacityKg: boxTypes.capacityKg })
         .from(boxTypes)
         .where(eq(boxTypes.isActive, true))
         .orderBy(asc(boxTypes.sort), asc(boxTypes.name)),

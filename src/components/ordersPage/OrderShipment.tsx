@@ -124,7 +124,8 @@ export default function OrderShipment({ orderId, card, actions }: OrderShipmentP
             {card.params.seats}.
             {card.params.emptyWeightKnown
               ? ""
-              : " Вагу порожніх боксів не вказано (екран «Нова Пошта»), тож рахується лише лід."}
+              : ` Вага порожнього бокса не вказана, тому додано ${card.params.emptyBoxesKg.toLocaleString("uk-UA")} кг (орієнтовно).`}
+            {card.params.byVolume ? " Вага взята за об'ємом бокса." : ""}
           </Text>
           {card.canWrite ? (
             <ShipmentCreateForm

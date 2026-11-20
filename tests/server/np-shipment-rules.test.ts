@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   normalizeNpPhone,
+  boxSpec,
   npDate,
+  volumetricWeightKg,
   shipmentBlockers,
   shipmentParams,
   splitRecipientName,
@@ -94,14 +96,16 @@ describe("правила накладної Нової Пошти (B10, D127, D1
   it("вага = лід + порожні бокси, місць стільки, скільки боксів (мінімум 1)", () => {
     expect(shipmentParams({ kgToProduce: "33.000", boxCount: 2, emptyWeightKg: "1.500" })).toEqual({
       weightKg: 36,
+      byVolume: false,
       emptyBoxesKg: 3,
       seats: 2,
       emptyWeightKnown: true,
     });
-    // Вага бокса невідома: лише лід і застереження.
+    // Вага бокса невідома: додаємо 1 кг на бокс і показуємо «орієнтовно» (D166).
     expect(shipmentParams({ kgToProduce: "33.000", boxCount: 2, emptyWeightKg: null })).toEqual({
-      weightKg: 33,
-      emptyBoxesKg: 0,
+      weightKg: 35,
+      byVolume: false,
+      emptyBoxesKg: 2,
       seats: 2,
       emptyWeightKnown: false,
     });
@@ -112,6 +116,43 @@ describe("правила накладної Нової Пошти (B10, D127, D1
       weightKg: 5,
       seats: 1,
       emptyWeightKnown: true,
+    });
+  });
+
+  it("об'ємна вага (D158): 19 л зовні 330×340×410 мм дає 11,5 кг, вага не менша за неї", () => {
+    const dimensions = { heightMm: 330, widthMm: 340, lengthMm: 410 };
+    expect(volumetricWeightKg(dimensions)).toBeCloseTo(11.5, 1);
+    // Лід 5 кг + бокс 0,6 кг менші за об'ємну вагу: у накладну йде об'ємна.
+    expect(
+      shipmentParams({ kgToProduce: "5.000", boxCount: 1, emptyWeightKg: "0.6", dimensions }),
+    ).toMatchObject({ byVolume: true, weightKg: 11.501 });
+    // Повний бокс 16 кг важить більше за об'ємну.
+    expect(
+      shipmentParams({ kgToProduce: "16.000", boxCount: 1, emptyWeightKg: "0.6", dimensions }),
+    ).toMatchObject({ byVolume: false, weightKg: 16.6 });
+  });
+
+  it("типова вага порожнього бокса береться з налаштування", () => {
+    expect(
+      shipmentParams({
+        kgToProduce: "10.000",
+        boxCount: 2,
+        emptyWeightKg: null,
+        defaultEmptyKg: 1.5,
+      }),
+    ).toMatchObject({ weightKg: 13, emptyBoxesKg: 3 });
+  });
+
+  it("бокс клієнта сильніший за тип тари, розміри лише повним набором", () => {
+    const type = { emptyWeightKg: "0.6", heightMm: 300, widthMm: 300, lengthMm: 300 };
+    const own = { emptyWeightKg: "2", heightMm: null, widthMm: null, lengthMm: null };
+    expect(boxSpec(own, type)).toEqual({
+      emptyWeightKg: "2",
+      dimensions: { heightMm: 300, widthMm: 300, lengthMm: 300 },
+    });
+    expect(boxSpec(null, { ...type, widthMm: null })).toEqual({
+      emptyWeightKg: "0.6",
+      dimensions: null,
     });
   });
 

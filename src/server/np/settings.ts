@@ -223,6 +223,18 @@ export async function saveLocationSender(
 
 export const MAX_EMPTY_WEIGHT_KG = 100;
 
+const DEFAULT_EMPTY_KEY = "np.default_empty_box_kg";
+
+/** Скільки кг додавати на бокс, коли вага порожнього бокса невідома (D166); типово 1. */
+export async function getDefaultEmptyBoxKg(db: AnyPgDatabase): Promise<number> {
+  const [row] = await db
+    .select({ value: settings.value })
+    .from(settings)
+    .where(eq(settings.key, DEFAULT_EMPTY_KEY));
+  const value = Number(row?.value);
+  return Number.isFinite(value) && value >= 0 && value <= MAX_EMPTY_WEIGHT_KG ? value : 1;
+}
+
 /** Вага порожнього бокса в кг (D127). Порожнє значення знімає вагу. Лише власник. */
 export async function setBoxTypeEmptyWeight(
   db: AnyPgDatabase,

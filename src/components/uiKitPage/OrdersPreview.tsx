@@ -77,6 +77,7 @@ function orderRow(status: OrderStatus, overrides: Partial<OrderRow> = {}): Order
     recipientName: "Марія Петренко",
     recipientPhone: "+380501234567",
     boxTypeId: "box-46",
+    clientOwnBoxId: null,
     boxCount: 2,
     boxOwnership: "ours",
     comment: "Пакувати в два бокси, привезти до 10:00.",

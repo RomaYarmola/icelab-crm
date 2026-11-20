@@ -127,6 +127,13 @@
       "when": 1794925242645,
       "tag": "0017_intake",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795190031795,
+      "tag": "0018_box_dimensions_client_own_boxes",
+      "breakpoints": true
     }
   ]
 }

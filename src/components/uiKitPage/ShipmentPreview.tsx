@@ -4,7 +4,7 @@ interface ShipmentPreviewProps {
   formAction: ShipmentActions["create"];
 }
 
-const ready = { weightKg: 36, seats: 2, emptyWeightKnown: true };
+const ready = { weightKg: 36, seats: 2, emptyWeightKnown: true, emptyBoxesKg: 3, byVolume: false };
 
 /** Блок «Нова Пошта» у чотирьох станах для каталогу `/ui-kit`: чого бракує, форма, ТТН, помилка. */
 export default function ShipmentPreview({ formAction }: ShipmentPreviewProps) {

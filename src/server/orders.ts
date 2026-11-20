@@ -5,6 +5,7 @@ import { withActor } from "@/db/actor";
 import {
   boxTypes,
   clientAddresses,
+  clientOwnBoxes,
   clients,
   iceTypes,
   locations,
@@ -91,6 +92,8 @@ const optionalFields = z
     recipientName: textField(100, "Ім'я отримувача надто довге."),
     recipientPhone: z.string().nullable().optional(),
     boxTypeId: optionalUuid,
+    /** Бокс клієнта з його картки (D164). */
+    clientOwnBoxId: optionalUuid,
     boxCount: z
       .number("Кількість тари має бути числом.")
       .int("Кількість тари має бути цілою.")
@@ -137,6 +140,7 @@ const CORE_KEYS = [
   "recipientName",
   "recipientPhone",
   "boxTypeId",
+  "clientOwnBoxId",
   "boxCount",
   "boxOwnership",
   "paymentKind",
@@ -206,6 +210,51 @@ async function assertExists(
   if (!row) throw new ValidationError(message);
 }
 
+/** Бокс клієнта має належати саме цьому клієнту (D164). */
+async function assertOwnBoxOfClient(
+  db: AnyPgDatabase,
+  ownBoxId: string | null | undefined,
+  clientId: string,
+) {
+  if (!ownBoxId) return;
+  const [row] = await db
+    .select({ clientId: clientOwnBoxes.clientId })
+    .from(clientOwnBoxes)
+    .where(eq(clientOwnBoxes.id, ownBoxId))
+    .limit(1);
+  if (!row || row.clientId !== clientId) {
+    throw new ValidationError("Бокс не належить цьому клієнту.");
+  }
+}
+
+/**
+ * Скільки кг вміщають усі бокси замовлення (D165): місткість бокса клієнта, якщо обрано його, інакше
+ * місткість типу тари, помножена на кількість. `null`, якщо боксів немає чи місткість не задана.
+ */
+export async function loadBoxesCapacity(
+  db: AnyPgDatabase,
+  box: { boxTypeId: string | null; clientOwnBoxId: string | null; boxCount: number },
+): Promise<number | null> {
+  if (box.boxCount <= 0) return null;
+  let capacity: string | null = null;
+  if (box.clientOwnBoxId) {
+    const [row] = await db
+      .select({ capacityKg: clientOwnBoxes.capacityKg })
+      .from(clientOwnBoxes)
+      .where(eq(clientOwnBoxes.id, box.clientOwnBoxId));
+    capacity = row?.capacityKg ?? null;
+  }
+  if (capacity === null && box.boxTypeId) {
+    const [row] = await db
+      .select({ capacityKg: boxTypes.capacityKg })
+      .from(boxTypes)
+      .where(eq(boxTypes.id, box.boxTypeId));
+    capacity = row?.capacityKg ?? null;
+  }
+  const perBox = capacity === null ? 0 : parseDecimal(capacity);
+  return perBox > 0 ? perBox * box.boxCount : null;
+}
+
 async function assertAddressOfClient(
   db: AnyPgDatabase,
   addressId: string | null | undefined,
@@ -240,9 +289,11 @@ async function autoValues(
     orderDate: string;
     deliveryMethod: string;
     kgSold: number;
+    box: { boxTypeId: string | null; clientOwnBoxId: string | null; boxCount: number };
   },
 ) {
   const client = await loadClientContext(db, input.clientId);
+  const maxKg = await loadBoxesCapacity(db, input.box);
   const resolved = input.iceTypeId
     ? await resolvePrice(db, {
         clientId: input.clientId,
@@ -254,7 +305,7 @@ async function autoValues(
   return {
     price: resolved?.pricePerKg ?? null,
     percent,
-    kgToProduce: computeKgToProduce(input.kgSold, percent),
+    kgToProduce: computeKgToProduce(input.kgSold, percent, maxKg),
   };
 }
 
@@ -293,6 +344,7 @@ export async function createOrder(
   await assertExists(db, boxTypes, data.boxTypeId, "Тип тари не знайдено.");
   await assertExists(db, orderSources, data.sourceId, "Джерело не знайдено.");
   await assertAddressOfClient(db, data.addressId, data.clientId);
+  await assertOwnBoxOfClient(db, data.clientOwnBoxId, data.clientId);
   const recipientPhone = parsePhone(data.recipientPhone);
 
   const kgSold = data.kgSold ?? "0.000";
@@ -303,6 +355,11 @@ export async function createOrder(
     orderDate: data.orderDate,
     deliveryMethod: method,
     kgSold: parseDecimal(kgSold),
+    box: {
+      boxTypeId: data.boxTypeId ?? null,
+      clientOwnBoxId: data.clientOwnBoxId ?? null,
+      boxCount: data.boxCount ?? 0,
+    },
   });
 
   const hasManualPrice = data.price !== undefined && data.price !== null;
@@ -330,6 +387,7 @@ export async function createOrder(
         recipientName: data.recipientName ?? null,
         recipientPhone,
         boxTypeId: data.boxTypeId ?? null,
+        clientOwnBoxId: data.clientOwnBoxId ?? null,
         boxCount: data.boxCount ?? 0,
         boxOwnership: data.boxOwnership ?? "ours",
         paymentKind: data.paymentKind ?? "unknown",
@@ -454,6 +512,16 @@ export async function updateOrder(
     if (set[key] === null) delete set[key];
   }
 
+  // Бокс клієнта: лише його власного клієнта й лише для клієнтської тари; зміна клієнта чи чужа тара
+  // знімає вибір (D164).
+  const boxOwnershipValue = changed.boxOwnership ?? order.boxOwnership;
+  let clientOwnBoxId =
+    "clientOwnBoxId" in changed ? (changed.clientOwnBoxId ?? null) : order.clientOwnBoxId;
+  if (touches("clientId") && !("clientOwnBoxId" in changed)) clientOwnBoxId = null;
+  if (boxOwnershipValue !== "client") clientOwnBoxId = null;
+  if (clientOwnBoxId !== order.clientOwnBoxId) set.clientOwnBoxId = clientOwnBoxId;
+  await assertOwnBoxOfClient(db, clientOwnBoxId, clientId);
+
   const kgSold = changed.kgSold ?? order.kgSold;
   const deliveryMethodValue = changed.deliveryMethod ?? order.deliveryMethod;
   const orderDate = changed.orderDate ?? order.orderDate;
@@ -493,16 +561,42 @@ export async function updateOrder(
   }
 
   // «Виготовити»: перераховуємо лише якщо воно було підказаним, а не виправленим вручну (D53).
+  const oldCapacity = await loadBoxesCapacity(db, {
+    boxTypeId: order.boxTypeId,
+    clientOwnBoxId: order.clientOwnBoxId,
+    boxCount: order.boxCount,
+  });
   const wasSuggested =
     parseDecimal(order.kgToProduce) ===
-    computeKgToProduce(parseDecimal(order.kgSold), parseDecimal(order.markupPercentApplied ?? "0"));
-  if (!touches("kgToProduce") && wasSuggested && touches("kgSold", "deliveryMethod", "clientId")) {
+    computeKgToProduce(
+      parseDecimal(order.kgSold),
+      parseDecimal(order.markupPercentApplied ?? "0"),
+      oldCapacity,
+    );
+  if (
+    !touches("kgToProduce") &&
+    wasSuggested &&
+    touches(
+      "kgSold",
+      "deliveryMethod",
+      "clientId",
+      "boxTypeId",
+      "boxCount",
+      "clientOwnBoxId",
+      "boxOwnership",
+    )
+  ) {
     const auto = await autoValues(db, {
       clientId,
       iceTypeId,
       orderDate,
       deliveryMethod: deliveryMethodValue,
       kgSold: parseDecimal(kgSold),
+      box: {
+        boxTypeId: "boxTypeId" in changed ? (changed.boxTypeId ?? null) : order.boxTypeId,
+        clientOwnBoxId,
+        boxCount: changed.boxCount ?? order.boxCount,
+      },
     });
     set.markupPercentApplied = auto.percent.toFixed(2);
     set.kgToProduce = auto.kgToProduce.toFixed(3);

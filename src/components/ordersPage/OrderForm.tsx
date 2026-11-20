@@ -7,7 +7,7 @@ import {
   PAYMENT_KIND_LABELS,
 } from "@/constants/orders";
 import type { DuplicateOrder, OrderTemplate } from "@/server/order-duplicates";
-import type { ClientAddressOption, OrderPricing } from "@/server/order-form";
+import type { ClientAddressOption, ClientOwnBoxOption, OrderPricing } from "@/server/order-form";
 import type { EditPolicy } from "@/server/order-rules";
 import { INLINE_HINTS } from "@/constants/hints";
 import { ORDER_STATUS_LABELS } from "@/constants/orders";
@@ -173,6 +173,23 @@ export default function OrderForm({
   }, [clientId, isCreate, actions]);
   const addresses = addressesResult?.key === clientId ? addressesResult.data : [];
 
+  // Власні бокси клієнта: обираємо, коли тара клієнтська (D164).
+  const [ownBoxesResult, setOwnBoxesResult] = useState<{
+    key: string;
+    data: ClientOwnBoxOption[];
+  } | null>(null);
+  useEffect(() => {
+    if (!clientId) return;
+    let isCurrent = true;
+    actions.clientOwnBoxes(clientId).then((data) => {
+      if (isCurrent) setOwnBoxesResult({ key: clientId, data });
+    });
+    return () => {
+      isCurrent = false;
+    };
+  }, [clientId, actions]);
+  const ownBoxes = ownBoxesResult?.key === clientId ? ownBoxesResult.data : [];
+
   const duplicatesKey = JSON.stringify([clientId, values.orderDate, values.iceTypeId]);
   const [duplicatesResult, setDuplicatesResult] = useState<{
     key: string;
@@ -255,7 +272,17 @@ export default function OrderForm({
 
   // --- Що показати й що надіслати.
   const kg = parseDecimal(values.kgSold);
-  const suggestedToProduce = computeKgToProduce(kg, pricing?.markupPercent ?? 0);
+  // Більше, ніж вміщають бокси, не пропонуємо (D165): місткість бокса клієнта чи типу тари.
+  const ownBox =
+    values.boxOwnership === "client"
+      ? ownBoxes.find((box) => box.id === values.clientOwnBoxId)
+      : null;
+  const boxCapacity = Number(
+    ownBox?.capacityKg ?? options.boxTypes.find((type) => type.id === values.boxTypeId)?.capacityKg,
+  );
+  const boxCountNumber = parseInt(values.boxCount, 10);
+  const maxKg = boxCapacity > 0 && boxCountNumber > 0 ? boxCapacity * boxCountNumber : null;
+  const suggestedToProduce = computeKgToProduce(kg, pricing?.markupPercent ?? 0, maxKg);
   const toProduceShown = toProduceTouched
     ? values.kgToProduce
     : suggestedToProduce > 0
@@ -516,6 +543,26 @@ export default function OrderForm({
           value={values.boxOwnership}
           onChange={(event) => set("boxOwnership", event.target.value)}
         />
+        {values.boxOwnership === "client" ? (
+          ownBoxes.length > 0 ? (
+            <CustomizedSelect
+              name="clientOwnBoxId"
+              label="Бокс клієнта"
+              options={[
+                { value: "", label: "Не вибрано" },
+                ...ownBoxes.map((box) => ({ value: box.id, label: box.name })),
+              ]}
+              value={values.clientOwnBoxId}
+              onChange={(event) => set("clientOwnBoxId", event.target.value)}
+              hint="Вага й розміри бокса йдуть у накладну Нової Пошти."
+            />
+          ) : client ? (
+            <Text variant="muted">
+              У клієнта ще немає власних боксів. Додайте їх у картці клієнта, вкладка «Власні
+              бокси».
+            </Text>
+          ) : null
+        ) : null}
         <CustomizedSelect
           name="paymentKind"
           label="Спосіб оплати"

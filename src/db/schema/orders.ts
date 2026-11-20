@@ -15,7 +15,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { kg, money, percent, pk, restrict, timestamps } from "./_common";
 import { boxOwnership, deliveryMethod, orderItemKind, orderStatus, paymentKind } from "./enums";
-import { clientAddresses, clients } from "./clients";
+import { clientAddresses, clientOwnBoxes, clients } from "./clients";
 import { boxTypes, createdBy, iceTypes, locations, orderSources, profiles } from "./reference";
 
 // Замовлення (розділ 4.3 ТЗ).
@@ -57,6 +57,10 @@ export const orders = pgTable(
     recipientName: text("recipient_name"),
     recipientPhone: text("recipient_phone"),
     boxTypeId: uuid("box_type_id").references(() => boxTypes.id, restrict),
+    /** Бокс клієнта з картки клієнта, якщо тара клієнтська (D164). */
+    clientOwnBoxId: uuid("client_own_box_id").references(() => clientOwnBoxes.id, {
+      onDelete: "set null",
+    }),
     boxCount: integer("box_count").notNull().default(0),
     boxOwnership: boxOwnership("box_ownership").notNull().default("ours"),
     comment: text("comment"),
@@ -94,6 +98,7 @@ export const orders = pgTable(
     index("orders_ice_type_id_idx").on(t.iceTypeId),
     index("orders_address_id_idx").on(t.addressId),
     index("orders_box_type_id_idx").on(t.boxTypeId),
+    index("orders_client_own_box_id_idx").on(t.clientOwnBoxId),
     index("orders_confirmed_by_idx").on(t.confirmedBy),
     index("orders_duplicate_of_idx").on(t.duplicateOf),
     index("orders_created_by_idx").on(t.createdBy),

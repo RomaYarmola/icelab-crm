@@ -13,6 +13,8 @@ import TabLinks from "../shared/tabs/TabLinks";
 import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import AddressesTab from "./AddressesTab";
+import OwnBoxesTab from "./OwnBoxesTab";
+import type { OwnBoxView } from "@/server/client-details";
 import AssignRegionForm from "./AssignRegionForm";
 import type { ClientCardActions } from "./clientActions";
 import ClientForm from "./ClientForm";
@@ -42,6 +44,8 @@ interface ClientCardContentProps {
   defaultPrices: DefaultPriceHistoryItem[] | null;
   /** Дані вкладки «Бокси»; `null`, якщо роль боргів не бачить (виробництво). */
   boxes?: ClientBoxesData | null;
+  /** Власні бокси клієнта для вкладки «Власні бокси» (D164). */
+  ownBoxes?: OwnBoxView[];
   /** Сьогоднішня дата `YYYY-MM-DD`. */
   today: string;
   /** Клієнта щойно створено або об'єднано: показуємо підтвердження. */
@@ -65,6 +69,7 @@ export default function ClientCardContent({
   canSeeHistory,
   history,
   boxes = null,
+  ownBoxes = [],
   today,
   notice,
   tabHref = (id) => (id === "main" ? `/clients/${client.id}` : `/clients/${client.id}?tab=${id}`),
@@ -197,6 +202,10 @@ export default function ClientCardContent({
           actions={actions}
           canEdit={canEdit}
         />
+      ) : null}
+
+      {activeTab === "own_boxes" ? (
+        <OwnBoxesTab clientId={client.id} boxes={ownBoxes} actions={actions} canEdit={canEdit} />
       ) : null}
 
       {activeTab === "boxes" && boxes ? (

@@ -89,30 +89,80 @@ export function splitRecipientName(name: string | null | undefined): RecipientNa
 }
 
 export type ShipmentParams = {
-  /** Вага посилки, кг: лід плюс порожні бокси (D127). */
+  /** Вага посилки, кг: лід плюс порожні бокси (D127), але не менше об'ємної ваги (D158). */
   weightKg: number;
+  /** Вага визначена за об'ємом, бо вона більша за фактичну (D158). */
+  byVolume: boolean;
   /** Скільки порожніх боксів уже враховано (для підказки на екрані). */
   emptyBoxesKg: number;
   seats: number;
-  /** Чи відома вага порожнього бокса: якщо ні, на екрані показуємо застереження. */
+  /** Чи відома вага порожнього бокса: якщо ні, додали типову (D166) і на екрані показуємо «орієнтовно». */
   emptyWeightKnown: boolean;
 };
 
+/** Скільки кг додаємо на бокс, коли вага порожнього бокса невідома (D166, Роман 20.11.2026). */
+export const DEFAULT_EMPTY_BOX_KG = 1;
+
+export type BoxDimensions = { heightMm: number; widthMm: number; lengthMm: number };
+
+type BoxSpecSource = {
+  emptyWeightKg: string | null;
+  heightMm: number | null;
+  widthMm: number | null;
+  lengthMm: number | null;
+};
+
+/**
+ * Вага порожнього бокса й розміри: з бокса клієнта, якщо він обраний (D164), інакше з типу тари.
+ * Кожне значення береться з бокса клієнта, коли воно там задане; розміри лише повним набором.
+ */
+export function boxSpec(
+  own: BoxSpecSource | null,
+  type: BoxSpecSource | null,
+): { emptyWeightKg: string | null; dimensions: BoxDimensions | null } {
+  const dims = (source: BoxSpecSource | null): BoxDimensions | null =>
+    source?.heightMm && source.widthMm && source.lengthMm
+      ? { heightMm: source.heightMm, widthMm: source.widthMm, lengthMm: source.lengthMm }
+      : null;
+  return {
+    emptyWeightKg: own?.emptyWeightKg ?? type?.emptyWeightKg ?? null,
+    dimensions: dims(own) ?? dims(type),
+  };
+}
+
+/** Об'ємна вага одного бокса за формулою Нової Пошти: Д×Ш×В у см, поділене на 4000 (D158). */
+export function volumetricWeightKg(dimensions: BoxDimensions): number {
+  const cm3 = (dimensions.heightMm * dimensions.widthMm * dimensions.lengthMm) / 1000;
+  return cm3 / 4000;
+}
+
 const round3 = (value: number) => Math.round(value * 1000) / 1000;
 
-/** Вага й місця: лід + порожні бокси, кількість місць = кількість боксів (мінімум 1). */
+/**
+ * Вага й місця: лід + порожні бокси, кількість місць = кількість боксів (мінімум 1). Коли вага
+ * порожнього бокса невідома, додаємо типову на кожен бокс (D166); коли відомі розміри, вага не
+ * менша за об'ємну (D158).
+ */
 export function shipmentParams(input: {
   kgToProduce: string;
   boxCount: number;
   emptyWeightKg: string | null;
+  /** Типова вага порожнього бокса, кг (налаштування `np.default_empty_box_kg`). */
+  defaultEmptyKg?: number;
+  dimensions?: BoxDimensions | null;
 }): ShipmentParams {
   const ice = Number(input.kgToProduce) || 0;
   const emptyWeight = input.emptyWeightKg === null ? null : Number(input.emptyWeightKg);
   const emptyKnown = emptyWeight !== null && Number.isFinite(emptyWeight) && emptyWeight > 0;
   const boxes = Math.max(input.boxCount, 0);
-  const emptyBoxesKg = emptyKnown ? round3(boxes * emptyWeight!) : 0;
+  const perBox = emptyKnown ? emptyWeight! : (input.defaultEmptyKg ?? DEFAULT_EMPTY_BOX_KG);
+  const emptyBoxesKg = round3(boxes * perBox);
+  const actual = round3(ice + emptyBoxesKg);
+  const volumetric =
+    input.dimensions && boxes > 0 ? round3(boxes * volumetricWeightKg(input.dimensions)) : 0;
   return {
-    weightKg: round3(ice + emptyBoxesKg),
+    weightKg: Math.max(actual, volumetric),
+    byVolume: volumetric > actual,
     emptyBoxesKg,
     seats: Math.max(boxes, 1),
     emptyWeightKnown: emptyKnown || boxes === 0,

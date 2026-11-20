@@ -17,9 +17,9 @@ const EXPECTED_COUNTS = {
   order_sources: 10,
   client_statuses: 5,
   client_applications: 7,
-  box_types: 6,
+  box_types: 4,
   regions: 27,
-  settings: 6,
+  settings: 7,
 };
 
 describe("початкові дані довідників", () => {
@@ -68,6 +68,7 @@ describe("початкові дані довідників", () => {
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     expect(byKey).toMatchObject({
       "box.reminder_days": 14,
+      "np.default_empty_box_kg": 1,
       "client.inactive_days_default": 30,
       "payment.amount_tolerance_uah": 0,
       "payment.date_window_days": 14,

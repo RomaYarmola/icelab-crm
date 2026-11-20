@@ -44,7 +44,7 @@ import type { LoadMoreOrdersResult } from "@/app/(app)/orders/actions";
 import type { ClientListItem } from "@/server/client-views";
 import type { SimilarClient } from "@/server/clients";
 import type { DuplicateOrder, OrderTemplate } from "@/server/order-duplicates";
-import type { ClientAddressOption, OrderPricing } from "@/server/order-form";
+import type { ClientAddressOption, ClientOwnBoxOption, OrderPricing } from "@/server/order-form";
 import type { UserListItem } from "@/server/users";
 import type { FormState } from "@/utils/formState";
 
@@ -183,6 +183,11 @@ async function previewSearchClients(): Promise<ClientListItem[]> {
       isDeleted: false,
     },
   ];
+}
+
+async function previewOwnBoxes(): Promise<ClientOwnBoxOption[]> {
+  "use server";
+  return [{ id: "ob1", name: "Сірий великий", capacityKg: "20.000" }];
 }
 
 async function previewAddresses(): Promise<ClientAddressOption[]> {
@@ -402,6 +407,7 @@ export default async function ShellPreviewPage({
           formActions={{
             searchClients: previewSearchClients,
             clientAddresses: previewAddresses,
+            clientOwnBoxes: previewOwnBoxes,
             pricing: previewPricing,
             findDuplicates: previewDuplicates,
             repeatLast: previewRepeat,

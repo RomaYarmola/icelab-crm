@@ -24,13 +24,22 @@ export const NO_REGION_LABEL = "Без області (код з цифр)";
  * Вкладки картки клієнта. «Ціни» і «Історія» бачать лише ролі з правом на ціни клієнта (власник,
  * менеджер, бухгалтер): в історії є й зміни цін.
  */
-export const CLIENT_TABS = ["main", "contacts", "addresses", "boxes", "prices", "history"] as const;
+export const CLIENT_TABS = [
+  "main",
+  "contacts",
+  "addresses",
+  "own_boxes",
+  "boxes",
+  "prices",
+  "history",
+] as const;
 export type ClientTab = (typeof CLIENT_TABS)[number];
 
 export const CLIENT_TAB_LABELS: Record<ClientTab, string> = {
   main: "Основне",
   contacts: "Контакти",
   addresses: "Адреси",
+  own_boxes: "Власні бокси",
   boxes: "Бокси",
   prices: "Ціни",
   history: "Історія",
