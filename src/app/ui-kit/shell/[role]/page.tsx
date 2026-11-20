@@ -199,7 +199,6 @@ async function previewPricing(): Promise<OrderPricing | null> {
     source: "default",
     pricePerKg: "75.00",
     markupPercent: 10,
-    markupSettings: { npPercent: 10, eventPercent: 10 },
   };
 }
 

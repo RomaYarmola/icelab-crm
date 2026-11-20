@@ -348,7 +348,7 @@ export default function OrderForm({
         <CustomizedInput
           name="kgSold"
           label="Продано, кг"
-          inputMode="decimal"
+          inputMode="numeric"
           autoComplete="off"
           value={values.kgSold}
           onChange={(event) => set("kgSold", event.target.value)}
@@ -363,7 +363,7 @@ export default function OrderForm({
           // Поле без назви не надсилається: поки «виготовити» не виправлено вручну, його рахує сервер.
           name={toProduceTouched ? "kgToProduce" : ""}
           label="Виготовити, кг"
-          inputMode="decimal"
+          inputMode="numeric"
           autoComplete="off"
           value={toProduceShown}
           onChange={(event) => {

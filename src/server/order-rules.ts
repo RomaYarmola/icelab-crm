@@ -264,42 +264,15 @@ export function canDeleteDraft(status: OrderStatus, role: UserRole): boolean {
 // Надбавка (D53)
 // ---------------------------------------------------------------------------------------------
 
-export type MarkupSettings = {
-  /** `markup.np_percent`: Нова Пошта. */
-  npPercent: number;
-  /** `markup.event_percent`: «Важкий дим» і «Дитячі свята». */
-  eventPercent: number;
-};
-
-export const DEFAULT_MARKUP_SETTINGS: MarkupSettings = { npPercent: 10, eventPercent: 10 };
-
-/** Коди застосувань клієнта, для яких діє надбавка за подію (`client_applications.code`). */
-export const EVENT_APPLICATION_CODES = ["heavy_smoke", "kids_parties"] as const;
-
 /**
- * Надбавка в відсотках для підказки «виготовити»: окрема надбавка клієнта, якщо вона задана,
- * інакше більша з двох (Нова Пошта, застосування «Важкий дим» чи «Дитячі свята»), інакше 0.
- * Лише підказка: менеджер чи старший локації можуть змінити число (відповідь Романа Б2.2).
+ * Надбавка в відсотках для підказки «виготовити»: лише окрема надбавка з картки клієнта, інакше 0
+ * (Роман, 20.11.2026: надбавка потрібна не кожному клієнту, тож менеджер задає її вручну в картці;
+ * автоматично за Новою Поштою чи застосуванням не додаємо). Лише підказка: менеджер чи старший
+ * локації можуть змінити число (відповідь Романа Б2.2).
  */
-export function suggestMarkupPercent(input: {
-  deliveryMethod: string;
-  applicationCode: string | null;
-  clientOverridePercent: number | null;
-  settings?: MarkupSettings;
-}): number {
-  if (input.clientOverridePercent !== null && Number.isFinite(input.clientOverridePercent)) {
-    return input.clientOverridePercent;
-  }
-  const settings = input.settings ?? DEFAULT_MARKUP_SETTINGS;
-  const candidates = [0];
-  if (input.deliveryMethod === "np") candidates.push(settings.npPercent);
-  if (
-    input.applicationCode &&
-    (EVENT_APPLICATION_CODES as readonly string[]).includes(input.applicationCode)
-  ) {
-    candidates.push(settings.eventPercent);
-  }
-  return Math.max(...candidates);
+export function suggestMarkupPercent(input: { clientOverridePercent: number | null }): number {
+  const percent = input.clientOverridePercent;
+  return percent !== null && Number.isFinite(percent) ? percent : 0;
 }
 
 // ---------------------------------------------------------------------------------------------

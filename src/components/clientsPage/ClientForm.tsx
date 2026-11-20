@@ -253,7 +253,7 @@ export default function ClientForm({
             inputMode="decimal"
             autoComplete="off"
             defaultValue={values.markupPercentOverride}
-            hint="Від 0 до 100. Порожнє поле: діє загальна надбавка."
+            hint="Від 0 до 100, скільки відсотків додати до кілограмів «виготовити» (25 кг і 10% дають 27 кг, дроби відкидаємо). Порожнє поле: надбавки немає."
           />
           <CustomizedInput
             name="inactiveDaysThreshold"

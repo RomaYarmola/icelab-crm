@@ -149,13 +149,13 @@ describe("підказки для форми замовлення", () => {
       });
     });
 
-    it("надбавка: Нова Пошта 10%, застосування «Важкий дим» 10%, окрема надбавка клієнта", async () => {
-      expect((await pricing({ deliveryMethod: "np" })).markupPercent).toBe(10);
+    it("надбавка лише з картки клієнта: Нова Пошта чи застосування самі її не дають", async () => {
+      expect((await pricing({ deliveryMethod: "np" })).markupPercent).toBe(0);
       const smoke = await makeClient(t.db, {
         name: "Дим форма",
         applicationId: await t.applicationId("heavy_smoke"),
       });
-      expect((await pricing({ clientId: smoke.id })).markupPercent).toBe(10);
+      expect((await pricing({ clientId: smoke.id })).markupPercent).toBe(0);
       const own = await makeClient(t.db, { name: "Окрема форма", markupPercentOverride: "5.00" });
       expect((await pricing({ clientId: own.id, deliveryMethod: "np" })).markupPercent).toBe(5);
     });

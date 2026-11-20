@@ -109,8 +109,6 @@ export const BOX_TYPES = [
 // Значення налаштувань за замовчуванням (розділ 4.1 ТЗ). Налаштування Telegram
 // (група, топіки, чат власника) заповнюємо в блоці B11.
 export const SETTINGS = [
-  { key: "markup.np_percent", value: 10 },
-  { key: "markup.event_percent", value: 10 }, // TODO питання 3: 10 чи 15
   { key: "box.reminder_days", value: 14 },
   { key: "client.inactive_days_default", value: 30 },
   // Роман (14.11.2026): якщо не вистачає навіть 5 грн, сплаченим не вважаємо (D117).

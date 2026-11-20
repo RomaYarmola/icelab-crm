@@ -8,7 +8,7 @@ import { type ClientListItem } from "./client-views";
 import { listClients } from "./clients";
 import { parseInput, ValidationError } from "./errors";
 import { type AppUser, requirePermission, requireRole } from "./guards";
-import { DEFAULT_MARKUP_SETTINGS, type MarkupSettings, suggestMarkupPercent } from "./order-rules";
+import { suggestMarkupPercent } from "./order-rules";
 import { loadMarkupContext } from "./orders";
 import { resolvePrice, type ResolvedPrice } from "./prices";
 
@@ -75,8 +75,6 @@ export type OrderPricing = {
   pricePerKg: string | null;
   /** Надбавка в відсотках для підказки «виготовити» (D53). */
   markupPercent: number;
-  /** Кілограми й надбавка, з яких рахується підказка (для показу «+10%»). */
-  markupSettings: MarkupSettings;
 };
 
 /**
@@ -106,12 +104,6 @@ export async function getOrderPricing(
   return {
     source: resolved?.source ?? "none",
     pricePerKg: resolved?.pricePerKg ?? null,
-    markupPercent: suggestMarkupPercent({
-      deliveryMethod: input.deliveryMethod ?? "other",
-      applicationCode: context.applicationCode,
-      clientOverridePercent: context.markupOverride,
-      settings: context.settings,
-    }),
-    markupSettings: context.settings ?? DEFAULT_MARKUP_SETTINGS,
+    markupPercent: suggestMarkupPercent({ clientOverridePercent: context.markupOverride }),
   };
 }

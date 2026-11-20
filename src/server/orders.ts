@@ -5,7 +5,6 @@ import { withActor } from "@/db/actor";
 import {
   boxTypes,
   clientAddresses,
-  clientApplications,
   clients,
   iceTypes,
   locations,
@@ -15,7 +14,6 @@ import {
   orderSources,
   orderStatusHistory,
   profiles,
-  settings,
 } from "@/db/schema";
 import { boxOwnership, deliveryMethod, orderStatus, paymentKind } from "@/db/schema/enums";
 import type { AnyPgDatabase } from "@/db/types";
@@ -27,13 +25,7 @@ import { clientSearchCondition } from "./clients";
 import { parseInput, ValidationError } from "./errors";
 import { ForbiddenError, type AppUser, requirePermission, requireRole } from "./guards";
 import { DEFAULT_UNIT, newItemSchema } from "./order-item-schema";
-import {
-  canDeleteDraft,
-  DEFAULT_MARKUP_SETTINGS,
-  editPolicy,
-  type MarkupSettings,
-  suggestMarkupPercent,
-} from "./order-rules";
+import { canDeleteDraft, editPolicy, suggestMarkupPercent } from "./order-rules";
 import {
   type OrderCardView,
   type OrderListItem,
@@ -72,6 +64,7 @@ const kgField = z
   .pipe(
     z
       .number("Кілограми мають бути числом.")
+      .int("Лід продаємо лише цілими кілограмами: вкажіть ціле число.")
       .min(0, "Кілограми не можуть бути від'ємними.")
       .max(MAX_KG, "Забагато кілограмів: перевірте число."),
   )
@@ -165,40 +158,20 @@ export async function loadOrderRow(db: AnyPgDatabase, orderId: string): Promise<
   return row;
 }
 
-type ClientContext = { markupOverride: number | null; applicationCode: string | null };
+type ClientContext = { markupOverride: number | null };
 
 async function loadClientContext(db: AnyPgDatabase, clientId: string): Promise<ClientContext> {
   const [row] = await db
     .select({
       deletedAt: clients.deletedAt,
       markup: clients.markupPercentOverride,
-      applicationCode: clientApplications.code,
     })
     .from(clients)
-    .leftJoin(clientApplications, eq(clientApplications.id, clients.applicationId))
     .where(eq(clients.id, clientId))
     .limit(1);
   if (!row) throw new ValidationError("Клієнта не знайдено.");
   if (row.deletedAt) throw new ValidationError("Клієнта видалено: нове замовлення не створити.");
-  return {
-    markupOverride: row.markup === null ? null : parseDecimal(row.markup),
-    applicationCode: row.applicationCode,
-  };
-}
-
-async function getMarkupSettings(db: AnyPgDatabase): Promise<MarkupSettings> {
-  const rows = await db
-    .select({ key: settings.key, value: settings.value })
-    .from(settings)
-    .where(inArray(settings.key, ["markup.np_percent", "markup.event_percent"]));
-  const read = (key: string, fallback: number) => {
-    const value = rows.find((row) => row.key === key)?.value;
-    return typeof value === "number" && Number.isFinite(value) ? value : fallback;
-  };
-  return {
-    npPercent: read("markup.np_percent", DEFAULT_MARKUP_SETTINGS.npPercent),
-    eventPercent: read("markup.event_percent", DEFAULT_MARKUP_SETTINGS.eventPercent),
-  };
+  return { markupOverride: row.markup === null ? null : parseDecimal(row.markup) };
 }
 
 async function assertActiveLocation(db: AnyPgDatabase, locationId: string) {
@@ -269,10 +242,7 @@ async function autoValues(
     kgSold: number;
   },
 ) {
-  const [client, markupSettings] = await Promise.all([
-    loadClientContext(db, input.clientId),
-    getMarkupSettings(db),
-  ]);
+  const client = await loadClientContext(db, input.clientId);
   const resolved = input.iceTypeId
     ? await resolvePrice(db, {
         clientId: input.clientId,
@@ -280,12 +250,7 @@ async function autoValues(
         date: input.orderDate,
       })
     : null;
-  const percent = suggestMarkupPercent({
-    deliveryMethod: input.deliveryMethod,
-    applicationCode: client.applicationCode,
-    clientOverridePercent: client.markupOverride,
-    settings: markupSettings,
-  });
+  const percent = suggestMarkupPercent({ clientOverridePercent: client.markupOverride });
   return {
     price: resolved?.pricePerKg ?? null,
     percent,
@@ -293,16 +258,9 @@ async function autoValues(
   };
 }
 
-/**
- * Дані клієнта для надбавки: окрема надбавка клієнта, код застосування й загальні налаштування
- * надбавок. Для підказки у формі замовлення (`order-form.ts`).
- */
+/** Окрема надбавка клієнта для підказки у формі замовлення (`order-form.ts`). */
 export async function loadMarkupContext(db: AnyPgDatabase, clientId: string) {
-  const [client, settings] = await Promise.all([
-    loadClientContext(db, clientId),
-    getMarkupSettings(db),
-  ]);
-  return { ...client, settings };
+  return loadClientContext(db, clientId);
 }
 
 function iceItemTitle(iceTypeName: string | null): string {

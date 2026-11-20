@@ -114,6 +114,20 @@ export async function buildDraft(
   },
 ): Promise<DraftBuild> {
   const unclear = [...parsed.unclear];
+  // Лід продаємо лише цілими кілограмами (Роман, 20.11.2026): дробове число округлюємо вниз.
+  const whole = (value: number | null | undefined, what: string): number | null => {
+    if (value == null || Number.isInteger(value)) return value ?? null;
+    const floored = Math.floor(value);
+    unclear.push(
+      `${what}: ${value} кг не ціле, поставлено ${floored} кг (лід продаємо цілими кг).`,
+    );
+    return floored;
+  };
+  parsed = {
+    ...parsed,
+    kg_sold: whole(parsed.kg_sold, "Продано"),
+    kg_to_produce: whole(parsed.kg_to_produce, "Виготовити"),
+  };
   const resolved = await resolveClient(db, parsed.client);
   const isPlaceholder = resolved === null;
   const clientId = resolved ?? (await ensurePlaceholderClient(db));
@@ -190,12 +204,14 @@ export async function buildDraft(
   if (parsed.delivery_price != null && parsed.delivery_price > 0) {
     input.items = [{ kind: "delivery", title: "Доставка", qty: 1, price: parsed.delivery_price }];
   }
-  // Ціна за кг з повідомлення діє лише для нового клієнта (D161): ставимо її в чернетку з позначкою,
-  // а коли клієнт відомий, його прайс сильніший і ціна лишається підказкою.
+  // Ціна за кг з повідомлення діє лише для нового клієнта (D161, Роман 20.11.2026: бот ставить її
+  // сам): вона стає ціною чернетки з позначкою «вказано вручну». Коли клієнт відомий, його прайс
+  // сильніший, а ціна з повідомлення лишається підказкою.
   if (parsed.price_per_kg != null && parsed.price_per_kg > 0) {
     if (isPlaceholder) {
+      input.price = parsed.price_per_kg;
       unclear.push(
-        `У повідомленні ціна ${parsed.price_per_kg} грн/кг. Для нового клієнта впишіть її в замовлення вручну.`,
+        `Ціну ${parsed.price_per_kg} грн/кг взято з повідомлення (новий клієнт). Перевірте її.`,
       );
     } else {
       unclear.push(

@@ -319,6 +319,39 @@ describe("розбір заявки: підказка, чернетка, обр�
     expect(order!.priceManual).toBe(false);
   });
 
+  it("новий клієнт (D161, Роман 20.11.2026): ціна за кг з повідомлення ставиться в чернетку сама", async () => {
+    const stub = claudeReturning(
+      parsed({
+        client: { code: null, name_guess: "Новий лід", confidence: 0.2 },
+        kg_sold: 20,
+        price_per_kg: 80,
+        delivery_price: 300,
+      }),
+    );
+    const outcome = await processIntakeMessage(t.db, (await message()).id, { claude: stub.fn });
+    expect(outcome.status).toBe("drafted");
+    const orderId = (outcome as { orderId: string }).orderId;
+    const [order] = await t.db.select().from(orders).where(eq(orders.id, orderId));
+    expect(order).toMatchObject({ priceManual: true, total: "1900.00" });
+    const items = await t.db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    expect(items.find((item) => item.kind === "ice")).toMatchObject({ price: "80.00" });
+    expect((order!.draftPayload as { unclear: string[] }).unclear.join(" ")).toContain(
+      "взято з повідомлення",
+    );
+  });
+
+  it("дробові кілограми з повідомлення округлюються вниз і позначаються в «Неясно»", async () => {
+    const stub = claudeReturning(parsed({ kg_sold: 12.5, kg_to_produce: 13.75 }));
+    const outcome = await processIntakeMessage(t.db, (await message()).id, { claude: stub.fn });
+    expect(outcome.status).toBe("drafted");
+    const [order] = await t.db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, (outcome as { orderId: string }).orderId));
+    expect(order).toMatchObject({ kgSold: "12.000", kgToProduce: "13.000" });
+    expect((order!.draftPayload as { unclear: string[] }).unclear.join(" ")).toContain("не ціле");
+  });
+
   it("кілька днів в одному повідомленні (D159): кожен день окремою чернеткою, зміна повідомлення чіпає лише першу", async () => {
     const code = (await t.db.select().from(clients).where(eq(clients.id, t.client.id)))[0]!.code;
     const stub = claudeReturning(
