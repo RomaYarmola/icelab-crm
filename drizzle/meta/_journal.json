@@ -176,6 +176,13 @@
       "when": 1795440440249,
       "tag": "0024_telegram_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1795445695719,
+      "tag": "0025_money",
+      "breakpoints": true
     }
   ]
 }

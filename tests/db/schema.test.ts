@@ -5,6 +5,7 @@ import { createTestDb } from "./harness";
 
 const EXPECTED_TABLES = [
   "audit_log",
+  "bank_accounts",
   "box_debts_legacy",
   "box_events",
   "box_types",
@@ -34,6 +35,8 @@ const EXPECTED_TABLES = [
   "order_sources",
   "order_status_history",
   "orders",
+  "payment_matches",
+  "payments",
   "product_prices",
   "products",
   "profiles",

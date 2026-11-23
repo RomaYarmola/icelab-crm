@@ -27,6 +27,7 @@ export const AUDIT_SECTIONS = {
   exports: "Експорт",
   boxes: "Бокси",
   np: "Нова Пошта",
+  payments: "Оплати",
 } as const;
 
 export type AuditSection = keyof typeof AUDIT_SECTIONS;
@@ -103,6 +104,19 @@ export const ITEM_KIND_LABELS = {
   delivery: "Доставка",
   box_sale: "Продаж боксу",
   other: "Інше",
+};
+
+export const PAYMENT_MATCH_STATUS_LABELS = {
+  unmatched: "не зіставлено",
+  auto: "зіставлено само",
+  manual: "зіставлено вручну",
+  ignored: "ігноровано",
+};
+export const PAYMENT_VIA_LABELS = { api: "банк (API)", file: "файл виписки" };
+export const PAYMENT_RULE_LABELS = {
+  comment_number: "номер замовлення в коментарі",
+  amount_date_name: "сума, дата й платник",
+  manual: "вручну",
 };
 
 export const ENTERED_VIA_LABELS = { web: "веб", driver_bot: "бот водія" };
@@ -445,6 +459,43 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       file_name: text("Файл"),
       file_url: hidden("Адреса файлу"),
       created_by: hidden("Хто вивантажив"),
+      created_at: hidden("Створено"),
+    },
+  },
+  payments: {
+    label: "Платіж",
+    section: "payments",
+    noun: "платіж",
+    fields: {
+      id: hidden("Ідентифікатор"),
+      bank_account_id: hidden("Рахунок"),
+      external_id: hidden("Ідентифікатор у банку"),
+      dedupe_hash: hidden("Відбиток для дублів"),
+      occurred_at: timestamp("Час платежу"),
+      amount: money("Сума"),
+      currency: text("Валюта"),
+      description: text("Опис"),
+      counter_name: text("Платник"),
+      counter_iban: hidden("Рахунок платника"),
+      comment: text("Коментар"),
+      raw: hidden("Відповідь банку"),
+      match_status: choice("Статус зіставлення", PAYMENT_MATCH_STATUS_LABELS),
+      ignored_reason: text("Чому ігноровано"),
+      imported_via: choice("Звідки", PAYMENT_VIA_LABELS),
+      ...SYSTEM_FIELDS,
+    },
+  },
+  payment_matches: {
+    label: "Зіставлення платежу",
+    section: "payments",
+    noun: "зіставлення платежу із замовленням",
+    fields: {
+      id: hidden("Ідентифікатор"),
+      payment_id: hidden("Платіж"),
+      order_id: ref("Замовлення", "order"),
+      amount: money("Сума на замовлення"),
+      matched_by: ref("Хто зіставив", "user"),
+      rule: choice("Правило", PAYMENT_RULE_LABELS),
       created_at: hidden("Створено"),
     },
   },

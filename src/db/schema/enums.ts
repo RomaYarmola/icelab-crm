@@ -118,3 +118,14 @@ export const intakeParseStatus = pgEnum("intake_parse_status", [
   "confirmed",
   "rejected",
 ]);
+
+/** Стан зіставлення платежу із замовленням (B13, ТЗ 4.6): не зіставлено, само, вручну, ігноровано. */
+export const paymentMatchStatus = pgEnum("payment_match_status", [
+  "unmatched",
+  "auto",
+  "manual",
+  "ignored",
+]);
+
+/** Звідки платіж: з API monobank чи з файла виписки. */
+export const paymentImportedVia = pgEnum("payment_imported_via", ["api", "file"]);
