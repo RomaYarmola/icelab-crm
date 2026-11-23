@@ -155,6 +155,13 @@
       "when": 1795195341724,
       "tag": "0021_address_recipient_phone",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1795435220317,
+      "tag": "0022_products",
+      "breakpoints": true
     }
   ]
 }

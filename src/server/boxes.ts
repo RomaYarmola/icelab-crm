@@ -1,3 +1,4 @@
+import { resolveBoxPrice } from "./product-prices";
 import { describeBoxLines, loadBoxLineViews, ourBoxesNeeded } from "./order-boxes";
 import { and, asc, desc, eq, inArray, isNull, like, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
@@ -786,6 +787,8 @@ export async function sellBoxToOrder(
     .where(eq(boxes.code, code));
   if (!box) throw new ValidationError("Бокс не знайдено.");
 
+  // Ціна з прайсу боксів (D175), а якщо її там немає, стара з довідника типів.
+  const price = (await resolveBoxPrice(db, box.typeId)) ?? box.price;
   // Подія (і перевірка, що бокс можна продати) першою: позиція з'являється лише після неї.
   await recordBoxEvent(db, actor, { code, action: "sell", orderId });
   await withActor(db, actor.id, async (tx) => {
@@ -795,12 +798,12 @@ export async function sellBoxToOrder(
       title: `Продаж боксу ${box.typeName}`,
       qty: "1",
       unit: "шт",
-      price: box.price ?? "0",
+      price: price ?? "0",
       boxTypeId: box.typeId,
     });
   });
   return {
     message: `Продано бокс ${code}.`,
-    priceMissing: box.price === null,
+    priceMissing: price === null,
   };
 }

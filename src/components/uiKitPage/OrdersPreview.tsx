@@ -128,6 +128,7 @@ const ITEMS: ItemRow[] = [
     price: "75.00",
     amount: "2250.00",
     boxTypeId: null,
+    productId: null,
     createdBy: null,
     createdAt: new Date("2026-11-12T08:00:00Z"),
     updatedAt: new Date("2026-11-12T08:00:00Z"),
@@ -142,6 +143,7 @@ const ITEMS: ItemRow[] = [
     price: "150.00",
     amount: "150.00",
     boxTypeId: null,
+    productId: null,
     createdBy: null,
     createdAt: new Date("2026-11-12T08:01:00Z"),
     updatedAt: new Date("2026-11-12T08:01:00Z"),
@@ -257,6 +259,7 @@ const FORM_OPTIONS: OrderFormOptions = {
     { id: "box-46", name: "Довгий 46 л" },
     { id: "box-9", name: "Міні 9 л" },
   ],
+  boxPrices: { "box-9": "500.00", "box-46": "650.00" },
 };
 
 interface OrdersPreviewProps {

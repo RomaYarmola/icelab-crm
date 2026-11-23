@@ -16,6 +16,14 @@ export interface BoxLineDraft {
   count: string;
 }
 
+/** Рядок «бокс на продаж»: вид, кількість і ціна за штуку (порожня означає «за прайсом»). */
+export interface BoxSaleDraft {
+  key: number;
+  boxTypeId: string;
+  qty: string;
+  price: string;
+}
+
 /** Усі поля форми замовлення рядками: так вони живуть у полях введення. */
 export interface OrderFormValues {
   locationId: string;
@@ -32,6 +40,8 @@ export interface OrderFormValues {
   recipientPhone: string;
   /** Тара рядками: що й скільки (20.11.2026). */
   boxLines: BoxLineDraft[];
+  /** Бокси на продаж (D174). */
+  boxSales: BoxSaleDraft[];
   boxOwnership: string;
   paymentKind: string;
   comment: string;
@@ -45,6 +55,8 @@ export interface OrderFormOptions {
   sources: { id: string; name: string }[];
   /** `capacityKg`: скільки кг вміщає бокс (для підказки «виготовити», D165). */
   boxTypes: { id: string; name: string; capacityKg?: string | null; isClientOwned?: boolean }[];
+  /** Чинні ціни прайсу боксів: тип → ціна за штуку (D175). */
+  boxPrices?: Record<string, string>;
 }
 
 /** Серверні дії і підказки форми. У каталозі `/ui-kit` це заглушки. */

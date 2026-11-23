@@ -7,6 +7,7 @@ import { requireUser } from "@/server/auth";
 import { ValidationError } from "@/server/errors";
 import { readText, runFormAction } from "@/server/form-state";
 import { changeDefaultPrice } from "@/server/prices";
+import { changeBoxPrice } from "@/server/product-prices";
 import type { FormState } from "@/utils/formState";
 
 /** Зміна прайсу (цін за замовчуванням) «від дати»: лише власник, права перевіряє `changeDefaultPrice`. */
@@ -31,6 +32,27 @@ export async function changeDefaultPriceAction(
       });
       revalidatePath("/prices");
       revalidatePath("/clients", "layout");
+    },
+    { success: "Нову ціну збережено.", values },
+  );
+}
+
+/** Зміна ціни боксів на продаж «від дати» (D175): лише власник, права перевіряє `changeBoxPrice`. */
+export async function changeBoxPriceAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const values = {
+    boxTypeId: readText(formData, "boxTypeId"),
+    pricePerUnit: readText(formData, "pricePerUnit"),
+    validFrom: readText(formData, "validFrom"),
+  };
+  return runFormAction(
+    async () => {
+      await changeBoxPrice(getDb(), actor, values);
+      revalidatePath("/prices");
+      revalidatePath("/orders", "layout");
     },
     { success: "Нову ціну збережено.", values },
   );

@@ -159,3 +159,57 @@ export const defaultPrices = pgTable(
     check("default_prices_values_ok", sql`${t.minKg} >= 0 and ${t.pricePerKg} >= 0`),
   ],
 ).enableRLS();
+
+/**
+ * Довідник товарів (D174): лід, бокси, рідкий азот і майбутні. Тип льоду й тип бокса лишаються
+ * окремими довідниками, а товар каже, що це за вид, у чому рахуємо, чи виробляє цех і якими
+ * способами доставки його можна віддати (`null` означає «усіма»).
+ */
+export const products = pgTable(
+  "products",
+  {
+    id: pk(),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    kind: text("kind").notNull(),
+    unit: text("unit").notNull().default("шт"),
+    producedByWorkshop: boolean("produced_by_workshop").notNull().default(false),
+    allowedDeliveryMethods: text("allowed_delivery_methods").array(),
+    isActive: boolean("is_active").notNull().default(true),
+    sort: integer("sort").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [check("products_kind_ok", sql`${t.kind} in ('ice', 'box', 'other')`)],
+).enableRLS();
+
+/**
+ * Ціни товарів з історією «нова ціна від дати» (D45): для боксів по типу бокса, для товарів без
+ * типів (рідкий азот) без типу. Лід має власний прайс (`default_prices`).
+ */
+export const productPrices = pgTable(
+  "product_prices",
+  {
+    id: pk(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, restrict),
+    boxTypeId: uuid("box_type_id").references(() => boxTypes.id, restrict),
+    pricePerUnit: money("price_per_unit").notNull(),
+    validFrom: date("valid_from").notNull(),
+    validTo: date("valid_to"),
+    ...timestamps,
+  },
+  (t) => [
+    index("product_prices_product_id_idx").on(t.productId),
+    index("product_prices_box_type_id_idx").on(t.boxTypeId),
+    // Одна поточна ціна на товар (без типу) і на тип бокса.
+    uniqueIndex("product_prices_current_uq")
+      .on(t.productId)
+      .where(sql`${t.validTo} is null and ${t.boxTypeId} is null`),
+    uniqueIndex("product_prices_current_box_uq")
+      .on(t.productId, t.boxTypeId)
+      .where(sql`${t.validTo} is null and ${t.boxTypeId} is not null`),
+    check("product_prices_period_ok", sql`${t.validTo} is null or ${t.validTo} >= ${t.validFrom}`),
+    check("product_prices_value_ok", sql`${t.pricePerUnit} >= 0`),
+  ],
+).enableRLS();

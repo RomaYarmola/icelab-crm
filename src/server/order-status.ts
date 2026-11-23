@@ -93,37 +93,53 @@ export async function transitionOrder(
               "Оберіть склад (Київ чи Львів) у формі чернетки й збережіть її, перш ніж підтвердити.",
             );
           }
-          if (!current.iceTypeId)
+          // Замовлення лише з боксами на продаж (без льоду, D174) підтверджується без типу льоду й кг.
+          const [boxSale] = await tx
+            .select({ id: orderItems.id })
+            .from(orderItems)
+            .where(and(eq(orderItems.orderId, current.id), eq(orderItems.kind, "box_sale")))
+            .limit(1);
+          const boxesOnly =
+            Boolean(boxSale) && !current.iceTypeId && !(parseDecimal(current.kgSold) > 0);
+          if (!boxesOnly && !current.iceTypeId)
             throw new ValidationError("Вкажіть тип льоду, перш ніж підтвердити.");
-          if (!(parseDecimal(current.kgSold) > 0)) {
+          if (!boxesOnly && !(parseDecimal(current.kgSold) > 0)) {
             throw new ValidationError("Вкажіть, скільки кілограмів продано, перш ніж підтвердити.");
           }
-          const [iceItem] = await tx
-            .select({ price: orderItems.price })
-            .from(orderItems)
-            .where(and(eq(orderItems.orderId, current.id), eq(orderItems.kind, "ice")))
-            .limit(1);
-          // Ціну, яку не вказали вручну, беремо за прайсом на дату виконання (D52).
-          const resolved = current.priceManual
-            ? null
-            : await resolvePrice(tx, {
-                clientId: current.clientId,
-                iceTypeId: current.iceTypeId,
-                date: current.orderDate,
-              });
-          const price = current.priceManual ? (iceItem?.price ?? "0") : resolved?.pricePerKg;
-          if (!price || !(parseDecimal(price) > 0)) {
-            throw new ValidationError(
-              "Немає ціни для цього типу льоду: внесіть її в прайс чи в картку клієнта або вкажіть ціну в замовленні.",
-            );
+          if (boxesOnly) {
+            // Ціни боксів уже в позиціях; ціни за кг немає, у знімок йде нуль.
+            set.pricePerKgSnapshot = "0.00";
+            set.confirmedAt = now;
+            set.confirmedBy = actor.id;
+          } else {
+            const [iceItem] = await tx
+              .select({ price: orderItems.price })
+              .from(orderItems)
+              .where(and(eq(orderItems.orderId, current.id), eq(orderItems.kind, "ice")))
+              .limit(1);
+            // Ціну, яку не вказали вручну, беремо за прайсом на дату виконання (D52).
+            const resolved = current.priceManual
+              ? null
+              : await resolvePrice(tx, {
+                  clientId: current.clientId,
+                  // Тип льоду тут уже є: без нього й без боксів вище кинули б помилку.
+                  iceTypeId: current.iceTypeId!,
+                  date: current.orderDate,
+                });
+            const price = current.priceManual ? (iceItem?.price ?? "0") : resolved?.pricePerKg;
+            if (!price || !(parseDecimal(price) > 0)) {
+              throw new ValidationError(
+                "Немає ціни для цього типу льоду: внесіть її в прайс чи в картку клієнта або вкажіть ціну в замовленні.",
+              );
+            }
+            set.pricePerKgSnapshot = price;
+            set.confirmedAt = now;
+            set.confirmedBy = actor.id;
+            await tx
+              .update(orderItems)
+              .set({ price })
+              .where(and(eq(orderItems.orderId, current.id), eq(orderItems.kind, "ice")));
           }
-          set.pricePerKgSnapshot = price;
-          set.confirmedAt = now;
-          set.confirmedBy = actor.id;
-          await tx
-            .update(orderItems)
-            .set({ price })
-            .where(and(eq(orderItems.orderId, current.id), eq(orderItems.kind, "ice")));
         } else if (to === "packed") {
           set.packedAt = now;
           set.producedAt = current.producedAt ?? now;
