@@ -4,6 +4,7 @@ import { intakeMessages, locations, profiles, telegramLinkCodes } from "@/db/sch
 import type { AnyPgDatabase } from "@/db/types";
 import { handleCallback, type FlowDeps, type TgCallback } from "../intake/telegram-flow";
 import { sendMessage } from "./client";
+import { driverByTelegram, handleDriverCallback, handleDriverMessage } from "./driver-flow";
 import {
   getTelegramSettings,
   isCaptureActive,
@@ -92,6 +93,13 @@ async function handlePrivate(
   const from = message.from;
   const text = message.text?.trim() ?? "";
   const match = START.exec(text);
+  if (from && !match && text !== "") {
+    const driver = await driverByTelegram(db, from.id);
+    if (driver) {
+      await handleDriverMessage(db, driver, from, chatId, text, deps);
+      return { kind: "ignored", reason: "водій" };
+    }
+  }
   if (!from || !match) {
     if (text.startsWith("/") || text === "")
       return { kind: "ignored", reason: "не команда /start" };
@@ -104,6 +112,14 @@ async function handlePrivate(
     return { kind: "ignored", reason: "особисте повідомлення" };
   }
   const code = match[1]?.toUpperCase();
+  if (!code && from) {
+    // Прив'язаний водій: `/start` без коду показує його доставки (B12).
+    const driver = await driverByTelegram(db, from.id);
+    if (driver) {
+      await handleDriverMessage(db, driver, from, chatId, text, deps);
+      return { kind: "ignored", reason: "водій: /start" };
+    }
+  }
   if (!code) {
     await reply(
       db,
@@ -150,7 +166,14 @@ async function handlePrivate(
   if (row.profile.role === "owner") {
     await setTelegramSettings(db, row.profile.id, { ownerChatId: chatId });
   }
-  await reply(db, deps, chatId, `Готово, ${row.profile.fullName}. Telegram підключено до CRM.`);
+  await reply(
+    db,
+    deps,
+    chatId,
+    row.profile.role === "driver"
+      ? `Готово, ${row.profile.fullName}. Telegram підключено. Напишіть /today, щоб побачити доставки на сьогодні.`
+      : `Готово, ${row.profile.fullName}. Telegram підключено до CRM.`,
+  );
   return { kind: "bound", profileId: row.profile.id };
 }
 
@@ -283,6 +306,10 @@ export async function handleUpdate(
   update: TgUpdate,
   deps: Deps = {},
 ): Promise<UpdateOutcome> {
+  if (update.callback_query?.data?.startsWith("drv:")) {
+    const result = await handleDriverCallback(db, update.callback_query, deps);
+    return { kind: "callback", result };
+  }
   if (update.callback_query) {
     const result = await handleCallback(db, update.callback_query, deps);
     return { kind: "callback", result: result.kind };

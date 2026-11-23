@@ -32,7 +32,7 @@ export const CAPTURE_MINUTES = 10;
 export type IntakeUser = {
   id: string;
   fullName: string;
-  role: "owner" | "manager";
+  role: "owner" | "manager" | "driver";
   locationName: string | null;
   isLinked: boolean;
   /** Може підтверджувати чернетки (D151). */
@@ -63,7 +63,9 @@ export async function getIntakeStatus(db: AnyPgDatabase, actor: AppUser): Promis
       })
       .from(profiles)
       .leftJoin(locations, eq(locations.id, profiles.locationId))
-      .where(and(eq(profiles.isActive, true), inArray(profiles.role, ["owner", "manager"])))
+      .where(
+        and(eq(profiles.isActive, true), inArray(profiles.role, ["owner", "manager", "driver"])),
+      )
       .orderBy(asc(profiles.role), asc(profiles.fullName)),
   ]);
   return {
@@ -73,7 +75,7 @@ export async function getIntakeStatus(db: AnyPgDatabase, actor: AppUser): Promis
     users: rows.map((row) => ({
       id: row.id,
       fullName: row.fullName,
-      role: row.role as "owner" | "manager",
+      role: row.role as "owner" | "manager" | "driver",
       locationName: row.locationName,
       isLinked: row.telegramUserId !== null,
       isConfirmer: confirmerIds.includes(row.id),
@@ -191,8 +193,11 @@ export async function createLinkCode(
     .select()
     .from(profiles)
     .where(and(eq(profiles.id, profileId), eq(profiles.isActive, true)));
-  if (!profile || (profile.role !== "owner" && profile.role !== "manager")) {
-    throw new ValidationError("Telegram підключаємо менеджерам і власнику.");
+  if (
+    !profile ||
+    (profile.role !== "owner" && profile.role !== "manager" && profile.role !== "driver")
+  ) {
+    throw new ValidationError("Telegram підключаємо менеджерам, водіям і власнику.");
   }
   const code = generateLinkCode();
   const expiresAt = new Date(now.getTime() + LINK_CODE_HOURS * 3_600_000);

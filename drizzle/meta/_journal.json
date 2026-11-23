@@ -169,6 +169,13 @@
       "when": 1795436115353,
       "tag": "0023_nitrogen_dewars",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795440440249,
+      "tag": "0024_telegram_sessions",
+      "breakpoints": true
     }
   ]
 }
