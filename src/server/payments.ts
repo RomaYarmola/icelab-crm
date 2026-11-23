@@ -30,7 +30,7 @@ type PaymentRow = typeof payments.$inferSelect;
 const OPEN_STATUSES = [...CASH_RECEIVING_STATUSES];
 const BANK_KINDS = ["fop", "company"] as const;
 
-async function allocatedKopecks(
+export async function allocatedKopecks(
   db: AnyPgDatabase,
   where: { paymentId?: string; orderId?: string },
 ): Promise<number> {
@@ -66,7 +66,7 @@ async function refreshStatus(
 }
 
 /** Замовлення, які ще чекають оплату з банку, із залишком у копійках. */
-async function loadCandidates(db: AnyPgDatabase): Promise<MatchOrder[]> {
+export async function loadCandidates(db: AnyPgDatabase): Promise<MatchOrder[]> {
   const rows = await db
     .select({
       id: orders.id,

@@ -18,6 +18,7 @@ import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import type { OrderCardActions } from "./orderActions";
 import OrderHistory from "./OrderHistory";
+import OrderPayments, { type OrderPaymentView } from "./OrderPayments";
 import OrderShipment, { type ShipmentActions } from "./OrderShipment";
 import OrderItemsList from "./OrderItemsList";
 import OrderPriceForm from "./OrderPriceForm";
@@ -47,6 +48,8 @@ interface OrderCardContentProps {
   boxes?: OrderBox[] | null;
   /** Блок «Нова Пошта» (B10): лише ролі з правом на накладні й замовлення зі способом «Нова Пошта». */
   shipment?: { card: ShipmentCard; actions: ShipmentActions } | null;
+  /** Платежі з банку (B13): лише власник і бухгалтер, для безготівкових замовлень. */
+  bankPayments?: OrderPaymentView[] | null;
   /** Замовлення щойно створено: показуємо підтвердження. */
   notice?: "created";
 }
@@ -64,6 +67,7 @@ export default function OrderCardContent({
   changeHistory,
   boxes,
   shipment,
+  bankPayments,
   notice,
 }: OrderCardContentProps) {
   const isCancelled = order.status === "cancelled";
@@ -135,6 +139,7 @@ export default function OrderCardContent({
       {shipment ? (
         <OrderShipment orderId={order.id} card={shipment.card} actions={shipment.actions} />
       ) : null}
+      {bankPayments ? <OrderPayments payments={bankPayments} /> : null}
       {canChangePrice ? <OrderPriceForm orderId={order.id} action={actions.changePrice} /> : null}
 
       <OrderHistory history={order.history} />
