@@ -20,6 +20,7 @@ export function buildCreateDefaults(input: { today: string; locationId: string }
     recipientPhone: "",
     boxLines: [],
     boxSales: [],
+    nitrogen: { qty: "", price: "" },
     boxOwnership: "ours",
     paymentKind: "unknown",
     comment: "",
@@ -28,7 +29,10 @@ export function buildCreateDefaults(input: { today: string; locationId: string }
 }
 
 /** Початкові значення форми зміни з картки замовлення (поля, яких роль не отримала, порожні). */
-export function buildEditDefaults(order: OrderCardView): OrderFormValues {
+export function buildEditDefaults(
+  order: OrderCardView,
+  nitrogenProductId: string | null = null,
+): OrderFormValues {
   const kg = (value: string) => String(parseDecimal(value));
   return {
     locationId: order.locationId,
@@ -43,6 +47,17 @@ export function buildEditDefaults(order: OrderCardView): OrderFormValues {
     timeWindow: order.timeWindow ?? "",
     recipientName: order.recipientName ?? "",
     recipientPhone: order.recipientPhone ? formatPhone(order.recipientPhone) : "",
+    nitrogen: (() => {
+      const item = nitrogenProductId
+        ? order.items.find((candidate) => candidate.productId === nitrogenProductId)
+        : undefined;
+      return item
+        ? {
+            qty: String(parseDecimal(item.qty)),
+            price: item.price ? String(parseDecimal(item.price)) : "",
+          }
+        : { qty: "", price: "" };
+    })(),
     boxSales: order.items
       .filter((item) => item.kind === "box_sale" && item.boxTypeId)
       .map((item, index) => ({

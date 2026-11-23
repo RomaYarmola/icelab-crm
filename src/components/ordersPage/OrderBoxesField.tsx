@@ -59,7 +59,10 @@ export default function OrderBoxesField({
       {lines.map((line, index) => {
         const isClient = line.owner === "client";
         const variants = isClient
-          ? ownBoxes.map((box) => ({ value: `o:${box.id}`, label: box.name }))
+          ? ownBoxes.map((box) => ({
+              value: `o:${box.id}`,
+              label: box.kind === "dewar" ? `${box.name} (сосуд Дюара)` : box.name,
+            }))
           : boxTypes.map((type) => ({ value: `t:${type.id}`, label: type.name }));
         return (
           <div

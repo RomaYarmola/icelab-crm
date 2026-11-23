@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { withActor } from "@/db/actor";
 import { boxes, clients, orderItems, orderPriceChanges, orders } from "@/db/schema";
 import type { OrderStatus } from "@/constants/constants";
@@ -93,11 +93,16 @@ export async function transitionOrder(
               "Оберіть склад (Київ чи Львів) у формі чернетки й збережіть її, перш ніж підтвердити.",
             );
           }
-          // Замовлення лише з боксами на продаж (без льоду, D174) підтверджується без типу льоду й кг.
+          // Замовлення лише з боксами на продаж чи азотом (без льоду, D174, D176) підтверджується без типу льоду й кг.
           const [boxSale] = await tx
             .select({ id: orderItems.id })
             .from(orderItems)
-            .where(and(eq(orderItems.orderId, current.id), eq(orderItems.kind, "box_sale")))
+            .where(
+              and(
+                eq(orderItems.orderId, current.id),
+                inArray(orderItems.kind, ["box_sale", "other"]),
+              ),
+            )
             .limit(1);
           const boxesOnly =
             Boolean(boxSale) && !current.iceTypeId && !(parseDecimal(current.kgSold) > 0);

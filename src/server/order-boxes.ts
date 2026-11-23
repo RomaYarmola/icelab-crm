@@ -28,6 +28,8 @@ export type BoxLineInput = {
 export type BoxLineView = BoxLine & {
   /** Бокс клієнта (бокс з його картки чи загальний тип «Бокс клієнта»), а не наш. */
   isClient: boolean;
+  /** Вид тари: бокс для льоду чи сосуд Дюара для азоту (місткість у кг льоду його не стосується). */
+  kind: "ice" | "dewar";
   name: string;
   capacityKg: string | null;
   emptyWeightKg: string | null;
@@ -144,6 +146,8 @@ export async function loadBoxLineViews(
       count: orderBoxes.count,
       typeName: boxTypes.name,
       typeIsClient: boxTypes.isClientOwned,
+      typeKind: boxTypes.kind,
+      ownKind: clientOwnBoxes.kind,
       typeCapacity: boxTypes.capacityKg,
       typeEmpty: boxTypes.emptyWeightKg,
       typeHeight: boxTypes.heightMm,
@@ -173,6 +177,7 @@ export async function loadBoxLineViews(
       clientOwnBoxId: row.clientOwnBoxId,
       count: row.count,
       isClient: own || row.typeIsClient === true,
+      kind: (own ? row.ownKind : row.typeKind) === "dewar" ? "dewar" : "ice",
       name: (own ? row.ownName : row.typeName) ?? row.typeName ?? "Тара",
       capacityKg: (own ? row.ownCapacity : null) ?? row.typeCapacity,
       emptyWeightKg: (own ? row.ownEmpty : null) ?? row.typeEmpty,
@@ -194,26 +199,34 @@ export async function loadBoxLineViews(
 export async function linesCapacity(db: AnyPgDatabase, lines: BoxLine[]): Promise<number | null> {
   if (lines.length === 0) return null;
   let total = 0;
+  let iceLines = 0;
   for (const line of lines) {
     let capacity: string | null = null;
+    let kind = "ice";
     if (line.clientOwnBoxId) {
       const [row] = await db
-        .select({ capacityKg: clientOwnBoxes.capacityKg })
+        .select({ capacityKg: clientOwnBoxes.capacityKg, kind: clientOwnBoxes.kind })
         .from(clientOwnBoxes)
         .where(eq(clientOwnBoxes.id, line.clientOwnBoxId));
       capacity = row?.capacityKg ?? null;
+      kind = row?.kind ?? "ice";
     }
     if (capacity === null && line.boxTypeId) {
       const [row] = await db
-        .select({ capacityKg: boxTypes.capacityKg })
+        .select({ capacityKg: boxTypes.capacityKg, kind: boxTypes.kind })
         .from(boxTypes)
         .where(eq(boxTypes.id, line.boxTypeId));
       capacity = row?.capacityKg ?? null;
+      if (!line.clientOwnBoxId) kind = row?.kind ?? "ice";
     }
+    // Сосуди Дюара для азоту не вміщають лід: у місткість для «виготовити» не входять.
+    if (kind === "dewar") continue;
+    iceLines += 1;
     const perBox = capacity === null ? 0 : parseDecimal(capacity);
     if (!(perBox > 0)) return null;
     total += perBox * line.count;
   }
+  if (iceLines === 0) return null;
   return total;
 }
 

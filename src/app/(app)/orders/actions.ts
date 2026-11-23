@@ -129,6 +129,21 @@ function readBoxSales(formData: FormData): CreateOrderInput["boxSales"] {
   return parsed as CreateOrderInput["boxSales"];
 }
 
+/** Рідкий азот: приховане поле `nitrogenJson` (кг і ціна) або `null`, якщо азоту немає. */
+function readNitrogen(formData: FormData): CreateOrderInput["nitrogen"] {
+  const raw = readOptionalText(formData, "nitrogenJson");
+  if (raw === null) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new ValidationError("Не вдалося прочитати азот.");
+  }
+  if (parsed === null) return null;
+  if (typeof parsed !== "object") throw new ValidationError("Не вдалося прочитати азот.");
+  return parsed as CreateOrderInput["nitrogen"];
+}
+
 /** Поля нового замовлення з форми. Значення перевіряє схема всередині серверної функції. */
 function readCreateFields(formData: FormData): CreateOrderInput {
   return {
@@ -148,6 +163,7 @@ function readCreateFields(formData: FormData): CreateOrderInput {
     recipientPhone: optional(formData, "recipientPhone"),
     boxes: readBoxes(formData),
     boxSales: readBoxSales(formData),
+    nitrogen: readNitrogen(formData),
     boxOwnership: optional(formData, "boxOwnership") as CreateOrderInput["boxOwnership"],
     paymentKind: optional(formData, "paymentKind") as CreateOrderInput["paymentKind"],
     comment: optional(formData, "comment"),
@@ -191,6 +207,7 @@ function readUpdateFields(formData: FormData): UpdateOrderInput {
   }
   if (formData.has("boxesJson")) patch.boxes = readBoxes(formData);
   if (formData.has("boxSalesJson")) patch.boxSales = readBoxSales(formData);
+  if (formData.has("nitrogenJson")) patch.nitrogen = readNitrogen(formData);
   if (formData.has("price")) patch.price = readOptionalText(formData, "price");
   return patch as UpdateOrderInput;
 }

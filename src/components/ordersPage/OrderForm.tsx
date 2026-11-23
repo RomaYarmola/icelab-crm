@@ -290,6 +290,11 @@ export default function OrderForm({
   for (const line of values.boxLines) {
     const count = parseInt(line.count, 10);
     if (!(count > 0) || (!line.boxTypeId && !line.clientOwnBoxId)) continue;
+    // Сосуди Дюара для азоту лід не вміщають: у місткість не входять.
+    const isDewar = line.clientOwnBoxId
+      ? ownBoxes.find((box) => box.id === line.clientOwnBoxId)?.kind === "dewar"
+      : options.boxTypes.find((type) => type.id === line.boxTypeId)?.kind === "dewar";
+    if (isDewar) continue;
     const capacity = Number(
       line.clientOwnBoxId
         ? ownBoxes.find((box) => box.id === line.clientOwnBoxId)?.capacityKg
@@ -321,9 +326,25 @@ export default function OrderForm({
     const unit = manual ?? (auto ? parseDecimal(auto) : 0);
     return qty > 0 && sale.boxTypeId ? lineAmount(qty, unit) : "0.00";
   });
+  // Рідкий азот: кг × ціна за кг (з прайсу азоту чи вписана вручну).
+  const nitrogenQty = parseDecimal(values.nitrogen.qty);
+  const nitrogenUnit =
+    values.nitrogen.price.trim() !== ""
+      ? parseDecimal(values.nitrogen.price)
+      : options.nitrogenPrice
+        ? parseDecimal(options.nitrogenPrice)
+        : 0;
+  const nitrogenJson =
+    nitrogenQty > 0
+      ? JSON.stringify({
+          qty: values.nitrogen.qty.trim(),
+          price: values.nitrogen.price.trim() === "" ? null : values.nitrogen.price.trim(),
+        })
+      : "null";
   const total = sumAmounts([
     lineAmount(Number.isFinite(kg) ? kg : 0, effectivePrice),
     ...boxSalesTotals,
+    lineAmount(nitrogenQty > 0 ? nitrogenQty : 0, nitrogenUnit),
   ]);
 
   const coreLocked = policy.core === "none";
@@ -487,8 +508,10 @@ export default function OrderForm({
           options={Object.entries(DELIVERY_METHOD_LABELS)
             .filter(
               ([value]) =>
-                (SELECTABLE_DELIVERY_METHODS as readonly string[]).includes(value) ||
-                value === values.deliveryMethod,
+                ((SELECTABLE_DELIVERY_METHODS as readonly string[]).includes(value) ||
+                  value === values.deliveryMethod) &&
+                // Рідкий азот поштою не відправляємо (D176).
+                !(nitrogenQty > 0 && value === "np"),
             )
             .map(([value, label]) => ({ value, label }))}
           value={values.deliveryMethod}
@@ -601,11 +624,39 @@ export default function OrderForm({
           ownBoxes={ownBoxes}
           clientId={clientId}
         />
+        <SectionTitle>Рідкий азот</SectionTitle>
+        <CustomizedInput
+          name=""
+          label="Рідкий азот, кг"
+          inputMode="decimal"
+          autoComplete="off"
+          value={values.nitrogen.qty}
+          onChange={(event) => set("nitrogen", { ...values.nitrogen, qty: event.target.value })}
+          hint="Порожнє поле: азот у замовлення не додається. Поштою азот не відправляємо."
+        />
+        {nitrogenQty > 0 ? (
+          <CustomizedInput
+            name=""
+            label="Ціна за кг, ₴"
+            inputMode="decimal"
+            autoComplete="off"
+            value={values.nitrogen.price}
+            placeholder={options.nitrogenPrice ? String(Number(options.nitrogenPrice)) : ""}
+            onChange={(event) => set("nitrogen", { ...values.nitrogen, price: event.target.value })}
+            hint={
+              options.nitrogenPrice
+                ? "Порожнє поле: ціна за прайсом азоту."
+                : "У прайсі азоту ціни немає: вкажіть її тут."
+            }
+          />
+        ) : null}
+        <input type="hidden" name="nitrogenJson" value={nitrogenJson} />
+
         <SectionTitle>Продаж боксів</SectionTitle>
         <OrderBoxSalesField
           sales={values.boxSales}
           onChange={(sales) => set("boxSales", sales)}
-          boxTypes={options.boxTypes.filter((type) => !type.isClientOwned)}
+          boxTypes={options.boxTypes.filter((type) => !type.isClientOwned && type.kind !== "dewar")}
           prices={options.boxPrices ?? {}}
         />
 

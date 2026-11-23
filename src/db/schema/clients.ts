@@ -169,6 +169,8 @@ export const clientOwnBoxes = pgTable(
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
+    /** Вид тари: бокс для льоду чи сосуд Дьюара для азоту. */
+    kind: text("kind").notNull().default("ice"),
     volumeL: integer("volume_l"),
     /** Скільки кг льоду вміщає. */
     capacityKg: kg("capacity_kg"),
@@ -185,6 +187,7 @@ export const clientOwnBoxes = pgTable(
   (t) => [
     index("client_own_boxes_client_id_idx").on(t.clientId),
     index("client_own_boxes_created_by_idx").on(t.createdBy),
+    check("client_own_boxes_kind_ok", sql`${t.kind} in ('ice', 'dewar')`),
     check(
       "client_own_boxes_positive",
       sql`(${t.volumeL} is null or ${t.volumeL} > 0)

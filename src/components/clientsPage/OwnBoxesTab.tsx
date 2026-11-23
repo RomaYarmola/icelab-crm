@@ -58,6 +58,7 @@ export default function OwnBoxesTab({ clientId, boxes, actions, canEdit }: OwnBo
           {boxes.map((box) => (
             <Card as="li" key={box.id} className="flex flex-col gap-2">
               <SubTitle className="min-w-0 break-words">{box.name}</SubTitle>
+              {box.kind === "dewar" ? <Text variant="muted">Сосуд Дюара (для азоту)</Text> : null}
               {describe(box).map((line) => (
                 <Text key={line} variant="muted">
                   {line}
@@ -78,6 +79,7 @@ export default function OwnBoxesTab({ clientId, boxes, actions, canEdit }: OwnBo
                       boxId={box.id}
                       defaults={{
                         name: box.name,
+                        kind: box.kind,
                         volumeL: box.volumeL?.toString() ?? "",
                         capacityKg: kgText(box.capacityKg) ?? "",
                         emptyWeightKg: kgText(box.emptyWeightKg) ?? "",

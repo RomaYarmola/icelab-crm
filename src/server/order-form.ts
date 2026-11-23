@@ -39,7 +39,13 @@ export async function searchClientsForOrder(
   return page.items;
 }
 
-export type ClientOwnBoxOption = { id: string; name: string; capacityKg: string | null };
+export type ClientOwnBoxOption = {
+  id: string;
+  name: string;
+  capacityKg: string | null;
+  /** `ice` бокс для льоду, `dewar` сосуд Дюара. */
+  kind: string;
+};
 
 /** Бокси клієнта для вибору в замовленні з клієнтською тарою (D164). */
 export async function listClientOwnBoxOptions(
@@ -54,6 +60,7 @@ export async function listClientOwnBoxOptions(
       id: clientOwnBoxes.id,
       name: clientOwnBoxes.name,
       capacityKg: clientOwnBoxes.capacityKg,
+      kind: clientOwnBoxes.kind,
     })
     .from(clientOwnBoxes)
     .where(eq(clientOwnBoxes.clientId, id))

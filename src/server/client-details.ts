@@ -384,6 +384,8 @@ const optionalNumber = (label: string, opts: { integer?: boolean; max: number; m
 
 const ownBoxSchema = z.object({
   name: z.string().trim().min(1, "Вкажіть назву бокса.").max(100, "Назва бокса надто довга."),
+  /** Бокс для льоду чи сосуд Дюара для азоту (Роман, 23.11.2026). */
+  kind: z.enum(["ice", "dewar"], "Оберіть вид тари.").optional(),
   volumeL: optionalNumber("Об'єм, л", { integer: true, min: 1, max: 1000 }),
   capacityKg: optionalNumber("Вміщає, кг", { min: 0.001, max: 1000 }),
   emptyWeightKg: optionalNumber("Вага порожнього, кг", { max: 200 }),
@@ -397,6 +399,7 @@ export type OwnBoxInput = z.input<typeof ownBoxSchema>;
 
 const ownBoxValues = (data: z.output<typeof ownBoxSchema>) => ({
   name: data.name,
+  kind: data.kind ?? "ice",
   volumeL: data.volumeL,
   capacityKg: data.capacityKg === null ? null : data.capacityKg.toFixed(3),
   emptyWeightKg: data.emptyWeightKg === null ? null : data.emptyWeightKg.toFixed(3),
@@ -461,6 +464,7 @@ export async function deleteOwnBox(
 export type OwnBoxView = {
   id: string;
   name: string;
+  kind: "ice" | "dewar";
   volumeL: number | null;
   capacityKg: string | null;
   emptyWeightKg: string | null;
@@ -484,9 +488,21 @@ export async function listOwnBoxes(
     .where(eq(clientOwnBoxes.clientId, id))
     .orderBy(asc(clientOwnBoxes.name));
   return rows.map(
-    ({ id, name, volumeL, capacityKg, emptyWeightKg, heightMm, widthMm, lengthMm, note }) => ({
+    ({
       id,
       name,
+      kind,
+      volumeL,
+      capacityKg,
+      emptyWeightKg,
+      heightMm,
+      widthMm,
+      lengthMm,
+      note,
+    }) => ({
+      id,
+      name,
+      kind: kind === "dewar" ? ("dewar" as const) : ("ice" as const),
       volumeL,
       capacityKg,
       emptyWeightKg,

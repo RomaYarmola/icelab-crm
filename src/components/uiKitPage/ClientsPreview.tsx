@@ -64,7 +64,9 @@ const OPTIONS: ClientFormOptions = {
     { id: "src-site", name: "Сайт" },
     { id: "src-phone", name: "Телефон" },
   ],
-  boxTypes: [{ id: "box-46", name: "Довгий 46 л", capacityKg: "33.000", isClientOwned: false }],
+  boxTypes: [
+    { id: "box-46", name: "Довгий 46 л", capacityKg: "33.000", isClientOwned: false, kind: "ice" },
+  ],
   managers: [
     { id: "mgr-1", name: "Олена Коваль" },
     { id: "mgr-2", name: "Марія Менеджер" },
@@ -358,6 +360,15 @@ export default function ClientsPreview({
           },
         ]}
         boxAction={action}
+        nitrogenPrices={[
+          {
+            id: "np1",
+            pricePerUnit: "90.00",
+            validFrom: "2026-11-23",
+            validTo: null,
+          },
+        ]}
+        productAction={action}
       />
     );
   }
