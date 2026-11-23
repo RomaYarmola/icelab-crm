@@ -4,7 +4,7 @@ import { clientAddresses, clients, orders } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { todayIso } from "@/utils/isoDate";
 import { parseDecimal } from "@/utils/orderMath";
-import { loadCashSummary, settleCashPayment } from "./cash-settlement";
+import { loadCashSummary, settlePayment } from "./cash-settlement";
 import { recordCashEntry, type RecordCashResult } from "./cash";
 import { kopecksToUah } from "./cash-rules";
 import { ValidationError } from "./errors";
@@ -159,7 +159,7 @@ export async function driverMarkDelivered(
         .set({ status: "shipped", shippedAt: new Date() })
         .where(eq(orders.id, current.id));
       const [updated] = await tx.select().from(orders).where(eq(orders.id, current.id));
-      if (updated && (await settleCashPayment(tx, updated))) settled = true;
+      if (updated && (await settlePayment(tx, updated))) settled = true;
     },
     { note: "Доставив (бот водія)" },
   );

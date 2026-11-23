@@ -4,7 +4,7 @@ import { boxes, clients, orderItems, orderPriceChanges, orders } from "@/db/sche
 import type { OrderStatus } from "@/constants/constants";
 import type { AnyPgDatabase } from "@/db/types";
 import { parseDecimal } from "@/utils/orderMath";
-import { settleCashPayment } from "./cash-settlement";
+import { settlePayment } from "./cash-settlement";
 import { ValidationError } from "./errors";
 import { ForbiddenError, type AppUser, requirePermission } from "./guards";
 import { checkTransition, isReadyToClose, STATUS_TIMESTAMP_COLUMN } from "./order-rules";
@@ -176,7 +176,7 @@ export async function transitionOrder(
       // тоді «Оплачено» ставимо одразу після цього кроку (ТЗ 5.1, D67).
       if (check.kind === "forward" && (to === "shipped" || to === "packed")) {
         const [updated] = await tx.select().from(orders).where(eq(orders.id, current.id));
-        if (updated && (await settleCashPayment(tx, updated))) settledByCash = true;
+        if (updated && (await settlePayment(tx, updated))) settledByCash = true;
       }
     },
     { note: note || undefined },
@@ -343,7 +343,7 @@ export async function markShippedBySystem(
         .where(eq(orders.id, current.id));
       changed = true;
       const [updated] = await tx.select().from(orders).where(eq(orders.id, current.id));
-      if (updated && (await settleCashPayment(tx, updated))) settledByCash = true;
+      if (updated && (await settlePayment(tx, updated))) settledByCash = true;
     },
     { note },
   );

@@ -1,5 +1,5 @@
 import { eq, sql } from "drizzle-orm";
-import { cashEntries, orders, settings } from "@/db/schema";
+import { cashEntries, orders, paymentMatches, settings } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import {
   canSettleByCash,
@@ -69,4 +69,48 @@ export async function settleCashPayment(db: AnyPgDatabase, order: OrderRow): Pro
     .set({ status: "paid", paidAt: new Date() })
     .where(eq(orders.id, order.id));
   return true;
+}
+
+/** Примітка в історії статусів, коли «Оплачено» поставив платіж з банку (B13). */
+export const BANK_PAID_NOTE = "Оплачено автоматично: платіж з банку покрив суму замовлення";
+
+/** Підсумок банківських платежів по замовленню: скільки прив'язано й чи покрито суму з допуском. */
+export async function loadBankSummary(
+  db: AnyPgDatabase,
+  order: Pick<OrderRow, "id" | "total">,
+  toleranceUah?: number,
+): Promise<CashSummary> {
+  const rows = await db
+    .select({ amount: paymentMatches.amount })
+    .from(paymentMatches)
+    .where(eq(paymentMatches.orderId, order.id));
+  return summarizeCash(
+    order.total,
+    rows.map((row) => ({ amount: row.amount, reversed: false })),
+    toleranceUah ?? (await loadCashTolerance(db)),
+  );
+}
+
+/**
+ * Ставить «Оплачено», якщо платежі з банку покрили суму (з допуском) і замовлення вже «Відправлено».
+ * Лише для оплати ФОП і компанії. Викликати в транзакції після блокування замовлення.
+ */
+export async function settleBankPayment(db: AnyPgDatabase, order: OrderRow): Promise<boolean> {
+  if (order.deletedAt || (order.paymentKind !== "fop" && order.paymentKind !== "company")) {
+    return false;
+  }
+  if (order.status !== "shipped") return false;
+  const summary = await loadBankSummary(db, order);
+  if (!summary.paid) return false;
+  await db.execute(sql`select set_config('app.change_note', ${BANK_PAID_NOTE}, true)`);
+  await db
+    .update(orders)
+    .set({ status: "paid", paidAt: new Date() })
+    .where(eq(orders.id, order.id));
+  return true;
+}
+
+/** Готівка чи банк за способом оплати замовлення: єдина точка «чи вже оплачене» для переходів статусів. */
+export async function settlePayment(db: AnyPgDatabase, order: OrderRow): Promise<boolean> {
+  return order.paymentKind === "cash" ? settleCashPayment(db, order) : settleBankPayment(db, order);
 }

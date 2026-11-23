@@ -2,6 +2,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { withActor } from "@/db/actor";
 import { bankAccounts, integrationLogs, payments, settings } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
+import { matchNewPayments } from "../payments";
 import { sendMessage } from "../telegram/client";
 import { getTelegramSettings } from "../telegram/settings";
 import {
@@ -73,6 +74,8 @@ export async function syncAccounts(db: AnyPgDatabase, fetchers: Fetchers = {}): 
 
 export type SyncResult = {
   accounts: number;
+  /** Скільки нових платежів зіставлено автоматично після виписки. */
+  matched?: number;
   fetched: number;
   inserted: number;
   skipped: number;
@@ -211,6 +214,12 @@ export async function runMonobankSync(
     }
   }
   const result = await syncStatements(db, fetchers);
+  // Зіставлення одразу після виписки (ТЗ 8.7); помилка одного платежу виписку не ламає.
+  try {
+    result.matched = (await matchNewPayments(db)).matched;
+  } catch {
+    result.errors.push("Не вдалося зіставити платежі: спробуємо наступного разу.");
+  }
   if (result.errors.length === 0 && result.accounts > 0) await clearTokenAlert(db);
   return { ...result, accountsFound };
 }
