@@ -352,6 +352,73 @@ describe("розбір заявки: підказка, чернетка, обр�
     expect((order!.draftPayload as { unclear: string[] }).unclear.join(" ")).toContain("не ціле");
   });
 
+  it("бокси на продаж і азот окремими позиціями, без льоду (D174, D176)", async () => {
+    const code = (await t.db.select().from(clients).where(eq(clients.id, t.client.id)))[0]!.code;
+    const stub = claudeReturning(
+      parsed({
+        client: { code, name_guess: null, confidence: 0.95 },
+        kg_sold: null,
+        ice_type: null,
+        box_sales: [{ type_code: "mini_9", count: 2 }],
+        extra_products: [{ product_code: "nitrogen", qty: 10 }],
+        delivery: {
+          method: "our_delivery",
+          np_kind: null,
+          city: null,
+          np_warehouse_number: null,
+          address: null,
+          time_window: null,
+          recipient_name: null,
+          recipient_phone: null,
+        },
+      }),
+    );
+    const outcome = await processIntakeMessage(t.db, (await message()).id, { claude: stub.fn });
+    expect(outcome.status).toBe("drafted");
+    const orderId = (outcome as { orderId: string }).orderId;
+    const lines = await t.db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    expect(lines.find((i) => i.kind === "box_sale")).toMatchObject({ qty: "2.000", unit: "шт" });
+    expect(lines.find((i) => i.kind === "other")).toMatchObject({
+      title: "Рідкий азот",
+      qty: "10.000",
+    });
+    const [order] = await t.db.select().from(orders).where(eq(orders.id, orderId));
+    const unclear = (order!.draftPayload as { unclear: string[] }).unclear.join(" ");
+    // Лід не названо, але це не помилка: товар і бокси без льоду.
+    expect(unclear).not.toContain("Не вказано кілограмів");
+    expect(unclear).not.toContain("тип льоду");
+  });
+
+  it("азот з Новою Поштою: Нову Пошту не ставимо, пояснюємо в «Неясно»", async () => {
+    const code = (await t.db.select().from(clients).where(eq(clients.id, t.client.id)))[0]!.code;
+    const stub = claudeReturning(
+      parsed({
+        client: { code, name_guess: null, confidence: 0.95 },
+        extra_products: [{ product_code: "nitrogen", qty: 5 }],
+        delivery: {
+          method: "np",
+          np_kind: "warehouse",
+          city: "Львів",
+          np_warehouse_number: "5",
+          address: null,
+          time_window: null,
+          recipient_name: null,
+          recipient_phone: null,
+        },
+      }),
+    );
+    const outcome = await processIntakeMessage(t.db, (await message()).id, { claude: stub.fn });
+    expect(outcome.status).toBe("drafted");
+    const [order] = await t.db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, (outcome as { orderId: string }).orderId));
+    expect(order!.deliveryMethod).toBe("other");
+    expect((order!.draftPayload as { unclear: string[] }).unclear.join(" ")).toContain(
+      "поштою не відправляємо",
+    );
+  });
+
   it("кілька днів в одному повідомленні (D159): кожен день окремою чернеткою, зміна повідомлення чіпає лише першу", async () => {
     const code = (await t.db.select().from(clients).where(eq(clients.id, t.client.id)))[0]!.code;
     const stub = claudeReturning(

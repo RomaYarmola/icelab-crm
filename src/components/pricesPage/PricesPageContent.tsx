@@ -9,7 +9,9 @@ import Notification from "../shared/notification/Notification";
 import Text from "../shared/texts/Text";
 import SubTitle from "../shared/titles/SubTitle";
 import type { BoxPriceHistoryItem, ProductPriceHistoryItem } from "@/server/product-prices";
+import type { ProductView } from "@/server/products";
 import ProductPriceSection from "./ProductPriceSection";
+import ProductsSection from "./ProductsSection";
 import BoxPricesSection from "./BoxPricesSection";
 import PriceChangeForm from "./PriceChangeForm";
 import PriceHistory from "./PriceHistory";
@@ -27,9 +29,12 @@ interface PricesPageContentProps {
   boxTypes: { id: string; name: string }[];
   boxPrices: BoxPriceHistoryItem[];
   boxAction: FormAction;
-  /** Рідкий азот: ціна за кг з історією (D176). */
-  nitrogenPrices: ProductPriceHistoryItem[];
+  /** Довідник товарів і ціни товарів без типів (рідкий азот та інші, D174, D176). */
+  products: ProductView[];
+  productPrices: Record<string, ProductPriceHistoryItem[]>;
   productAction: FormAction;
+  createProductAction: FormAction;
+  updateProductAction: FormAction;
 }
 
 /**
@@ -46,8 +51,11 @@ export default function PricesPageContent({
   boxTypes,
   boxPrices,
   boxAction,
-  nitrogenPrices,
+  products,
+  productPrices,
   productAction,
+  createProductAction,
+  updateProductAction,
 }: PricesPageContentProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -102,14 +110,25 @@ export default function PricesPageContent({
         canEdit={canEdit}
         action={boxAction}
       />
-      <ProductPriceSection
-        productCode="nitrogen"
-        title="Рідкий азот"
-        unit="кг"
-        prices={nitrogenPrices}
-        today={today}
+      {products
+        .filter((product) => product.kind === "other" && product.isActive)
+        .map((product) => (
+          <ProductPriceSection
+            key={product.code}
+            productCode={product.code}
+            title={product.name}
+            unit={product.unit}
+            prices={productPrices[product.code] ?? []}
+            today={today}
+            canEdit={canEdit}
+            action={productAction}
+          />
+        ))}
+      <ProductsSection
+        products={products}
         canEdit={canEdit}
-        action={productAction}
+        createAction={createProductAction}
+        updateAction={updateProductAction}
       />
     </div>
   );

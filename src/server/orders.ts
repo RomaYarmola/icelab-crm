@@ -32,9 +32,9 @@ import { parseInput, ValidationError } from "./errors";
 import { prepareBoxSales, saveBoxSaleItems } from "./order-box-sales";
 import {
   assertDeliveryAllowed,
-  existingProductLine,
-  prepareProductLine,
-  saveProductLine,
+  existingProductLines,
+  prepareProductLines,
+  saveProductLines,
 } from "./order-products";
 import { productIdByCode } from "./product-prices";
 import {
@@ -132,13 +132,16 @@ const optionalFields = z
     sourceId: optionalUuid,
     deliveryMethod: z.enum(deliveryMethod.enumValues, "Оберіть спосіб доставки зі списку."),
     /** Лише для Нової Пошти: на відділення чи кур'єром. */
-    /** Рідкий азот (D176): кількість у кг і ціна за кг (порожня: з прайсу); `null` прибирає позицію. */
-    nitrogen: z
-      .object({
-        qty: z.union([z.string(), z.number()]),
-        price: z.union([z.string(), z.number()]).nullable().optional(),
-      })
-      .nullable()
+    /** Товари без типів (рідкий азот та інші, D174, D176): код, кількість, ціна (порожня: з прайсу). */
+    products: z
+      .array(
+        z.object({
+          code: z.string().trim().min(1, "Оберіть товар.").max(60),
+          qty: z.union([z.string(), z.number()]),
+          price: z.union([z.string(), z.number()]).nullable().optional(),
+        }),
+      )
+      .max(10, "Забагато товарів.")
       .optional(),
     /** Бокси на продаж (позиції замовлення, D174); можна без льоду. */
     boxSales: z.array(boxSaleSchema).max(10, "Забагато видів боксів на продаж.").optional(),
@@ -205,7 +208,7 @@ const CORE_KEYS = [
   "boxTypeId",
   "boxes",
   "boxSales",
-  "nitrogen",
+  "products",
   "clientOwnBoxId",
   "boxCount",
   "boxOwnership",
@@ -422,10 +425,8 @@ export async function createOrder(
   const boxSales = await prepareBoxSales(db, data.boxSales ?? [], data.orderDate);
   const kgSold = data.kgSold ?? "0.000";
   const method = data.deliveryMethod ?? "other";
-  const nitrogen = data.nitrogen
-    ? await prepareProductLine(db, "nitrogen", data.nitrogen, data.orderDate)
-    : null;
-  assertDeliveryAllowed(nitrogen, method);
+  const productLines = await prepareProductLines(db, data.products ?? [], data.orderDate);
+  assertDeliveryAllowed(productLines, method);
   const auto = await autoValues(db, {
     clientId: data.clientId,
     iceTypeId,
@@ -484,7 +485,7 @@ export async function createOrder(
       productId: iceProductId,
     });
     await saveBoxSaleItems(tx, order!.id, boxSales);
-    if (nitrogen) await saveProductLine(tx, order!.id, "nitrogen", nitrogen);
+    if (productLines.length > 0) await saveProductLines(tx, order!.id, productLines);
     for (const item of data.items ?? []) {
       await tx.insert(orderItems).values({
         orderId: order!.id,
@@ -633,7 +634,7 @@ export async function updateOrder(
   }
   delete (set as Record<string, unknown>).boxes;
   delete (set as Record<string, unknown>).boxSales;
-  delete (set as Record<string, unknown>).nitrogen;
+  delete (set as Record<string, unknown>).products;
 
   // Вид відправки Новою Поштою: з вибраної збереженої адреси (кур'єр чи відділення), а для інших
   // способів знімаємо. Отримувача підставляємо з адреси, якщо його не вказано.
@@ -673,18 +674,14 @@ export async function updateOrder(
   const deliveryMethodValue = changed.deliveryMethod ?? order.deliveryMethod;
   const orderDate = changed.orderDate ?? order.orderDate;
   // Бокси на продаж: позиції замовлення замінюємо повністю (ціни з прайсу боксів на дату замовлення).
-  const nitrogenPrepared =
-    "nitrogen" in changed
-      ? changed.nitrogen
-        ? await prepareProductLine(db, "nitrogen", changed.nitrogen, orderDate)
-        : null
+  const productsPrepared =
+    "products" in changed
+      ? await prepareProductLines(db, changed.products ?? [], orderDate)
       : undefined;
-  // Азот поштою не відправляємо: перевіряємо й нову позицію, і наявну, якщо змінюють спосіб доставки.
-  if (nitrogenPrepared !== undefined || touches("deliveryMethod")) {
+  // Азот поштою не відправляємо: перевіряємо нові позиції й наявні, якщо змінюють спосіб доставки.
+  if (productsPrepared !== undefined || touches("deliveryMethod")) {
     assertDeliveryAllowed(
-      nitrogenPrepared !== undefined
-        ? nitrogenPrepared
-        : await existingProductLine(db, order.id, "nitrogen"),
+      productsPrepared !== undefined ? productsPrepared : await existingProductLines(db, order.id),
       changed.deliveryMethod ?? order.deliveryMethod,
     );
   }
@@ -778,9 +775,7 @@ export async function updateOrder(
       }
       if (boxLines) await saveOrderBoxLines(tx, order.id, boxLines);
       if (boxSalesPrepared) await saveBoxSaleItems(tx, order.id, boxSalesPrepared);
-      if (nitrogenPrepared !== undefined) {
-        await saveProductLine(tx, order.id, "nitrogen", nitrogenPrepared);
-      }
+      if (productsPrepared !== undefined) await saveProductLines(tx, order.id, productsPrepared);
       // Позиція «Лід» іде за полями замовлення (D55).
       const itemSet: Partial<typeof orderItems.$inferInsert> = {};
       if (touches("kgSold")) itemSet.qty = kgSold;

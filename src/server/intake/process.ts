@@ -181,6 +181,7 @@ export async function processIntakeMessage(
           text: message.text,
           clients,
           boxTypes: dictionaries.boxTypes,
+          products: dictionaries.products,
         });
         const ask = deps.claude ?? ((r: ClaudeRequest) => callClaude(txDb, r));
         // Відповідь без обов'язкових полів буває випадково (D163): один повтор, далі як помилка.

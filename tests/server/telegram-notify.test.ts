@@ -1,7 +1,15 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { POST as dailyPost } from "@/app/api/cron/daily-report/route";
-import { cashEntries, clients, intakeMessages, locations, profiles, settings } from "@/db/schema";
+import {
+  boxTypes,
+  cashEntries,
+  clients,
+  intakeMessages,
+  locations,
+  profiles,
+  settings,
+} from "@/db/schema";
 import { transitionOrder } from "@/server/order-status";
 import { updateOrder } from "@/server/orders";
 import { receiveSiteLead } from "@/server/intake/site-lead";
@@ -248,12 +256,36 @@ describe("сповіщення менеджерам і вечірнє зведе
           pickupKg: 0,
           deliveryOrders: 0,
           deliveryKg: 0,
+          boxesSold: 0,
+          otherProducts: [],
           shipped: 0,
           cash: 0,
           boxesIssued: 0,
         },
       ]);
       expect(text).toContain("не було");
+    });
+
+    it("бокси на продаж і рідкий азот у підсумку дня (D174)", async () => {
+      const type = (await t.db.select().from(boxTypes).where(eq(boxTypes.code, "mini_9")))[0]!;
+      const order = await t.create({
+        orderDate: DAY,
+        iceTypeId: null,
+        kgSold: 0,
+        deliveryMethod: "pickup",
+        boxSales: [{ boxTypeId: type.id, qty: 3, price: "500" }],
+        products: [{ code: "nitrogen", qty: 12, price: "90" }],
+      });
+      await transitionOrder(t.db, owner(), order.id, "confirmed");
+      const row = (await collectDaySummary(t.db, DAY)).find((r) => r.locationId === t.location)!;
+      expect(row.boxesSold).toBeGreaterThanOrEqual(3);
+      expect(row.otherProducts.find((p) => p.name === "Рідкий азот")?.qty).toBeGreaterThanOrEqual(
+        12,
+      );
+      const text = formatDaySummary(DAY, [row]);
+      expect(text).toContain("Продано окремо:");
+      expect(text).toContain("бокси");
+      expect(text).toContain("Рідкий азот");
     });
 
     it("до заданого часу не йде, потім один раз на день, без чату власника не йде", async () => {

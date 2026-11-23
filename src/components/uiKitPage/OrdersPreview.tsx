@@ -260,7 +260,16 @@ const FORM_OPTIONS: OrderFormOptions = {
     { id: "box-9", name: "Міні 9 л" },
   ],
   boxPrices: { "box-9": "500.00", "box-46": "650.00" },
-  nitrogenPrice: "90.00",
+  products: [
+    {
+      id: "p-nitrogen",
+      code: "nitrogen",
+      name: "Рідкий азот",
+      unit: "кг",
+      price: "90.00",
+      allowedDeliveryMethods: ["pickup", "our_delivery"],
+    },
+  ],
 };
 
 interface OrdersPreviewProps {

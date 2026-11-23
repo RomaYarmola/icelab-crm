@@ -1,4 +1,4 @@
-import { and, eq, inArray, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, ne } from "drizzle-orm";
 import { orderItems, products } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { parseDecimal } from "@/utils/orderMath";
@@ -57,59 +57,83 @@ export async function prepareProductLine(
   };
 }
 
-/** Спосіб доставки має бути серед дозволених для товару (рідкий азот: лише самовивіз і власна). */
+/** Спосіб доставки має бути серед дозволених для кожного товару (рідкий азот: лише самовивіз і власна). */
 export function assertDeliveryAllowed(
-  line: Pick<PreparedProductLine, "title" | "allowedDeliveryMethods"> | null,
+  lines: Pick<PreparedProductLine, "title" | "allowedDeliveryMethods">[],
   method: string,
 ) {
-  if (!line?.allowedDeliveryMethods) return;
-  if (!line.allowedDeliveryMethods.includes(method)) {
-    throw new ValidationError(
-      `${line.title} не відправляємо Новою Поштою: оберіть самовивіз або власну доставку.`,
-    );
+  // «Інше» це ще не вибраний спосіб (чернетка з бота): перевіряємо, коли менеджер його обере.
+  if (method === "other") return;
+  for (const line of lines) {
+    if (line.allowedDeliveryMethods && !line.allowedDeliveryMethods.includes(method)) {
+      throw new ValidationError(
+        `${line.title} не відправляємо Новою Поштою: оберіть самовивіз або власну доставку.`,
+      );
+    }
   }
 }
 
-/** Замінює позицію товару в замовленні (або прибирає, якщо `line` порожня). */
-export async function saveProductLine(
-  tx: AnyPgDatabase,
-  orderId: string,
-  code: string,
-  line: PreparedProductLine | null,
-): Promise<void> {
-  const [product] = await tx
-    .select({ id: products.id })
-    .from(products)
-    .where(eq(products.code, code));
-  if (!product) throw new ValidationError("Товар не знайдено.");
-  await tx
-    .delete(orderItems)
-    .where(and(eq(orderItems.orderId, orderId), eq(orderItems.productId, product.id)));
-  if (!line) return;
-  await tx.insert(orderItems).values({
-    orderId,
-    kind: "other",
-    title: line.title,
-    qty: line.qty,
-    unit: line.unit,
-    price: line.price,
-    productId: line.productId,
-  });
+/** Готує всі позиції товарів без типів; однакові товари зливаємо, кількість додаємо. */
+export async function prepareProductLines(
+  db: AnyPgDatabase,
+  inputs: (ProductLineInput & { code: string })[],
+  date: string,
+): Promise<PreparedProductLine[]> {
+  const merged = new Map<string, PreparedProductLine>();
+  for (const input of inputs) {
+    const line = await prepareProductLine(db, input.code, input, date);
+    const existing = merged.get(line.code);
+    if (existing) existing.qty = (Number(existing.qty) + Number(line.qty)).toFixed(3);
+    else merged.set(line.code, line);
+  }
+  return [...merged.values()];
 }
 
-/** Чи є в замовленні позиція цього товару й які способи доставки він дозволяє. */
-export async function existingProductLine(
+/** Замінює позиції товарів без типів у замовленні (лід і бокси на продаж не чіпає). */
+export async function saveProductLines(
+  tx: AnyPgDatabase,
+  orderId: string,
+  lines: PreparedProductLine[],
+): Promise<void> {
+  const others = await tx
+    .select({ id: products.id })
+    .from(products)
+    .where(eq(products.kind, "other"));
+  if (others.length > 0) {
+    await tx.delete(orderItems).where(
+      and(
+        eq(orderItems.orderId, orderId),
+        inArray(
+          orderItems.productId,
+          others.map((row) => row.id),
+        ),
+      ),
+    );
+  }
+  if (lines.length === 0) return;
+  await tx.insert(orderItems).values(
+    lines.map((line) => ({
+      orderId,
+      kind: "other" as const,
+      title: line.title,
+      qty: line.qty,
+      unit: line.unit,
+      price: line.price,
+      productId: line.productId,
+    })),
+  );
+}
+
+/** Позиції товарів без типів, що вже є в замовленні, з їхніми обмеженнями доставки. */
+export async function existingProductLines(
   db: AnyPgDatabase,
   orderId: string,
-  code: string,
-): Promise<Pick<PreparedProductLine, "title" | "allowedDeliveryMethods"> | null> {
-  const [row] = await db
+): Promise<Pick<PreparedProductLine, "title" | "allowedDeliveryMethods">[]> {
+  return db
     .select({ title: products.name, allowedDeliveryMethods: products.allowedDeliveryMethods })
     .from(orderItems)
     .innerJoin(products, eq(products.id, orderItems.productId))
-    .where(and(eq(orderItems.orderId, orderId), eq(products.code, code)))
-    .limit(1);
-  return row ?? null;
+    .where(and(eq(orderItems.orderId, orderId), eq(products.kind, "other")));
 }
 
 export type WorkshopProduct = { name: string; qty: number; unit: string };
@@ -140,6 +164,59 @@ export async function loadWorkshopProducts(
   for (const row of rows) {
     const list = result.get(row.orderId) ?? [];
     list.push({ name: row.name, qty: parseDecimal(row.qty), unit: row.unit });
+    result.set(row.orderId, list);
+  }
+  return result;
+}
+
+export type OrderProductOption = {
+  id: string;
+  code: string;
+  name: string;
+  unit: string;
+  /** Чинна ціна за одиницю (порожня, якщо в прайсі її ще немає). */
+  price: string | null;
+  allowedDeliveryMethods: string[] | null;
+};
+
+/** Активні товари без типів для форми замовлення (рідкий азот та майбутні) з чинними цінами. */
+export async function listOrderProducts(
+  db: AnyPgDatabase,
+  date?: string,
+): Promise<OrderProductOption[]> {
+  const rows = await db
+    .select()
+    .from(products)
+    .where(and(eq(products.kind, "other"), eq(products.isActive, true)))
+    .orderBy(asc(products.sort), asc(products.name));
+  const result: OrderProductOption[] = [];
+  for (const row of rows) {
+    result.push({
+      id: row.id,
+      code: row.code,
+      name: row.name,
+      unit: row.unit,
+      price: await resolveProductPrice(db, row.code, date),
+      allowedDeliveryMethods: row.allowedDeliveryMethods,
+    });
+  }
+  return result;
+}
+
+/** Бокси на продаж у замовленнях (D174): вид і кількість, для картки цеху. */
+export async function loadBoxSales(
+  db: AnyPgDatabase,
+  orderIds: string[],
+): Promise<Map<string, { name: string; count: number }[]>> {
+  const result = new Map<string, { name: string; count: number }[]>();
+  if (orderIds.length === 0) return result;
+  const rows = await db
+    .select({ orderId: orderItems.orderId, title: orderItems.title, qty: orderItems.qty })
+    .from(orderItems)
+    .where(and(inArray(orderItems.orderId, orderIds), eq(orderItems.kind, "box_sale")));
+  for (const row of rows) {
+    const list = result.get(row.orderId) ?? [];
+    list.push({ name: row.title.replace(/^Бокс\s+/, ""), count: Number(row.qty) });
     result.set(row.orderId, list);
   }
   return result;

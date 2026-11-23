@@ -360,15 +360,34 @@ export default function ClientsPreview({
           },
         ]}
         boxAction={action}
-        nitrogenPrices={[
+        products={[
           {
-            id: "np1",
-            pricePerUnit: "90.00",
-            validFrom: "2026-11-23",
-            validTo: null,
+            id: "pr-ice",
+            code: "ice",
+            name: "Лід",
+            kind: "ice",
+            unit: "кг",
+            producedByWorkshop: true,
+            allowedDeliveryMethods: null,
+            isActive: true,
+          },
+          {
+            id: "pr-nitrogen",
+            code: "nitrogen",
+            name: "Рідкий азот",
+            kind: "other",
+            unit: "кг",
+            producedByWorkshop: true,
+            allowedDeliveryMethods: ["pickup", "our_delivery"],
+            isActive: true,
           },
         ]}
+        productPrices={{
+          nitrogen: [{ id: "np1", pricePerUnit: "90.00", validFrom: "2026-11-23", validTo: null }],
+        }}
         productAction={action}
+        createProductAction={action}
+        updateProductAction={action}
       />
     );
   }

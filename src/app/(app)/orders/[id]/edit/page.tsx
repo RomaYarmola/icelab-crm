@@ -14,7 +14,8 @@ import OrderFormContent from "@/components/ordersPage/OrderFormContent";
 import { buildEditDefaults } from "@/components/ordersPage/orderFormDefaults";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
-import { currentBoxPrices, productIdByCode, resolveProductPrice } from "@/server/product-prices";
+import { listOrderProducts } from "@/server/order-products";
+import { currentBoxPrices } from "@/server/product-prices";
 import { getClientFormOptions } from "@/server/client-options";
 import { listActiveLocations } from "@/server/locations";
 import { editPolicy } from "@/server/order-rules";
@@ -59,9 +60,9 @@ export default async function EditOrderPage({ params }: { params: Promise<{ id: 
         sources: options.sources,
         boxTypes: options.boxTypes,
         boxPrices: await currentBoxPrices(db),
-        nitrogenPrice: await resolveProductPrice(db, "nitrogen"),
+        products: await listOrderProducts(db),
       }}
-      defaults={buildEditDefaults(order, await productIdByCode(db, "nitrogen"))}
+      defaults={buildEditDefaults(order, await listOrderProducts(db))}
       initialClient={{ id: order.clientId, code: order.clientCode, name: order.clientName }}
       policy={policy}
       currentPrice={currentPrice}

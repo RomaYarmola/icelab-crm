@@ -1,5 +1,13 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { boxEvents, cashEntries, locations, orders, settings } from "@/db/schema";
+import {
+  boxEvents,
+  cashEntries,
+  locations,
+  orderItems,
+  orders,
+  products,
+  settings,
+} from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { formatIsoDate } from "@/utils/isoDate";
 import { getPublicUrl } from "../box-labels";
@@ -30,6 +38,9 @@ export type LocationSummary = {
   /** Доставка (Нова Пошта й старі способи): замовлень і кг. */
   deliveryOrders: number;
   deliveryKg: number;
+  /** Продано боксів, шт, і інші товари (рідкий азот): назва, кількість, одиниця (D174). */
+  boxesSold: number;
+  otherProducts: { name: string; qty: number; unit: string }[];
   shipped: number;
   cash: number;
   boxesIssued: number;
@@ -89,6 +100,28 @@ export async function collectDaySummary(
     )
     .groupBy(orders.locationId);
 
+  const itemRows = await db
+    .select({
+      locationId: orders.locationId,
+      kind: orderItems.kind,
+      name: products.name,
+      unit: orderItems.unit,
+      qty: sql<string>`coalesce(sum(${orderItems.qty}), 0)`,
+    })
+    .from(orderItems)
+    .innerJoin(orders, eq(orders.id, orderItems.orderId))
+    .leftJoin(products, eq(products.id, orderItems.productId))
+    .where(
+      and(
+        eq(orders.orderDate, day),
+        isNull(orders.deletedAt),
+        sql`${orders.status} not in ('draft', 'cancelled')`,
+        sql`${orderItems.kind} in ('box_sale', 'other')`,
+        sql`(${orderItems.kind} = 'box_sale' or ${orderItems.productId} is not null)`,
+      ),
+    )
+    .groupBy(orders.locationId, orderItems.kind, products.name, orderItems.unit);
+
   const shippedRows = await db
     .select({ locationId: orders.locationId, count: sql<number>`count(*)::int` })
     .from(orders)
@@ -137,13 +170,42 @@ export async function collectDaySummary(
     deliveryOrders:
       (orderBy.get(location.id)?.count ?? 0) - (orderBy.get(location.id)?.pickupCount ?? 0),
     deliveryKg: num(orderBy.get(location.id)?.kg) - num(orderBy.get(location.id)?.pickupKg),
+    boxesSold: itemRows
+      .filter((item) => item.locationId === location.id && item.kind === "box_sale")
+      .reduce((sum, item) => sum + num(item.qty), 0),
+    otherProducts: itemRows
+      .filter((item) => item.locationId === location.id && item.kind === "other" && item.name)
+      .map((item) => ({ name: item.name!, qty: num(item.qty), unit: item.unit })),
     shipped: shippedBy.get(location.id)?.count ?? 0,
     cash: num(cashBy.get(location.id)?.total),
     boxesIssued: boxBy.get(location.id)?.count ?? 0,
   }));
 }
 
+/** «Бокси 3 шт; Рідкий азот 12 кг»: що продано окремо від льоду; порожній рядок, якщо нічого. */
+function describeSold(boxesSold: number, others: LocationSummary["otherProducts"]): string {
+  const parts = [
+    ...(boxesSold > 0 ? [`бокси ${fmt(boxesSold)} шт`] : []),
+    ...others.map((item) => `${item.name} ${fmt(item.qty)} ${item.unit}`),
+  ];
+  return parts.join("; ");
+}
+
 const fmt = (value: number) => value.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
+
+/** Інші товари всіх локацій разом (однакові за назвою й одиницею складаємо). */
+function mergeProducts(rows: LocationSummary[]): LocationSummary["otherProducts"] {
+  const merged = new Map<string, LocationSummary["otherProducts"][number]>();
+  for (const row of rows) {
+    for (const item of row.otherProducts) {
+      const key = `${item.name}|${item.unit}`;
+      const existing = merged.get(key);
+      if (existing) existing.qty += item.qty;
+      else merged.set(key, { ...item });
+    }
+  }
+  return [...merged.values()];
+}
 
 /** Текст зведення для Telegram. */
 export function formatDaySummary(day: string, rows: LocationSummary[], link?: string): string {
@@ -153,12 +215,22 @@ export function formatDaySummary(day: string, rows: LocationSummary[], link?: st
       orders: acc.orders + row.orders,
       kg: acc.kg + row.kg,
       cash: acc.cash + row.cash,
+      boxesSold: acc.boxesSold + row.boxesSold,
       pickupOrders: acc.pickupOrders + row.pickupOrders,
       pickupKg: acc.pickupKg + row.pickupKg,
       deliveryOrders: acc.deliveryOrders + row.deliveryOrders,
       deliveryKg: acc.deliveryKg + row.deliveryKg,
     }),
-    { orders: 0, kg: 0, cash: 0, pickupOrders: 0, pickupKg: 0, deliveryOrders: 0, deliveryKg: 0 },
+    {
+      orders: 0,
+      kg: 0,
+      cash: 0,
+      boxesSold: 0,
+      pickupOrders: 0,
+      pickupKg: 0,
+      deliveryOrders: 0,
+      deliveryKg: 0,
+    },
   );
   if (
     total.orders === 0 &&
@@ -173,6 +245,8 @@ export function formatDaySummary(day: string, rows: LocationSummary[], link?: st
         `${row.name}: замовлень ${row.orders}, ${fmt(row.kg)} кг; відправлено ${row.shipped}; готівкою отримано ${fmt(row.cash)} грн; боксів видано ${row.boxesIssued}.`,
         `Самовивіз: ${row.pickupOrders}, ${fmt(row.pickupKg)} кг; доставка: ${row.deliveryOrders}, ${fmt(row.deliveryKg)} кг.`,
       );
+      const sold = describeSold(row.boxesSold, row.otherProducts);
+      if (sold) lines.push(`Продано окремо: ${sold}.`);
     }
     if (rows.length > 1) {
       lines.push(
@@ -180,6 +254,8 @@ export function formatDaySummary(day: string, rows: LocationSummary[], link?: st
         `Разом: замовлень ${total.orders}, ${fmt(total.kg)} кг, готівкою ${fmt(total.cash)} грн.`,
         `Самовивіз разом: ${total.pickupOrders}, ${fmt(total.pickupKg)} кг; доставка разом: ${total.deliveryOrders}, ${fmt(total.deliveryKg)} кг.`,
       );
+      const soldTotal = describeSold(total.boxesSold, mergeProducts(rows));
+      if (soldTotal) lines.push(`Продано окремо разом: ${soldTotal}.`);
     }
   }
   if (link) lines.push("", link);

@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, inArray } from "drizzle-orm";
 import { withActor } from "@/db/actor";
 import {
   boxDebtsLegacy,
@@ -195,6 +195,36 @@ async function describeOrderFilters(
   return params;
 }
 
+/** Скільки боксів продано й які інші товари (рідкий азот) у кожному замовленні. */
+async function loadOrderExtras(
+  db: AnyPgDatabase,
+  orderIds: string[],
+): Promise<Map<string, { boxesSold: number; others: string }>> {
+  const result = new Map<string, { boxesSold: number; others: string }>();
+  if (orderIds.length === 0) return result;
+  const rows = await db
+    .select({
+      orderId: orderItems.orderId,
+      kind: orderItems.kind,
+      title: orderItems.title,
+      qty: orderItems.qty,
+      unit: orderItems.unit,
+      productId: orderItems.productId,
+    })
+    .from(orderItems)
+    .where(inArray(orderItems.orderId, orderIds));
+  for (const row of rows) {
+    const entry = result.get(row.orderId) ?? { boxesSold: 0, others: "" };
+    if (row.kind === "box_sale") entry.boxesSold += Number(row.qty);
+    else if (row.kind === "other" && row.productId) {
+      const text = `${row.title} ${Number(row.qty)} ${row.unit}`;
+      entry.others = entry.others ? `${entry.others}; ${text}` : text;
+    }
+    result.set(row.orderId, entry);
+  }
+  return result;
+}
+
 /** Список замовлень з поточними фільтрами екрана. Сума лише для ролей, що бачать гроші. */
 export async function exportOrders(
   db: AnyPgDatabase,
@@ -212,6 +242,11 @@ export async function exportOrders(
   );
   if (page.hasMore) throw new ValidationError(TOO_MANY(maxRows));
 
+  // Бокси на продаж і інші товари (рідкий азот) по замовленнях (D174).
+  const extras = await loadOrderExtras(
+    db,
+    page.items.map((item) => item.id),
+  );
   type Row = (typeof page.items)[number];
   const columns: ExportColumn<Row>[] = [
     num("№", (r) => r.number),
@@ -224,6 +259,8 @@ export async function exportOrders(
     num("Кг на продаж", (r) => r.kgSold),
     num("Кг виготовити", (r) => r.kgToProduce),
     text("Доставка", (r) => label(DELIVERY_METHOD_LABELS, r.deliveryMethod)),
+    num("Бокси на продаж, шт", (r) => extras.get(r.id)?.boxesSold ?? 0),
+    text("Інші товари", (r) => extras.get(r.id)?.others ?? null),
   ];
   if (can(actor.role, "order_money", "read")) {
     columns.push(money("Сума, ₴", (r) => r.total ?? null));

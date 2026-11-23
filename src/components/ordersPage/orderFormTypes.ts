@@ -1,6 +1,7 @@
 import type { ClientListItem } from "@/server/client-views";
 import type { DuplicateOrder, OrderTemplate } from "@/server/order-duplicates";
 import type { ClientAddressOption, ClientOwnBoxOption, OrderPricing } from "@/server/order-form";
+import type { OrderProductOption } from "@/server/order-products";
 import type { FormAction } from "../clientsPage/clientActions";
 
 /** Клієнт, вибраний у формі замовлення. */
@@ -14,6 +15,14 @@ export interface BoxLineDraft {
   boxTypeId: string;
   clientOwnBoxId: string;
   count: string;
+}
+
+/** Рядок «товар без типу» (рідкий азот): код, кількість і ціна за одиницю (порожня: за прайсом). */
+export interface ProductLineDraft {
+  key: number;
+  code: string;
+  qty: string;
+  price: string;
 }
 
 /** Рядок «бокс на продаж»: вид, кількість і ціна за штуку (порожня означає «за прайсом»). */
@@ -42,8 +51,8 @@ export interface OrderFormValues {
   boxLines: BoxLineDraft[];
   /** Бокси на продаж (D174). */
   boxSales: BoxSaleDraft[];
-  /** Рідкий азот (D176): кг і ціна за кг (порожня: за прайсом). */
-  nitrogen: { qty: string; price: string };
+  /** Товари без типів (рідкий азот та інші, D174, D176). */
+  products: ProductLineDraft[];
   boxOwnership: string;
   paymentKind: string;
   comment: string;
@@ -66,8 +75,8 @@ export interface OrderFormOptions {
   }[];
   /** Чинні ціни прайсу боксів: тип → ціна за штуку (D175). */
   boxPrices?: Record<string, string>;
-  /** Чинна ціна рідкого азоту за кг (D176). */
-  nitrogenPrice?: string | null;
+  /** Товари без типів для вибору в замовленні (рідкий азот та майбутні). */
+  products?: OrderProductOption[];
 }
 
 /** Серверні дії і підказки форми. У каталозі `/ui-kit` це заглушки. */

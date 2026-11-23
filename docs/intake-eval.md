@@ -34,7 +34,8 @@ npm run intake:eval -- intake-eval/cases.local.json
 - `location`: `kyiv` чи `lviv` (топік, у якому написали); типово `kyiv`.
 - `today`: день повідомлення, потрібен для «завтра», «у понеділок»; типово сьогодні.
 - `expected` містить лише ті поля, які ви хочете перевірити. `client_code: null` означає «клієнта в списку немає, модель не має його вгадувати».
-- `ice_type`: `3mm`, `16mm` чи `19mm`. `delivery_method`: `pickup`, `our_delivery`, `np`, `bus`, `other`.
+- `box_sales`: бокси на продаж як `код:кількість` через кому (`ours_small_19:2`), порожній рядок означає «немає». `extra_products`: інші товари так само (`nitrogen:10`).
+- `ice_type`: `3mm`, `16mm` чи `19mm`. `delivery_method`: `pickup`, `our_delivery`, `np` (інші способи бот не ставить: `null`).
 
 ## Як читати результат
 
