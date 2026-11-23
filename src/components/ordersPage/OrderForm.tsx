@@ -29,6 +29,7 @@ import SectionTitle from "../shared/titles/SectionTitle";
 import ClientPicker from "./ClientPicker";
 import OrderBoxesField from "./OrderBoxesField";
 import OrderBoxSalesField from "./OrderBoxSalesField";
+import OrderProductsField from "./OrderProductsField";
 import type {
   OrderFormActions,
   OrderFormOptions,
@@ -326,25 +327,31 @@ export default function OrderForm({
     const unit = manual ?? (auto ? parseDecimal(auto) : 0);
     return qty > 0 && sale.boxTypeId ? lineAmount(qty, unit) : "0.00";
   });
-  // Рідкий азот: кг × ціна за кг (з прайсу азоту чи вписана вручну).
-  const nitrogenQty = parseDecimal(values.nitrogen.qty);
-  const nitrogenUnit =
-    values.nitrogen.price.trim() !== ""
-      ? parseDecimal(values.nitrogen.price)
-      : options.nitrogenPrice
-        ? parseDecimal(options.nitrogenPrice)
-        : 0;
-  const nitrogenJson =
-    nitrogenQty > 0
-      ? JSON.stringify({
-          qty: values.nitrogen.qty.trim(),
-          price: values.nitrogen.price.trim() === "" ? null : values.nitrogen.price.trim(),
-        })
-      : "null";
+  // Товари без типів (рідкий азот): кількість × ціна з прайсу товару чи вписана вручну.
+  const productTotals = values.products.map((line) => {
+    const product = options.products?.find((candidate) => candidate.code === line.code);
+    const qty = parseDecimal(line.qty);
+    const unit =
+      line.price.trim() !== ""
+        ? parseDecimal(line.price)
+        : product?.price
+          ? parseDecimal(product.price)
+          : 0;
+    return product && qty > 0 ? lineAmount(qty, unit) : "0.00";
+  });
+  // Способи доставки, які не дозволяє хоча б один вибраний товар (азот: без Нової Пошти).
+  const blockedMethods = new Set<string>();
+  for (const line of values.products) {
+    const product = options.products?.find((candidate) => candidate.code === line.code);
+    if (!product?.allowedDeliveryMethods || !(parseDecimal(line.qty) > 0)) continue;
+    for (const method of Object.keys(DELIVERY_METHOD_LABELS)) {
+      if (!product.allowedDeliveryMethods.includes(method)) blockedMethods.add(method);
+    }
+  }
   const total = sumAmounts([
     lineAmount(Number.isFinite(kg) ? kg : 0, effectivePrice),
     ...boxSalesTotals,
-    lineAmount(nitrogenQty > 0 ? nitrogenQty : 0, nitrogenUnit),
+    ...productTotals,
   ]);
 
   const coreLocked = policy.core === "none";
@@ -510,8 +517,7 @@ export default function OrderForm({
               ([value]) =>
                 ((SELECTABLE_DELIVERY_METHODS as readonly string[]).includes(value) ||
                   value === values.deliveryMethod) &&
-                // Рідкий азот поштою не відправляємо (D176).
-                !(nitrogenQty > 0 && value === "np"),
+                !blockedMethods.has(value),
             )
             .map(([value, label]) => ({ value, label }))}
           value={values.deliveryMethod}
@@ -624,33 +630,12 @@ export default function OrderForm({
           ownBoxes={ownBoxes}
           clientId={clientId}
         />
-        <SectionTitle>Рідкий азот</SectionTitle>
-        <CustomizedInput
-          name=""
-          label="Рідкий азот, кг"
-          inputMode="decimal"
-          autoComplete="off"
-          value={values.nitrogen.qty}
-          onChange={(event) => set("nitrogen", { ...values.nitrogen, qty: event.target.value })}
-          hint="Порожнє поле: азот у замовлення не додається. Поштою азот не відправляємо."
+        <SectionTitle>Інші товари</SectionTitle>
+        <OrderProductsField
+          lines={values.products}
+          onChange={(lines) => set("products", lines)}
+          products={options.products ?? []}
         />
-        {nitrogenQty > 0 ? (
-          <CustomizedInput
-            name=""
-            label="Ціна за кг, ₴"
-            inputMode="decimal"
-            autoComplete="off"
-            value={values.nitrogen.price}
-            placeholder={options.nitrogenPrice ? String(Number(options.nitrogenPrice)) : ""}
-            onChange={(event) => set("nitrogen", { ...values.nitrogen, price: event.target.value })}
-            hint={
-              options.nitrogenPrice
-                ? "Порожнє поле: ціна за прайсом азоту."
-                : "У прайсі азоту ціни немає: вкажіть її тут."
-            }
-          />
-        ) : null}
-        <input type="hidden" name="nitrogenJson" value={nitrogenJson} />
 
         <SectionTitle>Продаж боксів</SectionTitle>
         <OrderBoxSalesField

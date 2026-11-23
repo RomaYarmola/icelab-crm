@@ -108,7 +108,7 @@ describe("експорт у Excel: права, зміст, журнал (B8, D92
       const sheet = read(file).sheets[0]!;
       expect(sheet.name).toBe("Замовлення");
       expect(
-        sheetValues(sheet, ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K"])[0],
+        sheetValues(sheet, ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M"])[0],
       ).toEqual([
         "№",
         "Дата виконання",
@@ -120,6 +120,8 @@ describe("експорт у Excel: права, зміст, журнал (B8, D92
         "Кг на продаж",
         "Кг виготовити",
         "Доставка",
+        "Бокси на продаж, шт",
+        "Інші товари",
         "Сума, ₴",
       ]);
       expect(sheet.rows).toHaveLength(4);
@@ -129,8 +131,8 @@ describe("експорт у Excel: права, зміст, журнал (B8, D92
       expect(sheet.rows[3]!.F!.value).toBe("Чернетка");
       expect(sheet.rows[3]!.A).toMatchObject({ type: "n", value: firstOrder.number });
       expect(sheet.rows[3]!.H).toMatchObject({ type: "n", value: 40 });
-      expect(sheet.rows[3]!.K!.type).toBe("n");
-      expect(sheet.rows[3]!.K!.format).toBe("#,##0.00");
+      expect(sheet.rows[3]!.M!.type).toBe("n");
+      expect(sheet.rows[3]!.M!.format).toBe("#,##0.00");
       expect(file.rowCount).toBe(3);
       expect(file.fileName).toMatch(/^icelab-orders-\d{4}-\d{2}-\d{2}\.xlsx$/);
     });

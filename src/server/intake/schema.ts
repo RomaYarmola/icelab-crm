@@ -46,6 +46,26 @@ export const parseResultSchema = z.object({
     )
     .max(10)
     .optional(),
+  /** Бокси на продаж клієнту (D174): не тара до льоду. */
+  box_sales: z
+    .array(
+      z.object({
+        type_code: z.string().trim().max(60),
+        count: z.number().int().min(1).max(10_000),
+      }),
+    )
+    .max(10)
+    .optional(),
+  /** Інші товари зі списку товарів (рідкий азот): код і кількість в одиницях товару. */
+  extra_products: z
+    .array(
+      z.object({
+        product_code: z.string().trim().max(60),
+        qty: z.number().positive().max(100_000),
+      }),
+    )
+    .max(10)
+    .optional(),
   ice_type: z.enum(ICE_CODES).nullable(),
   box: z.object({
     type_code: z.string().trim().max(60).nullable(),

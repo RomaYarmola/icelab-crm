@@ -85,7 +85,9 @@ export async function buildLabelsPdf(input: LabelsPdfInput): Promise<Uint8Array>
   const dx = mm(clampOffset(input.offsetXmm));
   const dy = mm(clampOffset(input.offsetYmm));
 
-  const pdf = await PDFDocument.create();
+  // Без дати створення й зміни: однакові наклейки дають однаковий файл (інакше довжина стисненого
+  // потоку залежить від секунди генерації, і тест порівняння файлів іноді хибить).
+  const pdf = await PDFDocument.create({ updateMetadata: false });
   pdf.setTitle("Наклейки IceLab");
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const black = rgb(0, 0, 0);

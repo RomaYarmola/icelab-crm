@@ -129,19 +129,18 @@ function readBoxSales(formData: FormData): CreateOrderInput["boxSales"] {
   return parsed as CreateOrderInput["boxSales"];
 }
 
-/** Рідкий азот: приховане поле `nitrogenJson` (кг і ціна) або `null`, якщо азоту немає. */
-function readNitrogen(formData: FormData): CreateOrderInput["nitrogen"] {
-  const raw = readOptionalText(formData, "nitrogenJson");
+/** Товари без типів (рідкий азот): приховане поле `productsJson` (код, кількість, ціна). */
+function readProducts(formData: FormData): CreateOrderInput["products"] {
+  const raw = readOptionalText(formData, "productsJson");
   if (raw === null) return undefined;
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new ValidationError("Не вдалося прочитати азот.");
+    throw new ValidationError("Не вдалося прочитати товари.");
   }
-  if (parsed === null) return null;
-  if (typeof parsed !== "object") throw new ValidationError("Не вдалося прочитати азот.");
-  return parsed as CreateOrderInput["nitrogen"];
+  if (!Array.isArray(parsed)) throw new ValidationError("Не вдалося прочитати товари.");
+  return parsed as CreateOrderInput["products"];
 }
 
 /** Поля нового замовлення з форми. Значення перевіряє схема всередині серверної функції. */
@@ -163,7 +162,7 @@ function readCreateFields(formData: FormData): CreateOrderInput {
     recipientPhone: optional(formData, "recipientPhone"),
     boxes: readBoxes(formData),
     boxSales: readBoxSales(formData),
-    nitrogen: readNitrogen(formData),
+    products: readProducts(formData),
     boxOwnership: optional(formData, "boxOwnership") as CreateOrderInput["boxOwnership"],
     paymentKind: optional(formData, "paymentKind") as CreateOrderInput["paymentKind"],
     comment: optional(formData, "comment"),
@@ -207,7 +206,7 @@ function readUpdateFields(formData: FormData): UpdateOrderInput {
   }
   if (formData.has("boxesJson")) patch.boxes = readBoxes(formData);
   if (formData.has("boxSalesJson")) patch.boxSales = readBoxSales(formData);
-  if (formData.has("nitrogenJson")) patch.nitrogen = readNitrogen(formData);
+  if (formData.has("productsJson")) patch.products = readProducts(formData);
   if (formData.has("price")) patch.price = readOptionalText(formData, "price");
   return patch as UpdateOrderInput;
 }

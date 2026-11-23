@@ -3,6 +3,8 @@ import {
   changeBoxPriceAction,
   changeDefaultPriceAction,
   changeProductPriceAction,
+  createProductAction,
+  updateProductAction,
 } from "@/app/(app)/prices/actions";
 import PricesPageContent from "@/components/pricesPage/PricesPageContent";
 import { getDb } from "@/db/client";
@@ -11,6 +13,7 @@ import { getClientFormOptions } from "@/server/client-options";
 import { can } from "@/server/permissions";
 import { listDefaultPrices } from "@/server/prices";
 import { listBoxPrices, listProductPrices } from "@/server/product-prices";
+import { listProducts } from "@/server/products";
 import { todayIso } from "@/utils/isoDate";
 
 export const metadata: Metadata = { title: "Прайс" };
@@ -19,12 +22,19 @@ export const metadata: Metadata = { title: "Прайс" };
 export default async function PricesPage() {
   const user = await requireUser();
   const db = getDb();
-  const [prices, options, boxPrices, nitrogenPrices] = await Promise.all([
+  const [prices, options, boxPrices, productList] = await Promise.all([
     listDefaultPrices(db, user),
     getClientFormOptions(db, user),
     listBoxPrices(db, user),
-    listProductPrices(db, user, "nitrogen"),
+    listProducts(db, user),
   ]);
+  const productPrices = Object.fromEntries(
+    await Promise.all(
+      productList
+        .filter((product) => product.kind === "other")
+        .map(async (product) => [product.code, await listProductPrices(db, user, product.code)]),
+    ),
+  );
 
   return (
     <PricesPageContent
@@ -36,8 +46,11 @@ export default async function PricesPage() {
       boxTypes={options.boxTypes.filter((type) => !type.isClientOwned && type.kind !== "dewar")}
       boxPrices={boxPrices}
       boxAction={changeBoxPriceAction}
-      nitrogenPrices={nitrogenPrices}
+      products={productList}
+      productPrices={productPrices}
       productAction={changeProductPriceAction}
+      createProductAction={createProductAction}
+      updateProductAction={updateProductAction}
     />
   );
 }

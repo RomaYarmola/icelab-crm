@@ -6,6 +6,7 @@ import {
   clients,
   iceTypes,
   orders,
+  products,
 } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { BOX_OWNERSHIPS, DELIVERY_METHODS, ICE_CODES, NP_KINDS, PAYMENT_HINTS } from "./schema";
@@ -88,6 +89,8 @@ export type PromptContext = {
   text: string;
   clients: ClientLine[];
   boxTypes: { code: string; name: string }[];
+  /** Товари без типів (рідкий азот): код, назва, одиниця. */
+  products?: { code: string; name: string; unit: string }[];
 };
 
 const RULES = `Ти розбираєш заявки на замовлення льоду (сухий лід) компанії IceLab. Заявки короткі, українською чи суржиком, їх пишуть менеджери в робочій групі.
@@ -103,7 +106,9 @@ const RULES = `Ти розбираєш заявки на замовлення л
 3c. Якщо в повідомленні кілька різних днів із кілограмами («ср 4 кг, п'ятниця 6 кг, понеділок 4 кг»), це окремі замовлення: перший день віддай в order_date і kg_sold, решту в additional_days (order_date і kg_sold кожного). «Середа та п'ятниця по 200 кг» це теж два дні по 200. Це не щотижневе правило. Якщо день один, additional_days порожній.
 4. ice_type: ${ICE_CODES.join(", ")} (3 мм, 16 мм, 19 мм). Якщо тип не названо, null.
 5. box: тип тари за списком типів тари (type_code), кількість (count) і чия тара (ownership: ${BOX_OWNERSHIPS.join(", ")}; ours наша, client клієнта, sold продаємо). Якщо тари в тексті немає, усе null.
-6. delivery.method: лише ${DELIVERY_METHODS.join(", ")} (pickup самовивіз, our_delivery власна адресна доставка нашими силами, np Нова Пошта). Інших способів немає: якщо спосіб не названо чи він інший (наприклад, автобус), став null і напиши в unclear. Якщо названо місто й склад чи відділення з номером («Чернівці склад 6», «Харків відділення 12») і не сказано «самовивіз», це np, навіть без слів «Нова Пошта». Якщо названо адресу доставки по місту без Нової Пошти («доставка на Хрещатик 5»), це our_delivery. Місто, номер відділення Нової Пошти, адресу, вікно часу («9-11», «до 12»), ім'я й телефон отримувача вказуй, лише якщо вони є в тексті. Для np вкажи delivery.np_kind: ${NP_KINDS.join(", ")} (warehouse відправка на відділення чи поштомат, courier адресна доставка кур'єром за адресою); без підказок у тексті став warehouse. Місто, номер відділення Нової Пошти, адресу, вікно часу («9-11», «до 12»), ім'я й телефон отримувача вказуй, лише якщо вони є в тексті.
+5a. box_sales: бокси, які клієнт купує окремо від льоду («продаж 2 бокси 19 л», «купує бокс», «бокси на продаж»): type_code зі списку типів тари і count. Це не тара до льоду: тару (box) повертай лише для боксів, у яких веземо лід.
+5b. extra_products: інші товари зі списку товарів (код|назва|одиниця), наприклад «азот 10 кг» це product_code зі списку й qty 10. Кілограми такого товару в kg_sold не додавай: kg_sold це лише лід. Якщо замовляють лише товар без льоду, kg_sold і ice_type залишай null і не пиши в unclear, що немає льоду.
+6. delivery.method: лише ${DELIVERY_METHODS.join(", ")} (pickup самовивіз, our_delivery власна адресна доставка нашими силами, np Нова Пошта). Інших способів немає: якщо спосіб не названо чи він інший (наприклад, автобус), став null і напиши в unclear. Якщо названо місто й склад чи відділення з номером («Чернівці склад 6», «Харків відділення 12») і не сказано «самовивіз», це np, навіть без слів «Нова Пошта». Якщо названо адресу доставки по місту без Нової Пошти («доставка на Хрещатик 5»), а також слова «кур'єр» чи «доставка» самі по собі без слів «Нова Пошта» чи відділення, це our_delivery. Місто, номер відділення Нової Пошти, адресу, вікно часу («9-11», «до 12»), ім'я й телефон отримувача вказуй, лише якщо вони є в тексті. Для np вкажи delivery.np_kind: ${NP_KINDS.join(", ")} (warehouse відправка на відділення чи поштомат, courier адресна доставка кур'єром за адресою); без підказок у тексті став warehouse.
 7. payment_hint: ${PAYMENT_HINTS.join(", ")}, лише якщо оплату названо прямо.
 8. comment: усе корисне, що не вмістилось у поля (побажання, нагадування). Не повторюй те, що вже в полях.
 9. unclear: коротко українською, що тобі неясно або чого бракує (наприклад, «не названо кілограмів», «клієнта не визначено»).
@@ -112,12 +117,15 @@ const RULES = `Ти розбираєш заявки на замовлення л
 /** Збирає запит до Claude. */
 export function buildClaudeRequest(context: PromptContext): ClaudeRequest {
   const boxLines = context.boxTypes.map((type) => `${type.code}|${clean(type.name)}`).join("\n");
+  const productLines = (context.products ?? [])
+    .map((product) => `${product.code}|${clean(product.name)}|${product.unit}`)
+    .join("\n");
   return {
     system: [
       { text: RULES },
       {
         cache: true,
-        text: `Типи тари (код|назва):\n${boxLines || "(немає)"}\n\nКлієнти (код|назва|застосування|місто):\n${formatClientList(context.clients) || "(немає)"}`,
+        text: `Типи тари (код|назва):\n${boxLines || "(немає)"}\n\nТовари (код|назва|одиниця):\n${productLines || "(немає)"}\n\nКлієнти (код|назва|застосування|місто):\n${formatClientList(context.clients) || "(немає)"}`,
       },
     ],
     user: `Дата повідомлення: ${describeDay(context.messageDay)}\nЛокація: ${context.locationName}\nПовідомлення:\n"""\n${context.text}\n"""`,
@@ -126,13 +134,18 @@ export function buildClaudeRequest(context: PromptContext): ClaudeRequest {
 
 /** Довідники, потрібні підказці й перетворенню результату на чернетку. */
 export async function loadDictionaries(db: AnyPgDatabase) {
-  const [types, ice] = await Promise.all([
+  const [types, ice, extraProducts] = await Promise.all([
     db
       .select({ id: boxTypes.id, code: boxTypes.code, name: boxTypes.name })
       .from(boxTypes)
       .where(and(eq(boxTypes.isActive, true), eq(boxTypes.isClientOwned, false)))
       .orderBy(asc(boxTypes.sort)),
     db.select({ id: iceTypes.id, code: iceTypes.code }).from(iceTypes),
+    db
+      .select({ code: products.code, name: products.name, unit: products.unit })
+      .from(products)
+      .where(and(eq(products.kind, "other"), eq(products.isActive, true)))
+      .orderBy(asc(products.sort)),
   ]);
-  return { boxTypes: types, iceTypes: ice };
+  return { boxTypes: types, iceTypes: ice, products: extraProducts };
 }

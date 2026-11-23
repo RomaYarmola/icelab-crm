@@ -1,6 +1,6 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { withActor } from "@/db/actor";
-import { clients, orderSources } from "@/db/schema";
+import { clients, orderSources, products } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { normalizeClientCode } from "@/utils/clientCode";
 import { isIsoDate } from "@/utils/isoDate";
@@ -54,6 +54,8 @@ export function normalizeName(name: string): string {
 
 export type DraftDictionaries = {
   boxTypes: { id: string; code: string }[];
+  /** Товари без типів (рідкий азот); їх може не бути в старих викликах. */
+  products?: { code: string; name: string; unit: string }[];
   iceTypes: { id: string; code: string }[];
 };
 
@@ -141,12 +143,15 @@ export async function buildDraft(
     orderDate = context.messageDay;
     unclear.push("Дату не вказано: поставлено дату повідомлення.");
   }
-  if (parsed.kg_sold === null) unclear.push("Не вказано кілограмів.");
+  const hasExtras = Boolean(parsed.box_sales?.length || parsed.extra_products?.length);
+  // Лише бокси на продаж чи інший товар (азот) без льоду: кілограмів і типу льоду не вимагаємо.
+  const iceExpected = !(hasExtras && parsed.kg_sold === null && !parsed.ice_type);
+  if (parsed.kg_sold === null && iceExpected) unclear.push("Не вказано кілограмів.");
 
   const ice = parsed.ice_type
     ? context.dictionaries.iceTypes.find((type) => type.code === parsed.ice_type)
     : undefined;
-  if (!ice) unclear.push("Не вказано тип льоду.");
+  if (!ice && iceExpected) unclear.push("Не вказано тип льоду.");
 
   let boxTypeId: string | null = null;
   if (parsed.box.type_code) {
@@ -178,6 +183,45 @@ export async function buildDraft(
     .from(orderSources)
     .where(eq(orderSources.code, context.sourceCode ?? "telegram"));
 
+  // Бокси на продаж і інші товари (азот) окремими позиціями (D174, D176).
+  const boxSales: NonNullable<CreateOrderInput["boxSales"]> = [];
+  for (const sale of parsed.box_sales ?? []) {
+    const type = context.dictionaries.boxTypes.find(
+      (candidate) => candidate.code === sale.type_code,
+    );
+    if (type) boxSales.push({ boxTypeId: type.id, qty: sale.count });
+    else unclear.push(`Бокс на продаж «${sale.type_code}»: такого типу немає.`);
+  }
+  const productLines: NonNullable<CreateOrderInput["products"]> = [];
+  for (const line of parsed.extra_products ?? []) {
+    const product = context.dictionaries.products?.find((item) => item.code === line.product_code);
+    if (product) productLines.push({ code: product.code, qty: line.qty });
+    else unclear.push(`Товар «${line.product_code}»: такого немає в списку товарів.`);
+  }
+  // Деякі товари (рідкий азот) поштою не відправляємо: Нову Пошту не ставимо, менеджер вибере сам.
+  let deliveryMethod: NonNullable<CreateOrderInput["deliveryMethod"]> =
+    parsed.delivery.method ?? "other";
+  if (deliveryMethod === "np" && productLines.length > 0) {
+    const restricted = await db
+      .select({ name: products.name })
+      .from(products)
+      .where(
+        and(
+          inArray(
+            products.code,
+            productLines.map((line) => line.code),
+          ),
+          isNotNull(products.allowedDeliveryMethods),
+        ),
+      );
+    if (restricted.length > 0) {
+      deliveryMethod = "other";
+      unclear.push(
+        `${restricted[0]!.name} поштою не відправляємо: оберіть самовивіз або власну доставку.`,
+      );
+    }
+  }
+
   const input: CreateOrderInput = {
     clientId,
     locationId: context.locationId,
@@ -189,10 +233,10 @@ export async function buildDraft(
       ? { kgToProduce: parsed.kg_to_produce.toFixed(3) }
       : {}),
     sourceId: source?.id ?? null,
-    deliveryMethod: parsed.delivery.method ?? "other",
-    ...(parsed.delivery.method === "np"
-      ? { npDeliveryKind: parsed.delivery.np_kind ?? "warehouse" }
-      : {}),
+    deliveryMethod,
+    ...(boxSales.length > 0 ? { boxSales } : {}),
+    ...(productLines.length > 0 ? { products: productLines } : {}),
+    ...(deliveryMethod === "np" ? { npDeliveryKind: parsed.delivery.np_kind ?? "warehouse" } : {}),
     deliveryText: clip(deliveryText, 500),
     timeWindow: clip(parsed.delivery.time_window, 50),
     recipientName: clip(parsed.delivery.recipient_name, 100),

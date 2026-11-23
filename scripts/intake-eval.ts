@@ -28,6 +28,10 @@ type Expected = {
   kg_sold?: number | null;
   ice_type?: string | null;
   delivery_method?: string | null;
+  /** Бокси на продаж як `код:кількість` через кому, наприклад `ours_small_19:2`; порожній рядок: немає. */
+  box_sales?: string | null;
+  /** Інші товари як `код:кількість` через кому, наприклад `nitrogen:10`; порожній рядок: немає. */
+  extra_products?: string | null;
 };
 
 type Case = {
@@ -38,7 +42,15 @@ type Case = {
   expected: Expected;
 };
 
-const FIELDS = ["client_code", "order_date", "kg_sold", "ice_type", "delivery_method"] as const;
+const FIELDS = [
+  "client_code",
+  "order_date",
+  "kg_sold",
+  "ice_type",
+  "delivery_method",
+  "box_sales",
+  "extra_products",
+] as const;
 
 async function main() {
   const file = process.argv[2];
@@ -65,6 +77,7 @@ async function main() {
       text: item.text,
       clients,
       boxTypes: dictionaries.boxTypes,
+      products: dictionaries.products,
     });
     const response = await callClaude(db, request);
     cost += estimateCostUsd(response.usage);
@@ -75,12 +88,22 @@ async function main() {
       kg_sold: parsed.kg_sold,
       ice_type: parsed.ice_type,
       delivery_method: parsed.delivery.method,
+      box_sales: (parsed.box_sales ?? [])
+        .map((sale) => `${sale.type_code}:${sale.count}`)
+        .sort()
+        .join(","),
+      extra_products: (parsed.extra_products ?? [])
+        .map((line) => `${line.product_code}:${line.qty}`)
+        .sort()
+        .join(","),
     };
     let allOk = true;
     for (const field of FIELDS) {
       if (!(field in item.expected)) continue;
       hits[field]!.total += 1;
-      const ok = (item.expected[field] ?? null) === (actual[field] ?? null);
+      // Порожній рядок і відсутність значення означають «немає» для списків.
+      const norm = (value: unknown) => (value === "" ? null : (value ?? null));
+      const ok = norm(item.expected[field]) === norm(actual[field]);
       if (ok) hits[field]!.ok += 1;
       else {
         allOk = false;

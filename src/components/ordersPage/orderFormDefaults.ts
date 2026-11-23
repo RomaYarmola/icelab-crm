@@ -20,7 +20,7 @@ export function buildCreateDefaults(input: { today: string; locationId: string }
     recipientPhone: "",
     boxLines: [],
     boxSales: [],
-    nitrogen: { qty: "", price: "" },
+    products: [],
     boxOwnership: "ours",
     paymentKind: "unknown",
     comment: "",
@@ -31,7 +31,8 @@ export function buildCreateDefaults(input: { today: string; locationId: string }
 /** Початкові значення форми зміни з картки замовлення (поля, яких роль не отримала, порожні). */
 export function buildEditDefaults(
   order: OrderCardView,
-  nitrogenProductId: string | null = null,
+  /** Товари без типів: щоб упізнати їхні позиції в замовленні. */
+  productOptions: { id: string; code: string }[] = [],
 ): OrderFormValues {
   const kg = (value: string) => String(parseDecimal(value));
   return {
@@ -47,17 +48,19 @@ export function buildEditDefaults(
     timeWindow: order.timeWindow ?? "",
     recipientName: order.recipientName ?? "",
     recipientPhone: order.recipientPhone ? formatPhone(order.recipientPhone) : "",
-    nitrogen: (() => {
-      const item = nitrogenProductId
-        ? order.items.find((candidate) => candidate.productId === nitrogenProductId)
-        : undefined;
-      return item
-        ? {
-            qty: String(parseDecimal(item.qty)),
-            price: item.price ? String(parseDecimal(item.price)) : "",
-          }
-        : { qty: "", price: "" };
-    })(),
+    products: order.items.flatMap((item, index) => {
+      const product = productOptions.find((candidate) => candidate.id === item.productId);
+      return product
+        ? [
+            {
+              key: index + 1,
+              code: product.code,
+              qty: String(parseDecimal(item.qty)),
+              price: item.price ? String(parseDecimal(item.price)) : "",
+            },
+          ]
+        : [];
+    }),
     boxSales: order.items
       .filter((item) => item.kind === "box_sale" && item.boxTypeId)
       .map((item, index) => ({

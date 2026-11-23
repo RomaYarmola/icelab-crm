@@ -50,11 +50,21 @@ export default function ProductionCard({
   const toProduce = parseDecimal(card.kgToProduce);
   const sold = parseDecimal(card.kgSold);
   const boxes = describeBoxes(card);
+  // Замовлення без льоду (лише бокси на продаж чи азот): великого «Виготовити 0 кг» немає.
+  const hasIce = toProduce > 0 || sold > 0 || Boolean(card.iceTypeName);
   const place = `${DELIVERY_METHOD_LABELS[card.deliveryMethod]}: ${card.deliveryPlace}`;
   const callHref = telHref(card.recipientPhone);
 
   const details = [
     ...(card.iceTypeName || toProduce > 0 ? [{ label: "Лід", value: card.iceTypeName }] : []),
+    ...(card.boxSales.length > 0
+      ? [
+          {
+            label: "Бокси на продаж",
+            value: card.boxSales.map((sale) => `${sale.name} × ${sale.count}`).join(", "),
+          },
+        ]
+      : []),
     ...card.workshopProducts.map((product) => ({
       label: product.name,
       value: `${parseDecimal(String(product.qty))} ${product.unit}`,
@@ -114,13 +124,17 @@ export default function ProductionCard({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-0.5">
-        <Text variant="muted">Виготовити</Text>
-        <p className={cn("text-navy", wall ? "text-wall" : "text-hero")}>
-          {formatKgPlain(toProduce)} кг
-        </p>
-        {sold !== toProduce ? <Text variant="muted">Продано {formatKgPlain(sold)} кг</Text> : null}
-      </div>
+      {hasIce ? (
+        <div className="flex flex-col gap-0.5">
+          <Text variant="muted">Виготовити</Text>
+          <p className={cn("text-navy", wall ? "text-wall" : "text-hero")}>
+            {formatKgPlain(toProduce)} кг
+          </p>
+          {sold !== toProduce ? (
+            <Text variant="muted">Продано {formatKgPlain(sold)} кг</Text>
+          ) : null}
+        </div>
+      ) : null}
 
       <DetailList items={details} />
 
