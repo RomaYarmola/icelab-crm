@@ -61,9 +61,11 @@ describe("екран «Прийом заявок»: налаштування Tel
     status = await getIntakeStatus(t.db, owner());
     expect(status).toMatchObject({ hasToken: true, hasWebhookSecret: true });
     expect(JSON.stringify(status)).not.toMatch(/SECRETTOKEN|SECRETHOOK/);
-    expect(status.users.map((u) => u.role).every((r) => r === "owner" || r === "manager")).toBe(
-      true,
-    );
+    expect(
+      status.users
+        .map((u) => u.role)
+        .every((r) => r === "owner" || r === "manager" || r === "driver"),
+    ).toBe(true);
     expect(status.users.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -160,7 +162,7 @@ describe("екран «Прийом заявок»: налаштування Tel
     expect(hours).toBeGreaterThan(23.9);
     expect(hours).toBeLessThanOrEqual(24);
     await expect(createLinkCode(t.db, owner(), t.users.production.id)).rejects.toThrow(
-      "менеджерам і власнику",
+      "менеджерам, водіям і власнику",
     );
     await t.db
       .update(profiles)

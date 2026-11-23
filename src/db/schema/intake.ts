@@ -89,3 +89,17 @@ export const telegramLinkCodes = pgTable(
   },
   (t) => [index("telegram_link_codes_profile_id_idx").on(t.profileId)],
 ).enableRLS();
+
+/**
+ * Діалоги бота (B12, ТЗ 8.2): що бот пам'ятає між повідомленнями користувача. Для водія це «зараз
+ * вводить готівку за таке-то замовлення». Один рядок на Telegram-користувача; застарілі (понад
+ * добу) ігноруються в коді. Журналу змін немає: це тимчасовий стан.
+ */
+export const telegramSessions = pgTable("telegram_sessions", {
+  telegramUserId: bigint("telegram_user_id", { mode: "number" }).primaryKey(),
+  state: text("state").notNull(),
+  payload: jsonb("payload")
+    .notNull()
+    .default(sql`'{}'::jsonb`),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}).enableRLS();

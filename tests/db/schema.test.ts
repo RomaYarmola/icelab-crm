@@ -42,6 +42,7 @@ const EXPECTED_TABLES = [
   "shipments",
   "site_leads",
   "telegram_link_codes",
+  "telegram_sessions",
 ];
 
 describe("структура бази", () => {

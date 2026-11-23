@@ -200,6 +200,8 @@ export type SendMessageParams = {
   threadId?: number;
   /** Кнопки під повідомленням: ряди `{ text, callback_data }`. */
   buttons?: { text: string; callbackData: string }[][];
+  /** Відкрити користувачеві поле відповіді під повідомленням (ForceReply, B12); текст підказки в полі. */
+  forceReply?: string;
 };
 
 export const sendMessage = (
@@ -230,7 +232,9 @@ export const sendMessage = (
               ),
             },
           }
-        : {}),
+        : params.forceReply
+          ? { reply_markup: { force_reply: true, input_field_placeholder: params.forceReply } }
+          : {}),
     },
     options,
   );

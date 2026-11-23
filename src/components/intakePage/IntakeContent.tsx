@@ -103,8 +103,9 @@ export default function IntakeContent({ status, actions }: IntakeContentProps) {
       <section aria-labelledby="intake-users" className="flex flex-col gap-3">
         <SectionTitle id="intake-users">Підключення користувачів</SectionTitle>
         <Text variant="muted" className="max-w-xl">
-          Заявки приймаємо лише від підключених менеджерів і власника. Створіть код, користувач
-          надсилає його боту в Telegram: /start КОД.
+          Заявки приймаємо лише від підключених менеджерів і власника. Водіям підключення потрібне,
+          щоб бачити свої доставки в боті. Створіть код, користувач надсилає його боту в Telegram:
+          /start КОД.
         </Text>
         <Text variant="muted" className="max-w-xl">
           {status.anyoneConfirms
@@ -134,14 +135,16 @@ export default function IntakeContent({ status, actions }: IntakeContentProps) {
                 loadingText="Створюємо…"
                 disabled={!status.hasToken}
               />
-              <ActionForm
-                action={actions.setConfirmer}
-                fields={{ profileId: user.id, allowed: user.isConfirmer ? "no" : "yes" }}
-                label={
-                  user.isConfirmer ? "Забрати право підтверджувати" : "Може підтверджувати заявки"
-                }
-                loadingText="Зачекайте…"
-              />
+              {user.role === "driver" ? null : (
+                <ActionForm
+                  action={actions.setConfirmer}
+                  fields={{ profileId: user.id, allowed: user.isConfirmer ? "no" : "yes" }}
+                  label={
+                    user.isConfirmer ? "Забрати право підтверджувати" : "Може підтверджувати заявки"
+                  }
+                  loadingText="Зачекайте…"
+                />
+              )}
               {user.isLinked ? (
                 <ActionForm
                   action={actions.unlink}
