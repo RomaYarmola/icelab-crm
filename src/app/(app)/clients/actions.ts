@@ -407,6 +407,7 @@ export async function deleteAddressAction(
 
 const OWN_BOX_FIELD_NAMES = [
   "name",
+  "kind",
   "volumeL",
   "capacityKg",
   "emptyWeightKg",
@@ -419,6 +420,7 @@ const OWN_BOX_FIELD_NAMES = [
 function readOwnBox(formData: FormData): OwnBoxInput {
   return {
     name: readText(formData, "name"),
+    kind: (readOptionalText(formData, "kind") ?? "ice") as OwnBoxInput["kind"],
     volumeL: readOptionalText(formData, "volumeL"),
     capacityKg: readOptionalText(formData, "capacityKg"),
     emptyWeightKg: readOptionalText(formData, "emptyWeightKg"),

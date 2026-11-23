@@ -34,7 +34,12 @@ export async function prepareBoxSales(
   if (sales.length === 0) return [];
   const ids = [...new Set(sales.map((sale) => sale.boxTypeId))];
   const types = await db
-    .select({ id: boxTypes.id, name: boxTypes.name, isClientOwned: boxTypes.isClientOwned })
+    .select({
+      id: boxTypes.id,
+      name: boxTypes.name,
+      isClientOwned: boxTypes.isClientOwned,
+      kind: boxTypes.kind,
+    })
     .from(boxTypes)
     .where(inArray(boxTypes.id, ids));
   const byId = new Map(types.map((type) => [type.id, type]));
@@ -43,6 +48,7 @@ export async function prepareBoxSales(
     const type = byId.get(sale.boxTypeId);
     if (!type) throw new ValidationError("Тип бокса не знайдено.");
     if (type.isClientOwned) throw new ValidationError("Бокси клієнтів ми не продаємо.");
+    if (type.kind === "dewar") throw new ValidationError("Сосуди Дюара ми не продаємо.");
     if (!Number.isInteger(sale.qty) || sale.qty < 1 || sale.qty > 10_000) {
       throw new ValidationError("Кількість боксів на продаж має бути цілим числом від 1.");
     }

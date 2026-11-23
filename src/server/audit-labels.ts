@@ -326,6 +326,7 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       id: hidden("Ідентифікатор"),
       client_id: ref("Клієнт", "client"),
       name: text("Назва"),
+      kind: choice("Вид тари", { ice: "Бокс для льоду", dewar: "Сосуд Дюара" }),
       volume_l: number("Об'єм, л"),
       capacity_kg: kg("Вміщає, кг"),
       empty_weight_kg: kg("Вага порожнього, кг"),

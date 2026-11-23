@@ -104,6 +104,7 @@ const ORDER_ITEM_BASE_FIELDS = [
   "qty",
   "unit",
   "boxTypeId",
+  "productId",
 ] as const satisfies readonly (keyof OrderItemRow)[];
 
 export type OrderItemView = Pick<OrderItemRow, (typeof ORDER_ITEM_BASE_FIELDS)[number]> &

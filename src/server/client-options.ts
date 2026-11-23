@@ -25,7 +25,7 @@ export type ClientFormOptions = {
   applications: Option[];
   statuses: Option[];
   sources: Option[];
-  boxTypes: (Option & { capacityKg: string | null; isClientOwned: boolean })[];
+  boxTypes: (Option & { capacityKg: string | null; isClientOwned: boolean; kind: string })[];
   /** Хто може бути менеджером клієнта: активні менеджери й власники. */
   managers: Option[];
 };
@@ -75,6 +75,7 @@ export async function getClientFormOptions(
           id: boxTypes.id,
           name: boxTypes.name,
           capacityKg: boxTypes.capacityKg,
+          kind: boxTypes.kind,
           isClientOwned: boxTypes.isClientOwned,
         })
         .from(boxTypes)

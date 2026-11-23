@@ -54,7 +54,11 @@ export default function ProductionCard({
   const callHref = telHref(card.recipientPhone);
 
   const details = [
-    { label: "Лід", value: card.iceTypeName },
+    ...(card.iceTypeName || toProduce > 0 ? [{ label: "Лід", value: card.iceTypeName }] : []),
+    ...card.workshopProducts.map((product) => ({
+      label: product.name,
+      value: `${parseDecimal(String(product.qty))} ${product.unit}`,
+    })),
     ...(boxes ? [{ label: "Тара", value: boxes }] : []),
     {
       label: "Куди",

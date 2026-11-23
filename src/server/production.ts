@@ -1,4 +1,5 @@
 import { loadBoxLineViews, ourBoxesNeeded } from "./order-boxes";
+import { loadWorkshopProducts } from "./order-products";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { withActor } from "@/db/actor";
 import { boxTypes, clientAddresses, clients, iceTypes, locations, orders } from "@/db/schema";
@@ -47,6 +48,8 @@ export type ProductionCard = {
   boxCount: number;
   /** Тара рядками: що й скільки. */
   boxLines: { name: string; count: number }[];
+  /** Інші товари цеху в замовленні (рідкий азот): назва, кількість, одиниця. */
+  workshopProducts: { name: string; qty: number; unit: string }[];
   boxOwnership: "ours" | "client" | "sold";
   deliveryMethod: "pickup" | "our_delivery" | "np" | "bus" | "other";
   /** Куди: «Самовивіз», місто й відділення Нової Пошти чи адреса доставки. */
@@ -155,6 +158,10 @@ export async function listProductionQueue(
     db,
     rows.map((row) => row.id),
   );
+  const workshopProducts = await loadWorkshopProducts(
+    db,
+    rows.map((row) => row.id),
+  );
   const cards: ProductionCard[] = rows.map((row) => ({
     id: row.id,
     number: row.number,
@@ -170,6 +177,7 @@ export async function listProductionQueue(
     kgToProduce: row.kgToProduce,
     boxTypeName: row.boxTypeName,
     boxCount: row.boxCount,
+    workshopProducts: workshopProducts.get(row.id) ?? [],
     boxLines: (lineViews.get(row.id) ?? []).map((line) => ({ name: line.name, count: line.count })),
     boxOwnership: row.boxOwnership,
     deliveryMethod: row.deliveryMethod,

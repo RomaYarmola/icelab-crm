@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
-import { changeBoxPriceAction, changeDefaultPriceAction } from "@/app/(app)/prices/actions";
+import {
+  changeBoxPriceAction,
+  changeDefaultPriceAction,
+  changeProductPriceAction,
+} from "@/app/(app)/prices/actions";
 import PricesPageContent from "@/components/pricesPage/PricesPageContent";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
 import { getClientFormOptions } from "@/server/client-options";
 import { can } from "@/server/permissions";
 import { listDefaultPrices } from "@/server/prices";
-import { listBoxPrices } from "@/server/product-prices";
+import { listBoxPrices, listProductPrices } from "@/server/product-prices";
 import { todayIso } from "@/utils/isoDate";
 
 export const metadata: Metadata = { title: "Прайс" };
@@ -15,10 +19,11 @@ export const metadata: Metadata = { title: "Прайс" };
 export default async function PricesPage() {
   const user = await requireUser();
   const db = getDb();
-  const [prices, options, boxPrices] = await Promise.all([
+  const [prices, options, boxPrices, nitrogenPrices] = await Promise.all([
     listDefaultPrices(db, user),
     getClientFormOptions(db, user),
     listBoxPrices(db, user),
+    listProductPrices(db, user, "nitrogen"),
   ]);
 
   return (
@@ -28,9 +33,11 @@ export default async function PricesPage() {
       today={todayIso()}
       canEdit={can(user.role, "default_prices", "write")}
       action={changeDefaultPriceAction}
-      boxTypes={options.boxTypes.filter((type) => !type.isClientOwned)}
+      boxTypes={options.boxTypes.filter((type) => !type.isClientOwned && type.kind !== "dewar")}
       boxPrices={boxPrices}
       boxAction={changeBoxPriceAction}
+      nitrogenPrices={nitrogenPrices}
+      productAction={changeProductPriceAction}
     />
   );
 }

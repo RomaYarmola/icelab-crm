@@ -184,20 +184,24 @@ export function shipmentParams(input: {
 export function boxLinesForShipment(
   views: {
     count: number;
+    /** Сосуди Дюара у вагу накладної льоду не входять (азот поштою не відправляємо). */
+    kind?: "ice" | "dewar";
     emptyWeightKg: string | null;
     heightMm: number | null;
     widthMm: number | null;
     lengthMm: number | null;
   }[],
 ) {
-  return views.map((view) => ({
-    count: view.count,
-    emptyWeightKg: view.emptyWeightKg,
-    dimensions:
-      view.heightMm && view.widthMm && view.lengthMm
-        ? { heightMm: view.heightMm, widthMm: view.widthMm, lengthMm: view.lengthMm }
-        : null,
-  }));
+  return views
+    .filter((view) => view.kind !== "dewar")
+    .map((view) => ({
+      count: view.count,
+      emptyWeightKg: view.emptyWeightKg,
+      dimensions:
+        view.heightMm && view.widthMm && view.lengthMm
+          ? { heightMm: view.heightMm, widthMm: view.widthMm, lengthMm: view.lengthMm }
+          : null,
+    }));
 }
 
 function shipmentParamsByLines(

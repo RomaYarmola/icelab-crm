@@ -351,6 +351,7 @@ describe("контакти й адреси клієнта", () => {
         {
           id,
           name: "Сірий великий",
+          kind: "ice",
           volumeL: null,
           capacityKg: "18.500",
           emptyWeightKg: "2.000",

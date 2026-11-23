@@ -187,7 +187,7 @@ async function previewSearchClients(): Promise<ClientListItem[]> {
 
 async function previewOwnBoxes(): Promise<ClientOwnBoxOption[]> {
   "use server";
-  return [{ id: "ob1", name: "Сірий великий", capacityKg: "20.000" }];
+  return [{ id: "ob1", name: "Сірий великий", capacityKg: "20.000", kind: "ice" }];
 }
 
 async function previewAddresses(): Promise<ClientAddressOption[]> {

@@ -162,6 +162,13 @@
       "when": 1795435220317,
       "tag": "0022_products",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795436115353,
+      "tag": "0023_nitrogen_dewars",
+      "breakpoints": true
     }
   ]
 }

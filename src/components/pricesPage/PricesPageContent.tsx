@@ -8,7 +8,8 @@ import Disclosure from "../shared/disclosure/Disclosure";
 import Notification from "../shared/notification/Notification";
 import Text from "../shared/texts/Text";
 import SubTitle from "../shared/titles/SubTitle";
-import type { BoxPriceHistoryItem } from "@/server/product-prices";
+import type { BoxPriceHistoryItem, ProductPriceHistoryItem } from "@/server/product-prices";
+import ProductPriceSection from "./ProductPriceSection";
 import BoxPricesSection from "./BoxPricesSection";
 import PriceChangeForm from "./PriceChangeForm";
 import PriceHistory from "./PriceHistory";
@@ -26,6 +27,9 @@ interface PricesPageContentProps {
   boxTypes: { id: string; name: string }[];
   boxPrices: BoxPriceHistoryItem[];
   boxAction: FormAction;
+  /** Рідкий азот: ціна за кг з історією (D176). */
+  nitrogenPrices: ProductPriceHistoryItem[];
+  productAction: FormAction;
 }
 
 /**
@@ -42,6 +46,8 @@ export default function PricesPageContent({
   boxTypes,
   boxPrices,
   boxAction,
+  nitrogenPrices,
+  productAction,
 }: PricesPageContentProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -95,6 +101,15 @@ export default function PricesPageContent({
         today={today}
         canEdit={canEdit}
         action={boxAction}
+      />
+      <ProductPriceSection
+        productCode="nitrogen"
+        title="Рідкий азот"
+        unit="кг"
+        prices={nitrogenPrices}
+        today={today}
+        canEdit={canEdit}
+        action={productAction}
       />
     </div>
   );

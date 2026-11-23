@@ -42,6 +42,8 @@ export interface OrderFormValues {
   boxLines: BoxLineDraft[];
   /** Бокси на продаж (D174). */
   boxSales: BoxSaleDraft[];
+  /** Рідкий азот (D176): кг і ціна за кг (порожня: за прайсом). */
+  nitrogen: { qty: string; price: string };
   boxOwnership: string;
   paymentKind: string;
   comment: string;
@@ -54,9 +56,18 @@ export interface OrderFormOptions {
   iceTypes: { id: string; name: string }[];
   sources: { id: string; name: string }[];
   /** `capacityKg`: скільки кг вміщає бокс (для підказки «виготовити», D165). */
-  boxTypes: { id: string; name: string; capacityKg?: string | null; isClientOwned?: boolean }[];
+  boxTypes: {
+    id: string;
+    name: string;
+    capacityKg?: string | null;
+    isClientOwned?: boolean;
+    /** `dewar` сосуд Дюара: не продається й не вміщає лід. */
+    kind?: string;
+  }[];
   /** Чинні ціни прайсу боксів: тип → ціна за штуку (D175). */
   boxPrices?: Record<string, string>;
+  /** Чинна ціна рідкого азоту за кг (D176). */
+  nitrogenPrice?: string | null;
 }
 
 /** Серверні дії і підказки форми. У каталозі `/ui-kit` це заглушки. */

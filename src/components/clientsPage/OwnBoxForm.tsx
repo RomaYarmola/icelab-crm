@@ -1,15 +1,18 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { INITIAL_FORM_STATE } from "@/utils/formState";
 import MainButton from "../shared/buttons/MainButton";
 import CustomizedInput from "../shared/customizedInput/CustomizedInput";
+import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
 import Form from "../shared/form/Form";
 import FormMessage from "../shared/form/FormMessage";
 import type { FormAction } from "./clientActions";
 
 export interface OwnBoxFormDefaults {
   name: string;
+  /** `ice` бокс для льоду, `dewar` сосуд Дюара для азоту. */
+  kind: string;
   volumeL: string;
   capacityKg: string;
   emptyWeightKg: string;
@@ -21,6 +24,7 @@ export interface OwnBoxFormDefaults {
 
 export const EMPTY_OWN_BOX: OwnBoxFormDefaults = {
   name: "",
+  kind: "ice",
   volumeL: "",
   capacityKg: "",
   emptyWeightKg: "",
@@ -53,6 +57,8 @@ export default function OwnBoxForm({
 }: OwnBoxFormProps) {
   const [state, formAction, isPending] = useActionState(action, INITIAL_FORM_STATE);
   const values = { ...defaults, ...state.values };
+  const [kind, setKind] = useState(values.kind);
+  const isDewar = kind === "dewar";
 
   return (
     <Form action={formAction}>
@@ -65,52 +71,66 @@ export default function OwnBoxForm({
         defaultValue={values.name}
         hint="Наприклад, «Сірий великий»."
       />
-      <CustomizedInput
-        name="capacityKg"
-        label="Скільки кг льоду вміщає"
-        inputMode="decimal"
-        autoComplete="off"
-        defaultValue={values.capacityKg}
-        hint="Необов'язково. Більше цього числа система не запропонує класти."
+      <CustomizedSelect
+        name="kind"
+        label="Що це"
+        options={[
+          { value: "ice", label: "Бокс для льоду" },
+          { value: "dewar", label: "Сосуд Дюара (для рідкого азоту)" },
+        ]}
+        value={kind}
+        onChange={(event) => setKind(event.target.value)}
       />
-      <CustomizedInput
-        name="emptyWeightKg"
-        label="Вага порожнього, кг"
-        inputMode="decimal"
-        autoComplete="off"
-        defaultValue={values.emptyWeightKg}
-        hint="Необов'язково. Якщо порожньо, в накладну додається 1 кг на бокс."
-      />
-      <CustomizedInput
-        name="volumeL"
-        label="Об'єм, л"
-        inputMode="numeric"
-        autoComplete="off"
-        defaultValue={values.volumeL}
-        hint="Необов'язково."
-      />
-      <CustomizedInput
-        name="heightMm"
-        label="Висота зовні, мм"
-        inputMode="numeric"
-        autoComplete="off"
-        defaultValue={values.heightMm}
-        hint="Розміри необов'язкові й можуть бути орієнтовними."
-      />
-      <CustomizedInput
-        name="widthMm"
-        label="Ширина зовні, мм"
-        inputMode="numeric"
-        autoComplete="off"
-        defaultValue={values.widthMm}
-      />
-      <CustomizedInput
-        name="lengthMm"
-        label="Довжина зовні, мм"
-        inputMode="numeric"
-        autoComplete="off"
-        defaultValue={values.lengthMm}
-      />
+      {isDewar ? null : (
+        <>
+          <CustomizedInput
+            name="capacityKg"
+            label="Скільки кг льоду вміщає"
+            inputMode="decimal"
+            autoComplete="off"
+            defaultValue={values.capacityKg}
+            hint="Необов'язково. Більше цього числа система не запропонує класти."
+          />
+          <CustomizedInput
+            name="emptyWeightKg"
+            label="Вага порожнього, кг"
+            inputMode="decimal"
+            autoComplete="off"
+            defaultValue={values.emptyWeightKg}
+            hint="Необов'язково. Якщо порожньо, в накладну додається 1 кг на бокс."
+          />
+          <CustomizedInput
+            name="volumeL"
+            label="Об'єм, л"
+            inputMode="numeric"
+            autoComplete="off"
+            defaultValue={values.volumeL}
+            hint="Необов'язково."
+          />
+          <CustomizedInput
+            name="heightMm"
+            label="Висота зовні, мм"
+            inputMode="numeric"
+            autoComplete="off"
+            defaultValue={values.heightMm}
+            hint="Розміри необов'язкові й можуть бути орієнтовними."
+          />
+          <CustomizedInput
+            name="widthMm"
+            label="Ширина зовні, мм"
+            inputMode="numeric"
+            autoComplete="off"
+            defaultValue={values.widthMm}
+          />
+          <CustomizedInput
+            name="lengthMm"
+            label="Довжина зовні, мм"
+            inputMode="numeric"
+            autoComplete="off"
+            defaultValue={values.lengthMm}
+          />
+        </>
+      )}
       <CustomizedInput
         name="note"
         label="Примітка"

@@ -71,25 +71,31 @@ export const iceTypes = pgTable("ice_types", {
   ...timestamps,
 }).enableRLS();
 
-export const boxTypes = pgTable("box_types", {
-  id: pk(),
-  code: text("code").notNull().unique(),
-  name: text("name").notNull(),
-  volumeL: integer("volume_l"),
-  capacityKg: kg("capacity_kg"),
-  /** Вага порожнього бокса, кг: додається до ваги посилки в накладній Нової Пошти (D127). */
-  emptyWeightKg: kg("empty_weight_kg"),
-  /** Зовнішні розміри, мм (для об'ємної ваги накладної, D158). */
-  heightMm: integer("height_mm"),
-  widthMm: integer("width_mm"),
-  lengthMm: integer("length_mm"),
-  isReturnable: boolean("is_returnable").notNull().default(true),
-  isClientOwned: boolean("is_client_owned").notNull().default(false),
-  salePrice: money("sale_price"),
-  isActive: boolean("is_active").notNull().default(true),
-  sort: integer("sort").notNull().default(0),
-  ...timestamps,
-}).enableRLS();
+export const boxTypes = pgTable(
+  "box_types",
+  {
+    id: pk(),
+    code: text("code").notNull().unique(),
+    name: text("name").notNull(),
+    volumeL: integer("volume_l"),
+    capacityKg: kg("capacity_kg"),
+    /** Вага порожнього бокса, кг: додається до ваги посилки в накладній Нової Пошти (D127). */
+    emptyWeightKg: kg("empty_weight_kg"),
+    /** Зовнішні розміри, мм (для об'ємної ваги накладної, D158). */
+    heightMm: integer("height_mm"),
+    widthMm: integer("width_mm"),
+    lengthMm: integer("length_mm"),
+    isReturnable: boolean("is_returnable").notNull().default(true),
+    isClientOwned: boolean("is_client_owned").notNull().default(false),
+    /** Вид тари: `ice` бокс для льоду, `dewar` сосуд Дьюара для рідкого азоту (Роман, 23.11.2026). */
+    kind: text("kind").notNull().default("ice"),
+    salePrice: money("sale_price"),
+    isActive: boolean("is_active").notNull().default(true),
+    sort: integer("sort").notNull().default(0),
+    ...timestamps,
+  },
+  (t) => [check("box_types_kind_ok", sql`${t.kind} in ('ice', 'dewar')`)],
+).enableRLS();
 
 export const orderSources = pgTable("order_sources", {
   id: pk(),
