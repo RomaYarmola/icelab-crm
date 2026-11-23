@@ -115,6 +115,20 @@ function readBoxes(formData: FormData): CreateOrderInput["boxes"] {
   return parsed as CreateOrderInput["boxes"];
 }
 
+/** Бокси на продаж: приховане поле `boxSalesJson` (вид, кількість, ціна). Значення перевіряє схема. */
+function readBoxSales(formData: FormData): CreateOrderInput["boxSales"] {
+  const raw = readOptionalText(formData, "boxSalesJson");
+  if (raw === null) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new ValidationError("Не вдалося прочитати бокси на продаж.");
+  }
+  if (!Array.isArray(parsed)) throw new ValidationError("Не вдалося прочитати бокси на продаж.");
+  return parsed as CreateOrderInput["boxSales"];
+}
+
 /** Поля нового замовлення з форми. Значення перевіряє схема всередині серверної функції. */
 function readCreateFields(formData: FormData): CreateOrderInput {
   return {
@@ -133,6 +147,7 @@ function readCreateFields(formData: FormData): CreateOrderInput {
     recipientName: optional(formData, "recipientName"),
     recipientPhone: optional(formData, "recipientPhone"),
     boxes: readBoxes(formData),
+    boxSales: readBoxSales(formData),
     boxOwnership: optional(formData, "boxOwnership") as CreateOrderInput["boxOwnership"],
     paymentKind: optional(formData, "paymentKind") as CreateOrderInput["paymentKind"],
     comment: optional(formData, "comment"),
@@ -175,6 +190,7 @@ function readUpdateFields(formData: FormData): UpdateOrderInput {
     if (formData.has(name) && value !== undefined) patch[name] = value;
   }
   if (formData.has("boxesJson")) patch.boxes = readBoxes(formData);
+  if (formData.has("boxSalesJson")) patch.boxSales = readBoxSales(formData);
   if (formData.has("price")) patch.price = readOptionalText(formData, "price");
   return patch as UpdateOrderInput;
 }

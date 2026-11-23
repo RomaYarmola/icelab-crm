@@ -14,6 +14,7 @@ import OrderFormContent from "@/components/ordersPage/OrderFormContent";
 import { buildCreateDefaults } from "@/components/ordersPage/orderFormDefaults";
 import { getDb } from "@/db/client";
 import { requireUser } from "@/server/auth";
+import { currentBoxPrices } from "@/server/product-prices";
 import { getClientFormOptions } from "@/server/client-options";
 import { getClient } from "@/server/clients";
 import { getLocationFilter } from "@/server/location-filter";
@@ -58,6 +59,7 @@ export default async function NewOrderPage({
         iceTypes: options.iceTypes,
         sources: options.sources,
         boxTypes: options.boxTypes,
+        boxPrices: await currentBoxPrices(db),
       }}
       defaults={buildCreateDefaults({
         today: query.date && isIsoDate(query.date) ? query.date : today,

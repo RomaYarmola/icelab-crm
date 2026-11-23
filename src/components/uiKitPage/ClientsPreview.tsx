@@ -334,6 +334,30 @@ export default function ClientsPreview({
         today={TODAY}
         canEdit={can(role, "default_prices", "write")}
         action={action}
+        boxTypes={[
+          { id: "box-9", name: "Міні 9 л" },
+          { id: "box-19", name: "Малий 19 л" },
+          { id: "box-46", name: "Довгий 46 л" },
+        ]}
+        boxPrices={[
+          {
+            id: "bp1",
+            boxTypeId: "box-9",
+            boxTypeName: "Міні 9 л",
+            pricePerUnit: "500.00",
+            validFrom: "2026-11-01",
+            validTo: null,
+          },
+          {
+            id: "bp2",
+            boxTypeId: "box-46",
+            boxTypeName: "Довгий 46 л",
+            pricePerUnit: "650.00",
+            validFrom: "2026-11-01",
+            validTo: null,
+          },
+        ]}
+        boxAction={action}
       />
     );
   }

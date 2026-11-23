@@ -34,6 +34,8 @@ const EXPECTED_TABLES = [
   "order_sources",
   "order_status_history",
   "orders",
+  "product_prices",
+  "products",
   "profiles",
   "regions",
   "settings",

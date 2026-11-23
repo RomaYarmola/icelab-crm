@@ -28,11 +28,16 @@ export default function OrderItemsList({
   lockedPrice,
   priceChanges,
 }: OrderItemsListProps) {
+  // Замовлення лише з боксами (D174): порожню позицію «Лід» не показуємо.
+  const shown = items.filter(
+    (item) => !(item.kind === "ice" && parseDecimal(item.qty) === 0 && items.length > 1),
+  );
+  const isBoxesOnly = shown.length < items.length;
   return (
     <section aria-labelledby="order-items" className="flex flex-col gap-3">
       <SectionTitle id="order-items">Позиції</SectionTitle>
       <ul className="flex flex-col gap-3">
-        {items.map((item) => (
+        {shown.map((item) => (
           <Card as="li" key={item.id} className="flex flex-col gap-1">
             <SubTitle className="break-words">{item.title}</SubTitle>
             <div className="flex items-center justify-between gap-3">
@@ -57,7 +62,7 @@ export default function OrderItemsList({
           </Text>
         </div>
       ) : null}
-      {lockedPrice ? (
+      {lockedPrice && !isBoxesOnly ? (
         <Text variant="muted">
           Ціну зафіксовано при підтвердженні: {formatPricePerKg(lockedPrice)}.
         </Text>

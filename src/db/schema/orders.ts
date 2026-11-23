@@ -23,7 +23,15 @@ import {
   paymentKind,
 } from "./enums";
 import { clientAddresses, clientOwnBoxes, clients } from "./clients";
-import { boxTypes, createdBy, iceTypes, locations, orderSources, profiles } from "./reference";
+import {
+  boxTypes,
+  createdBy,
+  iceTypes,
+  locations,
+  orderSources,
+  products,
+  profiles,
+} from "./reference";
 
 // Замовлення (розділ 4.3 ТЗ).
 
@@ -157,10 +165,13 @@ export const orderItems = pgTable(
       .notNull()
       .generatedAlwaysAs(sql`round("qty" * "price", 2)`),
     boxTypeId: uuid("box_type_id").references(() => boxTypes.id, restrict),
+    /** Товар позиції (D174); для старих позицій заповнено за видом. */
+    productId: uuid("product_id").references(() => products.id, restrict),
     createdBy: createdBy(),
     ...timestamps,
   },
   (t) => [
+    index("order_items_product_id_idx").on(t.productId),
     index("order_items_order_id_idx").on(t.orderId),
     index("order_items_box_type_id_idx").on(t.boxTypeId),
     index("order_items_created_by_idx").on(t.createdBy),

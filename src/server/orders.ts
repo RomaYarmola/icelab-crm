@@ -29,6 +29,8 @@ import { computeKgToProduce, parseDecimal } from "@/utils/orderMath";
 import { normalizePhone } from "@/utils/phone";
 import { clientSearchCondition } from "./clients";
 import { parseInput, ValidationError } from "./errors";
+import { prepareBoxSales, saveBoxSaleItems } from "./order-box-sales";
+import { productIdByCode } from "./product-prices";
 import {
   type BoxLine,
   type BoxLineInput,
@@ -106,6 +108,16 @@ const boxLineSchema = z.object({
     .max(10_000, "Забагато боксів: перевірте число."),
 });
 
+const boxSaleSchema = z.object({
+  boxTypeId: uuid,
+  qty: z
+    .number("Кількість боксів має бути числом.")
+    .int("Кількість боксів має бути цілою.")
+    .min(1, "Кількість боксів від 1.")
+    .max(10_000, "Забагато боксів: перевірте число."),
+  price: z.union([z.string(), z.number()]).nullable().optional(),
+});
+
 const optionalFields = z
   .object({
     iceTypeId: optionalUuid,
@@ -114,6 +126,8 @@ const optionalFields = z
     sourceId: optionalUuid,
     deliveryMethod: z.enum(deliveryMethod.enumValues, "Оберіть спосіб доставки зі списку."),
     /** Лише для Нової Пошти: на відділення чи кур'єром. */
+    /** Бокси на продаж (позиції замовлення, D174); можна без льоду. */
+    boxSales: z.array(boxSaleSchema).max(10, "Забагато видів боксів на продаж.").optional(),
     /** Тара рядками (D164, 20.11.2026); без неї діють поля `boxTypeId`, `boxCount`, `clientOwnBoxId`. */
     boxes: z.array(boxLineSchema).max(20, "Забагато рядків тари.").optional(),
     npDeliveryKind: z
@@ -176,6 +190,7 @@ const CORE_KEYS = [
   "recipientPhone",
   "boxTypeId",
   "boxes",
+  "boxSales",
   "clientOwnBoxId",
   "boxCount",
   "boxOwnership",
@@ -389,6 +404,7 @@ export async function createOrder(
   // Для Нової Пошти телефон отримувача береться з вибраної адреси, якщо його не вказано окремо.
   const recipientPhone = parsePhone(data.recipientPhone) ?? npFacts?.recipientPhone ?? null;
 
+  const boxSales = await prepareBoxSales(db, data.boxSales ?? [], data.orderDate);
   const kgSold = data.kgSold ?? "0.000";
   const method = data.deliveryMethod ?? "other";
   const auto = await autoValues(db, {
@@ -404,6 +420,8 @@ export async function createOrder(
   const price = hasManualPrice
     ? parsePricePerKg(data.price as string | number)
     : (auto.price ?? "0.00");
+
+  const iceProductId = await productIdByCode(db, "ice");
 
   return withActor(db, actor.id, async (tx) => {
     const [order] = await tx
@@ -444,7 +462,9 @@ export async function createOrder(
       qty: kgSold,
       unit: "кг",
       price,
+      productId: iceProductId,
     });
+    await saveBoxSaleItems(tx, order!.id, boxSales);
     for (const item of data.items ?? []) {
       await tx.insert(orderItems).values({
         orderId: order!.id,
@@ -592,6 +612,7 @@ export async function updateOrder(
     set.boxCount = totals.boxCount;
   }
   delete (set as Record<string, unknown>).boxes;
+  delete (set as Record<string, unknown>).boxSales;
 
   // Вид відправки Новою Поштою: з вибраної збереженої адреси (кур'єр чи відділення), а для інших
   // способів знімаємо. Отримувача підставляємо з адреси, якщо його не вказано.
@@ -630,6 +651,9 @@ export async function updateOrder(
   const kgSold = changed.kgSold ?? order.kgSold;
   const deliveryMethodValue = changed.deliveryMethod ?? order.deliveryMethod;
   const orderDate = changed.orderDate ?? order.orderDate;
+  // Бокси на продаж: позиції замовлення замінюємо повністю (ціни з прайсу боксів на дату замовлення).
+  const boxSalesPrepared =
+    "boxSales" in changed ? await prepareBoxSales(db, changed.boxSales ?? [], orderDate) : null;
 
   // Ціна: вручну або за прайсом, доки замовлення чернетка (D52).
   let priceManual = order.priceManual;
@@ -717,6 +741,7 @@ export async function updateOrder(
         await tx.update(orders).set(set).where(eq(orders.id, order.id));
       }
       if (boxLines) await saveOrderBoxLines(tx, order.id, boxLines);
+      if (boxSalesPrepared) await saveBoxSaleItems(tx, order.id, boxSalesPrepared);
       // Позиція «Лід» іде за полями замовлення (D55).
       const itemSet: Partial<typeof orderItems.$inferInsert> = {};
       if (touches("kgSold")) itemSet.qty = kgSold;

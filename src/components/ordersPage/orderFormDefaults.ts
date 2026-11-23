@@ -19,6 +19,7 @@ export function buildCreateDefaults(input: { today: string; locationId: string }
     recipientName: "",
     recipientPhone: "",
     boxLines: [],
+    boxSales: [],
     boxOwnership: "ours",
     paymentKind: "unknown",
     comment: "",
@@ -42,6 +43,14 @@ export function buildEditDefaults(order: OrderCardView): OrderFormValues {
     timeWindow: order.timeWindow ?? "",
     recipientName: order.recipientName ?? "",
     recipientPhone: order.recipientPhone ? formatPhone(order.recipientPhone) : "",
+    boxSales: order.items
+      .filter((item) => item.kind === "box_sale" && item.boxTypeId)
+      .map((item, index) => ({
+        key: index + 1,
+        boxTypeId: item.boxTypeId ?? "",
+        qty: String(parseDecimal(item.qty)),
+        price: item.price ? String(parseDecimal(item.price)) : "",
+      })),
     boxLines: order.boxLines.map((line, index) => ({
       key: index + 1,
       owner: line.isClient ? ("client" as const) : ("ours" as const),

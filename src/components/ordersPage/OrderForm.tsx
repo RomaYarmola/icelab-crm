@@ -28,6 +28,7 @@ import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import ClientPicker from "./ClientPicker";
 import OrderBoxesField from "./OrderBoxesField";
+import OrderBoxSalesField from "./OrderBoxSalesField";
 import type {
   OrderFormActions,
   OrderFormOptions,
@@ -312,7 +313,18 @@ export default function OrderForm({
   const autoPrice = pricing?.pricePerKg ? parseDecimal(pricing.pricePerKg) : null;
   const currentPriceNumber = currentPrice ? parseDecimal(currentPrice) : null;
   const effectivePrice = manualPrice ?? autoPrice ?? currentPriceNumber ?? 0;
-  const total = sumAmounts([lineAmount(Number.isFinite(kg) ? kg : 0, effectivePrice)]);
+  // Бокси на продаж: ціна з прайсу боксів або вписана вручну.
+  const boxSalesTotals = values.boxSales.map((sale) => {
+    const qty = parseInt(sale.qty, 10);
+    const manual = sale.price.trim() === "" ? null : parseDecimal(sale.price);
+    const auto = options.boxPrices?.[sale.boxTypeId];
+    const unit = manual ?? (auto ? parseDecimal(auto) : 0);
+    return qty > 0 && sale.boxTypeId ? lineAmount(qty, unit) : "0.00";
+  });
+  const total = sumAmounts([
+    lineAmount(Number.isFinite(kg) ? kg : 0, effectivePrice),
+    ...boxSalesTotals,
+  ]);
 
   const coreLocked = policy.core === "none";
   const isDisabled = !isCreate && coreLocked;
@@ -589,6 +601,14 @@ export default function OrderForm({
           ownBoxes={ownBoxes}
           clientId={clientId}
         />
+        <SectionTitle>Продаж боксів</SectionTitle>
+        <OrderBoxSalesField
+          sales={values.boxSales}
+          onChange={(sales) => set("boxSales", sales)}
+          boxTypes={options.boxTypes.filter((type) => !type.isClientOwned)}
+          prices={options.boxPrices ?? {}}
+        />
+
         <CustomizedSelect
           name="paymentKind"
           label="Спосіб оплати"

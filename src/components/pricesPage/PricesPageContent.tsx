@@ -8,6 +8,8 @@ import Disclosure from "../shared/disclosure/Disclosure";
 import Notification from "../shared/notification/Notification";
 import Text from "../shared/texts/Text";
 import SubTitle from "../shared/titles/SubTitle";
+import type { BoxPriceHistoryItem } from "@/server/product-prices";
+import BoxPricesSection from "./BoxPricesSection";
 import PriceChangeForm from "./PriceChangeForm";
 import PriceHistory from "./PriceHistory";
 
@@ -20,6 +22,10 @@ interface PricesPageContentProps {
   /** Прайс змінює лише власник (D44), решта дивиться. */
   canEdit: boolean;
   action: FormAction;
+  /** Бокси на продаж: ціни з історією й дія зміни ціни (D175). */
+  boxTypes: { id: string; name: string }[];
+  boxPrices: BoxPriceHistoryItem[];
+  boxAction: FormAction;
 }
 
 /**
@@ -33,6 +39,9 @@ export default function PricesPageContent({
   today,
   canEdit,
   action,
+  boxTypes,
+  boxPrices,
+  boxAction,
 }: PricesPageContentProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -80,6 +89,13 @@ export default function PricesPageContent({
           );
         })}
       </ul>
+      <BoxPricesSection
+        boxTypes={boxTypes}
+        prices={boxPrices}
+        today={today}
+        canEdit={canEdit}
+        action={boxAction}
+      />
     </div>
   );
 }
