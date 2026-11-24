@@ -63,9 +63,8 @@ export type MatchOrder = {
 };
 
 export type AutoMatch = {
-  orderId: string;
-  /** Скільки з платежу йде на замовлення, копійки. */
-  appliedKopecks: number;
+  /** Замовлення, які платіж закриває, і скільки з платежу йде на кожне, копійки. */
+  allocations: { orderId: string; appliedKopecks: number }[];
   rule: "comment_number" | "amount_date_name";
 };
 
@@ -83,30 +82,39 @@ const DAY_MS = 86_400_000;
 const dayOf = (iso: string) => Date.parse(`${iso}T00:00:00Z`);
 
 /**
- * Рішення автозіставлення (D188). Правило 1: у коментарі один номер замовлення, замовлення знайдено,
- * сума збігається із залишком. Правило 2: номера немає, платник збігається з клієнтом, рівно одне
- * замовлення цього клієнта в межах вікна має залишок, що дорівнює сумі. Інакше `null` (черга).
+ * Рішення автозіставлення (D188, D198). Правило 1 (основа): у призначенні названо одне чи кілька
+ * замовлень, усі знайдені серед придатних, а сума платежу дорівнює сумі їхніх залишків (з допуском):
+ * кожне замовлення оплачується на свій залишок. Правило 2 (допоміжне): номерів немає, платник
+ * збігається з клієнтом, рівно одне замовлення цього клієнта в межах вікна має залишок, що дорівнює
+ * сумі. Усе інше `null`: платіж іде в чергу, де його гасить людина.
  */
 export function decideAutoMatch(
   payment: MatchPayment,
   orders: readonly MatchOrder[],
   toleranceKopecks: number,
 ): AutoMatch | null {
-  const apply = (order: MatchOrder, rule: AutoMatch["rule"]): AutoMatch => ({
-    orderId: order.id,
-    appliedKopecks: Math.min(payment.amountKopecks, order.remainingKopecks),
-    rule,
-  });
-
   const numbers = extractOrderNumbers(payment.comment, payment.description);
   if (numbers.length > 0) {
-    // Кілька номерів чи невідомий номер: це платіж за кілька замовлень або чужий, вирішує людина.
-    if (numbers.length !== 1) return null;
-    const order = orders.find((candidate) => candidate.number === numbers[0]);
-    if (!order) return null;
-    return amountFitsRemaining(payment.amountKopecks, order.remainingKopecks, toleranceKopecks)
-      ? apply(order, "comment_number")
-      : null;
+    // Номер, якого немає серед придатних замовлень, означає помилку клієнта: вирішує людина.
+    const named: MatchOrder[] = [];
+    for (const number of numbers) {
+      const order = orders.find((candidate) => candidate.number === number);
+      if (!order) return null;
+      named.push(order);
+    }
+    const total = named.reduce((sum, order) => sum + order.remainingKopecks, 0);
+    if (!amountFitsRemaining(payment.amountKopecks, total, toleranceKopecks)) return null;
+    // Платіж трохи менший за суму залишків (у межах допуску): остання сума зменшується на різницю.
+    let left = payment.amountKopecks;
+    const allocations = named
+      .sort((a, b) => (a.number ?? 0) - (b.number ?? 0))
+      .map((order) => {
+        const appliedKopecks = Math.min(order.remainingKopecks, left);
+        left -= appliedKopecks;
+        return { orderId: order.id, appliedKopecks };
+      })
+      .filter((item) => item.appliedKopecks > 0);
+    return allocations.length > 0 ? { allocations, rule: "comment_number" } : null;
   }
 
   const paidAt = payment.occurredAt.getTime();
@@ -117,7 +125,17 @@ export function decideAutoMatch(
     if (date > paidAt + MATCH_WINDOW_DAYS_FORWARD * DAY_MS) return false;
     return amountFitsRemaining(payment.amountKopecks, order.remainingKopecks, toleranceKopecks);
   });
-  return fitting.length === 1 ? apply(fitting[0]!, "amount_date_name") : null;
+  if (fitting.length !== 1) return null;
+  const only = fitting[0]!;
+  return {
+    allocations: [
+      {
+        orderId: only.id,
+        appliedKopecks: Math.min(payment.amountKopecks, only.remainingKopecks),
+      },
+    ],
+    rule: "amount_date_name",
+  };
 }
 
 /** Платіж розкладено повністю: розкладено не менше за суму мінус допуск. */

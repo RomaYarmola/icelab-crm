@@ -7,6 +7,7 @@ import type { FormAction } from "../clientsPage/clientActions";
 export const PAYMENTS_PREVIEW_SCREENS = [
   "payments-queue",
   "payments-statement",
+  "payments-debts",
   "payments-bank",
 ] as const;
 export type PaymentsPreviewScreen = (typeof PAYMENTS_PREVIEW_SCREENS)[number];
@@ -28,6 +29,20 @@ const payment = (over: Partial<PaymentView> & { id: string }): PaymentView => ({
 const QUEUE: QueueItem[] = [
   {
     payment: payment({ id: "p1", comment: "Оплата за лід, замовлення 1340" }),
+    named: [
+      { number: 1340, orderId: "o1", clientName: "Кафе Тест", remaining: "2250.00", problem: null },
+      { number: 1351, orderId: "o2", clientName: "Кафе Тест", remaining: "2250.00", problem: null },
+      { number: 99999, orderId: null, clientName: null, remaining: null, problem: "не знайдено." },
+    ],
+    clientOrders: [
+      {
+        orderId: "o1",
+        number: 1340,
+        clientName: "Кафе Тест",
+        orderDate: "2026-11-21",
+        remaining: "2250.00",
+      },
+    ],
     suggestions: [
       {
         orderId: "o1",
@@ -66,6 +81,8 @@ const QUEUE: QueueItem[] = [
       ],
     }),
     suggestions: [],
+    named: [],
+    clientOrders: [],
   },
 ];
 
@@ -99,6 +116,33 @@ const STATEMENT = {
   pageSize: 30,
 };
 
+const DEBTS = [
+  {
+    clientId: "c1",
+    clientName: "Кафе Тест",
+    clientCode: "КТ21",
+    total: "4500.00",
+    orders: [
+      {
+        id: "o1",
+        number: 1340,
+        orderDate: "2026-11-21",
+        remaining: "2250.00",
+        days: 2,
+        deliveryMethod: "np" as const,
+      },
+      {
+        id: "o2",
+        number: 1351,
+        orderDate: "2026-11-22",
+        remaining: "2250.00",
+        days: 1,
+        deliveryMethod: "our_delivery" as const,
+      },
+    ],
+  },
+];
+
 /** Екран «Оплати» з вигаданими даними для каталогу `/ui-kit`. */
 export default function PaymentsPreview({
   screen,
@@ -113,6 +157,9 @@ export default function PaymentsPreview({
     ignore: formAction,
     restore: formAction,
     unmatch: formAction,
+    byNumbers: formAction,
+    selected: formAction,
+    requisites: formAction,
   };
   const tab = screen.replace("payments-", "");
   return (
@@ -120,6 +167,9 @@ export default function PaymentsPreview({
       params={parsePaymentParams({ tab })}
       queueCount={QUEUE.length}
       queue={QUEUE}
+      debts={DEBTS}
+      debtDays={1}
+      requisites={"Отримувач: ФОП Тестовий Тест Тестович\nРахунок: UA000000000000000000000000000"}
       statement={STATEMENT}
       monobank={{
         hasToken: true,

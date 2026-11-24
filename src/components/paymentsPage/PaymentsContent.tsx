@@ -1,11 +1,13 @@
 import type { MonobankStatus } from "@/server/monobank/status";
 import { formatDateTime } from "@/utils/formatDate";
 import type { PaymentTab, PaymentParams } from "@/utils/paymentParams";
-import type { QueueItem, StatementPage } from "@/server/payment-views";
+import type { ClientDebt, QueueItem, StatementPage } from "@/server/payment-views";
 import ActionForm from "../intakePage/ActionForm";
 import type { FormAction } from "../clientsPage/clientActions";
 import TabLinks from "../shared/tabs/TabLinks";
+import DebtsTab from "./DebtsTab";
 import QueueTab from "./QueueTab";
+import RequisitesForm from "./RequisitesForm";
 import StatementTab from "./StatementTab";
 import type { PaymentActions } from "./paymentTypes";
 import Card from "../shared/cards/Card";
@@ -18,6 +20,9 @@ interface PaymentsContentProps {
   queueCount: number;
   queue: QueueItem[] | null;
   statement: StatementPage | null;
+  debts: ClientDebt[] | null;
+  debtDays: number;
+  requisites: string | null;
   monobank: MonobankStatus;
   canSync: boolean;
   canUnmatch: boolean;
@@ -34,6 +39,9 @@ export default function PaymentsContent({
   queueCount,
   queue,
   statement,
+  debts,
+  debtDays,
+  requisites,
   monobank,
   canSync,
   canUnmatch,
@@ -43,6 +51,7 @@ export default function PaymentsContent({
   const tabs: { id: PaymentTab; label: string }[] = [
     { id: "queue", label: queueCount > 0 ? `Нерозпізнані · ${queueCount}` : "Нерозпізнані" },
     { id: "statement", label: "Виписка" },
+    { id: "debts", label: "Борги" },
     { id: "bank", label: "Банк" },
   ];
   return (
@@ -60,6 +69,9 @@ export default function PaymentsContent({
           canUnmatch={canUnmatch}
           actions={actions}
         />
+      ) : null}
+      {params.tab === "debts" && debts ? (
+        <DebtsTab debts={debts} requisites={requisites} debtDays={debtDays} />
       ) : null}
       {params.tab === "bank" ? (
         <section aria-labelledby="payments-bank" className="flex max-w-xl flex-col gap-3">
@@ -95,6 +107,7 @@ export default function PaymentsContent({
               ))}
             </ul>
           )}
+          {canSync ? <RequisitesForm requisites={requisites} action={actions.requisites} /> : null}
           {canSync ? (
             <ActionForm
               action={syncAction}
