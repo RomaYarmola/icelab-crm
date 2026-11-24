@@ -12,6 +12,7 @@ import {
   exportClients,
   exportShipments,
   exportEverything,
+  exportMonthSummary,
   exportOrders,
   type ExportFile,
 } from "./export";
@@ -32,6 +33,7 @@ export const EXPORT_LISTS = [
   "box-debts",
   "box-stock",
   "shipments",
+  "month-summary",
 ] as const;
 export type ExportList = (typeof EXPORT_LISTS)[number];
 
@@ -82,6 +84,10 @@ export async function runExport(
       return exportBoxStock(db, actor, { locationId });
     case "shipments":
       return exportShipments(db, actor, { date: parseDayParam(params, todayIso()), locationId });
+    case "month-summary": {
+      const raw = Array.isArray(params.month) ? params.month[0] : params.month;
+      return exportMonthSummary(db, actor, { month: raw ?? todayIso().slice(0, 7), locationId });
+    }
     case "all":
       return exportEverything(db, actor);
   }

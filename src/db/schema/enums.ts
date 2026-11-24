@@ -62,6 +62,7 @@ export const exportKind = pgEnum("export_kind", [
   "box_debts",
   "box_stock",
   "shipments",
+  "month_summary",
 ]);
 
 /** Статус оборотного бокса (ТЗ 5.2): на складі, у клієнта, продано, втрачено, списано. */
