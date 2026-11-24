@@ -5,6 +5,7 @@ import {
   locations,
   orderItems,
   orders,
+  payments,
   products,
   settings,
 } from "@/db/schema";
@@ -208,7 +209,12 @@ function mergeProducts(rows: LocationSummary[]): LocationSummary["otherProducts"
 }
 
 /** Текст зведення для Telegram. */
-export function formatDaySummary(day: string, rows: LocationSummary[], link?: string): string {
+export function formatDaySummary(
+  day: string,
+  rows: LocationSummary[],
+  link?: string,
+  extra: { unmatchedPayments?: number } = {},
+): string {
   const lines = [`Підсумок дня ${formatIsoDate(day)}`];
   const total = rows.reduce(
     (acc, row) => ({
@@ -258,6 +264,12 @@ export function formatDaySummary(day: string, rows: LocationSummary[], link?: st
       if (soldTotal) lines.push(`Продано окремо разом: ${soldTotal}.`);
     }
   }
+  if (extra.unmatchedPayments && extra.unmatchedPayments > 0) {
+    lines.push(
+      "",
+      `Нерозпізнаних платежів: ${extra.unmatchedPayments} (екран «Оплати», вкладка «Нерозпізнані»).`,
+    );
+  }
   if (link) lines.push("", link);
   return lines.join("\n");
 }
@@ -299,7 +311,14 @@ export async function runDailyReport(
   try {
     const rows = await collectDaySummary(db, day);
     const base = await getPublicUrl(db);
-    await send(ownerChatId, formatDaySummary(day, rows, `${base}/production`));
+    const [unmatched] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(payments)
+      .where(eq(payments.matchStatus, "unmatched"));
+    await send(
+      ownerChatId,
+      formatDaySummary(day, rows, `${base}/production`, { unmatchedPayments: unmatched?.n ?? 0 }),
+    );
     return { sent: true, day };
   } catch {
     // Звільняємо спробу: наступний виклик розкладу спробує знову.

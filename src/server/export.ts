@@ -44,6 +44,7 @@ import { ValidationError } from "./errors";
 import { buildWorkbook, sheetOf, type ExportColumn, type ExportSheet } from "./export-xlsx";
 import { can } from "./permissions";
 import { ForbiddenError, type AppUser, locationScope, requirePermission } from "./guards";
+import { getMonthSummary, type MonthSummary, type SummaryTotals } from "./month-summary";
 import { listOrders, type OrderListQuery } from "./orders";
 
 /**
@@ -883,5 +884,64 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
     params: {},
     fileName: fileNameFor("all-data"),
     sheets,
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Зведення за місяць (B13, ТЗ 6.10)
+// ---------------------------------------------------------------------------------------------
+
+type SummaryRow = SummaryTotals & { name: string; code?: string };
+
+function summarySheet(name: string, firstColumns: "client" | "location", rows: SummaryRow[]) {
+  return sheet(name, rows, (c) => [
+    ...(firstColumns === "client"
+      ? [c.text("Код клієнта", (r) => r.code ?? ""), c.text("Клієнт", (r) => r.name)]
+      : [c.text("Локація", (r) => r.name)]),
+    c.num("Замовлень", (r) => r.orders),
+    c.num("Кг", (r) => Number(r.kg)),
+    c.money("Лід, грн", (r) => Number(r.ice)),
+    c.money("Доставки, грн", (r) => Number(r.delivery)),
+    c.money("Бокси, грн", (r) => Number(r.boxes)),
+    c.money("Інші товари, грн", (r) => Number(r.other)),
+    c.money("Разом, грн", (r) => Number(r.total)),
+    c.money("Оплачено, грн", (r) => Number(r.paid)),
+    c.money("Борг, грн", (r) => Number(r.debt)),
+  ]);
+}
+
+/** Аркуші зведення: клієнти (з рядком «Разом») і локації. */
+export function monthSummarySheets(summary: MonthSummary): ExportSheet<unknown>[] {
+  const clientRows: SummaryRow[] = [
+    ...summary.clients.map((row) => ({ ...row, name: row.clientName, code: row.clientCode })),
+    { ...summary.totals, name: "Разом", code: "" },
+  ];
+  const locationRows: SummaryRow[] = [
+    ...summary.locations.map((row) => ({ ...row, name: row.locationName })),
+    { ...summary.totals, name: "Разом" },
+  ];
+  return [
+    summarySheet("По клієнтах", "client", clientRows),
+    summarySheet("По локаціях", "location", locationRows),
+  ];
+}
+
+/** Зведення за місяць у Excel: ті самі дані, що на екрані «Оплати». */
+export async function exportMonthSummary(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  query: { month: string; locationId?: string | null },
+): Promise<ExportFile> {
+  requirePermission(actor, "excel_export", "write");
+  const summary = await getMonthSummary(db, actor, query);
+  const params: ExportParams = { Місяць: summary.month };
+  params["Локація"] = summary.locationId
+    ? await nameOf(db, locations, summary.locationId, "name")
+    : "усі";
+  return finish(db, actor, {
+    kind: "month_summary",
+    params,
+    fileName: `${FILE_PREFIX}-month-summary-${summary.month}.xlsx`,
+    sheets: monthSummarySheets(summary),
   });
 }

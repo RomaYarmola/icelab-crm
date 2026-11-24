@@ -77,7 +77,7 @@ describe("експорт: права", () => {
 
   it("функції експорту вимагають право перед будь-яким читанням", () => {
     const server = read("src/server/export.ts");
-    expect(server.match(/requirePermission\(actor, "excel_export", "write"\)/g)).toHaveLength(7);
+    expect(server.match(/requirePermission\(actor, "excel_export", "write"\)/g)).toHaveLength(8);
     expect(server).toContain('requirePermission(actor, "export_all", "write")');
     // Списки читаються тими самими функціями, що й екрани: права й локація діють так само.
     expect(server).toContain("listOrders(");
