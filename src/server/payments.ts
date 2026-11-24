@@ -10,6 +10,7 @@ import { type AppUser, requirePermission } from "./guards";
 import { closeIfDone } from "./order-status";
 import {
   decideAutoMatch,
+  extractOrderNumbers,
   isFullyAllocated,
   type MatchOrder,
   type MatchPayment,
@@ -53,13 +54,13 @@ async function refreshStatus(
 ): Promise<void> {
   if (payment.matchStatus === "ignored") return;
   const matches = await db
-    .select({ amount: paymentMatches.amount, rule: paymentMatches.rule })
+    .select({ amount: paymentMatches.amount, matchedBy: paymentMatches.matchedBy })
     .from(paymentMatches)
     .where(eq(paymentMatches.paymentId, payment.id));
   const allocated = matches.reduce((sum, match) => sum + toKopecks(match.amount), 0);
   const full =
     matches.length > 0 && isFullyAllocated(allocated, toKopecks(payment.amount), toleranceKopecks);
-  const next = !full ? "unmatched" : matches.some((m) => m.rule === "manual") ? "manual" : "auto";
+  const next = !full ? "unmatched" : matches.some((m) => m.matchedBy !== null) ? "manual" : "auto";
   if (next !== payment.matchStatus) {
     await db.update(payments).set({ matchStatus: next }).where(eq(payments.id, payment.id));
   }
@@ -114,15 +115,18 @@ export async function loadCandidates(db: AnyPgDatabase): Promise<MatchOrder[]> {
 
 export type AutoMatchOutcome =
   | { matched: false }
-  | { matched: true; orderId: string; rule: "comment_number" | "amount_date_name" };
+  | { matched: true; orderIds: string[]; rule: "comment_number" | "amount_date_name" };
 
-/** Автозіставлення одного платежу. Нічого не робить, якщо правила не дають однозначної відповіді. */
+/**
+ * Автозіставлення одного платежу (D198). Нічого не робить, якщо правила не дають однозначної
+ * відповіді. Замовлення блокуються в порядку ідентифікаторів, щоб два платежі не зайшли в тупик.
+ */
 export async function tryAutoMatch(
   db: AnyPgDatabase,
   paymentId: string,
 ): Promise<AutoMatchOutcome> {
   const tolerance = Math.round((await loadCashTolerance(db)) * 100);
-  let closeOrderId: string | null = null;
+  const toClose: string[] = [];
   const outcome = await withActor(
     db,
     null,
@@ -145,34 +149,42 @@ export async function tryAutoMatch(
       const decision = decideAutoMatch(input, await loadCandidates(tx), tolerance);
       if (!decision) return { matched: false };
 
-      const [order] = await tx
+      const ids = decision.allocations.map((item) => item.orderId).sort();
+      const locked = await tx
         .select()
         .from(orders)
-        .where(eq(orders.id, decision.orderId))
+        .where(inArray(orders.id, ids))
+        .orderBy(orders.id)
         .for("update");
-      if (!order || order.deletedAt || !OPEN_STATUSES.includes(order.status as never)) {
-        return { matched: false };
+      if (locked.length !== ids.length) return { matched: false };
+      // Після блокування залишки могли змінитись: перевіряємо ще раз.
+      for (const item of decision.allocations) {
+        const order = locked.find((row) => row.id === item.orderId)!;
+        if (order.deletedAt || !OPEN_STATUSES.includes(order.status as never)) {
+          return { matched: false };
+        }
+        const remaining =
+          toKopecks(order.total) - (await allocatedKopecks(tx, { orderId: order.id }));
+        if (item.appliedKopecks <= 0 || remaining < item.appliedKopecks) {
+          return { matched: false };
+        }
       }
-      // Після блокування залишок могли змінити: перевіряємо ще раз.
-      const remaining =
-        toKopecks(order.total) - (await allocatedKopecks(tx, { orderId: order.id }));
-      if (remaining < decision.appliedKopecks || decision.appliedKopecks <= 0)
-        return { matched: false };
-
-      await tx.insert(paymentMatches).values({
-        paymentId: payment.id,
-        orderId: order.id,
-        amount: kopecksToUah(decision.appliedKopecks),
-        matchedBy: null,
-        rule: decision.rule,
-      });
+      for (const item of decision.allocations) {
+        await tx.insert(paymentMatches).values({
+          paymentId: payment.id,
+          orderId: item.orderId,
+          amount: kopecksToUah(item.appliedKopecks),
+          matchedBy: null,
+          rule: decision.rule,
+        });
+      }
       await refreshStatus(tx, payment, tolerance);
-      if (await settlePayment(tx, order)) closeOrderId = order.id;
-      return { matched: true, orderId: order.id, rule: decision.rule };
+      for (const order of locked) if (await settlePayment(tx, order)) toClose.push(order.id);
+      return { matched: true, orderIds: ids, rule: decision.rule };
     },
     { note: "Платіж зіставлено автоматично" },
   );
-  if (closeOrderId) await closeIfDone(db, closeOrderId);
+  for (const orderId of toClose) await closeIfDone(db, orderId);
   return outcome;
 }
 
@@ -389,4 +401,166 @@ export async function unmatchPayment(
     },
     { note: why },
   );
+}
+
+/** Номери замовлень, названі в призначенні платежу, за зростанням. */
+export function numbersOfPayment(payment: Pick<PaymentRow, "comment" | "description">): number[] {
+  return extractOrderNumbers(payment.comment, payment.description).sort((a, b) => a - b);
+}
+
+type LockedOrder = typeof orders.$inferSelect;
+
+/**
+ * Спільне ядро «погасити названі замовлення»: платіж і замовлення блокуються, названі замовлення
+ * гасяться у порядку номерів, кожне не більше за свій залишок; що не вистачило чи лишилось, лишається
+ * на платежі. Якщо якесь замовлення не підходить, нічого не робимо й називаємо, що не так.
+ */
+async function allocateToOrders(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  paymentId: string,
+  pick: (tx: AnyPgDatabase, payment: PaymentRow) => Promise<LockedOrder[]>,
+  rule: "comment_number" | "manual",
+  note: string,
+): Promise<{ orderIds: string[]; remainingKopecks: number }> {
+  requirePermission(actor, "bank_payments", "write");
+  const id = parseInput(uuid, paymentId);
+  const tolerance = Math.round((await loadCashTolerance(db)) * 100);
+  const toClose: string[] = [];
+  const result = await withActor(
+    db,
+    actor.id,
+    async (tx) => {
+      const [payment] = await tx.select().from(payments).where(eq(payments.id, id)).for("update");
+      if (!payment) throw new ValidationError("Платіж не знайдено.");
+      if (payment.matchStatus === "ignored") {
+        throw new ValidationError("Платіж ігноровано. Спершу поверніть його в чергу.");
+      }
+      let left = toKopecks(payment.amount) - (await allocatedKopecks(tx, { paymentId: id }));
+      if (left <= 0) throw new ValidationError("Платіж уже розкладено повністю.");
+
+      const picked = [...(await pick(tx, payment))].sort(
+        (a, b) => (a.number ?? 0) - (b.number ?? 0),
+      );
+      const planned: { order: LockedOrder; applied: number }[] = [];
+      for (const order of picked) {
+        const problem = orderPaymentProblem(order);
+        if (problem) throw new ValidationError(`Замовлення №${order.number}: ${problem}`);
+        const remaining =
+          toKopecks(order.total) - (await allocatedKopecks(tx, { orderId: order.id }));
+        if (remaining <= 0) throw new ValidationError(`Замовлення №${order.number} уже сплачене.`);
+        const applied = Math.min(remaining, left);
+        if (applied > 0) planned.push({ order, applied });
+        left -= applied;
+      }
+      if (planned.length === 0) throw new ValidationError("Немає на що розкласти платіж.");
+      for (const { order, applied } of planned) {
+        const [duplicate] = await tx
+          .select({ id: paymentMatches.id })
+          .from(paymentMatches)
+          .where(and(eq(paymentMatches.paymentId, id), eq(paymentMatches.orderId, order.id)));
+        if (duplicate) {
+          throw new ValidationError(`Платіж уже прив'язано до замовлення №${order.number}.`);
+        }
+        await tx.insert(paymentMatches).values({
+          paymentId: id,
+          orderId: order.id,
+          amount: kopecksToUah(applied),
+          matchedBy: actor.id,
+          rule,
+        });
+      }
+      await refreshStatus(tx, payment, tolerance);
+      for (const { order } of planned) if (await settlePayment(tx, order)) toClose.push(order.id);
+      return { orderIds: planned.map((item) => item.order.id), remainingKopecks: left };
+    },
+    { note },
+  );
+  for (const orderId of toClose) await closeIfDone(db, orderId);
+  return result;
+}
+
+/**
+ * «Погасити за номерами з призначення» (D198, бухгалтер, власник): коли сума платежу не збіглася із
+ * сумою названих замовлень. Якщо якогось номера немає чи замовлення не підходить, нічого не робимо.
+ */
+export async function matchPaymentByNumbers(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  paymentId: string,
+): Promise<{ orderIds: string[]; remainingKopecks: number }> {
+  return allocateToOrders(
+    db,
+    actor,
+    paymentId,
+    async (tx, payment) => {
+      const numbers = numbersOfPayment(payment);
+      if (numbers.length === 0) {
+        throw new ValidationError("У призначенні платежу немає номерів замовлень.");
+      }
+      const rows = await tx
+        .select()
+        .from(orders)
+        .where(and(inArray(orders.number, numbers), isNull(orders.deletedAt)))
+        .orderBy(orders.number)
+        .for("update");
+      for (const number of numbers) {
+        if (!rows.some((row) => row.number === number)) {
+          throw new ValidationError(`Замовлення №${number} не знайдено.`);
+        }
+      }
+      return rows;
+    },
+    "comment_number",
+    "Платіж погашено за номерами з призначення",
+  );
+}
+
+/**
+ * Платіж без номерів: бухгалтер вибирає замовлення клієнта зі списку (D198). Вибрані гасяться у
+ * порядку номерів, кожне не більше за свій залишок; решта лишається на платежі.
+ */
+export async function matchPaymentToOrders(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  paymentId: string,
+  orderIds: readonly string[],
+): Promise<{ orderIds: string[]; remainingKopecks: number }> {
+  const ids = [...new Set(orderIds.map((value) => parseInput(uuid, value)))];
+  if (ids.length === 0) throw new ValidationError("Оберіть хоча б одне замовлення.");
+  return allocateToOrders(
+    db,
+    actor,
+    paymentId,
+    async (tx) => {
+      const rows = await tx
+        .select()
+        .from(orders)
+        .where(and(inArray(orders.id, ids), isNull(orders.deletedAt)))
+        .orderBy(orders.number)
+        .for("update");
+      if (rows.length !== ids.length) throw new ValidationError("Замовлення не знайдено.");
+      return rows;
+    },
+    "manual",
+    "Платіж зіставлено вручну зі списку замовлень",
+  );
+}
+
+/**
+ * Чому замовлення не можна оплатити платежем (D190): текст для користувача чи `null`, якщо можна.
+ * Спільне для ручного зіставлення, «за номерами» і пояснень у черзі.
+ */
+export function orderPaymentProblem(
+  order: Pick<typeof orders.$inferSelect, "paymentKind" | "status" | "deletedAt">,
+): string | null {
+  if (order.deletedAt) return "замовлення видалене.";
+  if (order.paymentKind === "cash") return "оплата готівкою, платежем не закриваємо.";
+  if (!(BANK_KINDS as readonly string[]).includes(order.paymentKind)) {
+    return "спершу вкажіть спосіб оплати (ФОП чи компанія).";
+  }
+  if (order.status === "cancelled") return "замовлення скасоване.";
+  if (order.status === "paid" || order.status === "closed") return "замовлення вже оплачене.";
+  if (!OPEN_STATUSES.includes(order.status as never)) return "ще не підтверджене.";
+  return null;
 }

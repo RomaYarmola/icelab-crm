@@ -9,9 +9,20 @@ import { requireUser } from "@/server/auth";
 import { ValidationError } from "@/server/errors";
 import { readText, runFormAction } from "@/server/form-state";
 import { syncMonobankNow } from "@/server/monobank/status";
+import { ForbiddenError } from "@/server/guards";
+import { setRequisites } from "@/server/payment-views";
+import { type ColumnMapping, MAPPING_FIELDS, StatementFileError } from "@/server/statement-file";
+import {
+  commitStatementImport,
+  type ImportPreview,
+  type ImportResult,
+  previewStatementImport,
+} from "@/server/statement-import";
 import {
   ignorePayment,
+  matchPaymentByNumbers,
   matchPaymentManually,
+  matchPaymentToOrders,
   restorePayment,
   unmatchPayment,
 } from "@/server/payments";
@@ -139,4 +150,134 @@ export async function unmatchPaymentAction(
     },
     { success: "Зіставлення скасовано.", values },
   );
+}
+
+/** «Погасити за номерами з призначення» (D198): названі замовлення гасяться у порядку номерів. */
+export async function matchByNumbersAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  return runFormAction(
+    async () => {
+      await matchPaymentByNumbers(
+        getDb(),
+        actor,
+        readId(formData, "paymentId", "Платіж не знайдено."),
+      );
+      refresh();
+    },
+    { success: "Платіж погашено за номерами з призначення." },
+  );
+}
+
+/** Платіж без номерів: гасимо замовлення, які бухгалтер відзначив у списку клієнта. */
+export async function matchSelectedAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  return runFormAction(
+    async () => {
+      const ids = formData
+        .getAll("orderId")
+        .filter((value): value is string => typeof value === "string");
+      await matchPaymentToOrders(
+        getDb(),
+        actor,
+        readId(formData, "paymentId", "Платіж не знайдено."),
+        ids,
+      );
+      refresh();
+    },
+    { success: "Платіж зіставлено з вибраними замовленнями." },
+  );
+}
+
+/** Реквізити для повідомлення клієнтові (порожній текст прибирає їх). */
+export async function saveRequisitesAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const values = { requisites: readText(formData, "requisites") };
+  return runFormAction(
+    async () => {
+      await setRequisites(getDb(), actor, values.requisites);
+      refresh();
+    },
+    { success: "Реквізити збережено.", values },
+  );
+}
+
+export type ImportActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+
+/** Файл і (за потреби) вибір колонок із форми завантаження. */
+function readImportForm(formData: FormData): {
+  file: { name: string; bytes: Uint8Array };
+  mapping: ColumnMapping | null;
+} {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new ValidationError("Оберіть файл виписки.");
+  }
+  let mapping: ColumnMapping | null = null;
+  const raw = formData.get("mapping");
+  if (typeof raw === "string" && raw !== "") {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    mapping = Object.fromEntries(
+      MAPPING_FIELDS.map((field) => [
+        field,
+        typeof parsed[field] === "string" && parsed[field] !== ""
+          ? (parsed[field] as string)
+          : null,
+      ]),
+    ) as ColumnMapping;
+  }
+  return { file: { name: file.name, bytes: new Uint8Array(0) }, mapping };
+}
+
+async function withFile<T>(
+  formData: FormData,
+  run: (file: { name: string; bytes: Uint8Array }, mapping: ColumnMapping | null) => Promise<T>,
+): Promise<ImportActionResult<T>> {
+  try {
+    const { file, mapping } = readImportForm(formData);
+    const source = formData.get("file") as File;
+    const bytes = new Uint8Array(await source.arrayBuffer());
+    return { ok: true, data: await run({ name: file.name, bytes }, mapping) };
+  } catch (error) {
+    if (
+      error instanceof ValidationError ||
+      error instanceof StatementFileError ||
+      error instanceof ForbiddenError
+    ) {
+      return { ok: false, error: error.message };
+    }
+    if (error instanceof SyntaxError) return { ok: false, error: "Некоректний вибір колонок." };
+    throw error;
+  }
+}
+
+/** Попередній перегляд файла виписки: нічого не записує. */
+export async function previewImportAction(
+  formData: FormData,
+): Promise<ImportActionResult<ImportPreview>> {
+  const actor = await requireUser();
+  return withFile(formData, (file, mapping) =>
+    previewStatementImport(getDb(), actor, file, mapping),
+  );
+}
+
+/** Імпорт файла виписки з вибраними колонками. */
+export async function commitImportAction(
+  formData: FormData,
+): Promise<ImportActionResult<ImportResult>> {
+  const actor = await requireUser();
+  const result = await withFile(formData, (file, mapping) => {
+    if (!mapping) throw new ValidationError("Вкажіть колонки.");
+    return commitStatementImport(getDb(), actor, file, mapping);
+  });
+  if (result.ok) refresh();
+  return result;
 }

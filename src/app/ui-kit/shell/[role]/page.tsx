@@ -71,6 +71,12 @@ async function previewFormAction(): Promise<FormState> {
   return { status: "success", message: "Приклад: у каталозі збереження вимкнено." };
 }
 
+/** Заглушка імпорту виписки в каталозі: нічого не читає й не пише. */
+async function previewImportAction(): Promise<{ ok: false; error: string }> {
+  "use server";
+  return { ok: false, error: "Це лише перегляд: у каталозі імпорт вимкнено." };
+}
+
 /** Заглушки екрана «Нова Пошта» у каталозі: у Нову Пошту нічого не відправляють. */
 async function previewNpSenders() {
   "use server";
@@ -461,7 +467,11 @@ export default async function ShellPreviewPage({
       ) : screen === "drafts" ? (
         <DraftsPreview actions={{ confirm: previewFormAction, reject: previewFormAction }} />
       ) : (PAYMENTS_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
-        <PaymentsPreview screen={screen as PaymentsPreviewScreen} formAction={previewFormAction} />
+        <PaymentsPreview
+          screen={screen as PaymentsPreviewScreen}
+          formAction={previewFormAction}
+          importAction={previewImportAction}
+        />
       ) : screen === "intake" ? (
         <IntakePreview formAction={previewFormAction} />
       ) : screen === "np-day" ? (

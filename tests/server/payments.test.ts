@@ -5,6 +5,7 @@ import { ForbiddenError } from "@/server/guards";
 import { transitionOrder } from "@/server/order-status";
 import {
   ignorePayment,
+  matchPaymentByNumbers,
   matchNewPayments,
   matchPaymentManually,
   restorePayment,
@@ -285,6 +286,80 @@ describe("платежі: автозіставлення, ручне, ігнор
       await expect(unmatchPayment(t.db, t.users.owner, full, "помилка")).rejects.toThrow(
         /Оплачено/,
       );
+    });
+  });
+  describe("оплата за номерами в призначенні платежу (D198)", () => {
+    const three = async () => {
+      const ids = [await bankOrder(), await bankOrder(), await bankOrder()];
+      const numbers = await Promise.all(ids.map(async (id) => (await row(id)).number!));
+      return { ids, numbers, text: `Оплата за замовлення №${numbers.join(", ")}` };
+    };
+
+    it("сума збігається: усі названі замовлення оплачені самі, четверте не чіпаємо", async () => {
+      const { ids, text } = await three();
+      const other = await bankOrder();
+      const p = await pay({ amount: "6750.00", comment: text, counterName: "Хтось" });
+      expect(await tryAutoMatch(t.db, p)).toMatchObject({ matched: true, rule: "comment_number" });
+      expect(await matchesOf(p)).toHaveLength(3);
+      expect(await statusOf(p)).toBe("auto");
+      for (const id of ids) expect((await row(id)).status).toBe("closed");
+      expect((await row(other)).status).toBe("shipped");
+    });
+
+    it("сума не збігається: у чергу; «за номерами» гасить по порядку, останнє частково", async () => {
+      const { ids, text } = await three();
+      const p = await pay({ amount: "5000.00", comment: text });
+      expect((await tryAutoMatch(t.db, p)).matched).toBe(false);
+      const result = await matchPaymentByNumbers(t.db, t.users.accountant, p);
+      expect(result.remainingKopecks).toBe(0);
+      const matches = await matchesOf(p);
+      expect(matches.map((m) => m.amount).sort()).toEqual(["2250.00", "2250.00", "500.00"]);
+      expect((await row(ids[0]!)).status).toBe("closed");
+      expect((await row(ids[1]!)).status).toBe("closed");
+      expect((await row(ids[2]!)).status).toBe("shipped");
+      expect(await statusOf(p)).toBe("manual");
+    });
+
+    it("переплата: названі оплачені, залишок лишається на платежі в черзі", async () => {
+      const { ids, text } = await three();
+      const p = await pay({ amount: "7000.00", comment: text });
+      expect((await tryAutoMatch(t.db, p)).matched).toBe(false);
+      const result = await matchPaymentByNumbers(t.db, t.users.owner, p);
+      expect(result.remainingKopecks).toBe(25000);
+      for (const id of ids) expect((await row(id)).status).toBe("closed");
+      expect(await statusOf(p)).toBe("unmatched");
+    });
+
+    it("помилки: без номерів, невідомий номер, готівкове, повторне натискання", async () => {
+      const none = await pay({ comment: "за лід" });
+      await expect(matchPaymentByNumbers(t.db, t.users.owner, none)).rejects.toThrow(
+        /немає номерів/,
+      );
+      const unknown = await pay({ comment: "замовлення №99999999" });
+      await expect(matchPaymentByNumbers(t.db, t.users.owner, unknown)).rejects.toThrow(
+        /не знайдено/,
+      );
+      const cash = await bankOrder("shipped", { paymentKind: "cash" });
+      const cashNumber = (await row(cash)).number;
+      const withCash = await pay({ comment: `замовлення №${cashNumber}` });
+      await expect(matchPaymentByNumbers(t.db, t.users.owner, withCash)).rejects.toThrow(/готівк/);
+      const id = await bankOrder();
+      const partial = await pay({ amount: "1000.00", comment: `№${(await row(id)).number}` });
+      await matchPaymentByNumbers(t.db, t.users.owner, partial);
+      await expect(matchPaymentByNumbers(t.db, t.users.owner, partial)).rejects.toThrow(
+        /розкладено повністю/,
+      );
+    });
+
+    it("права: лише власник і бухгалтер", async () => {
+      for (const role of USER_ROLES) {
+        const id = await bankOrder();
+        const p = await pay({ amount: "100.00", comment: `№${(await row(id)).number}` });
+        const attempt = matchPaymentByNumbers(t.db, t.users[role], p);
+        if (role === "owner" || role === "accountant")
+          await expect(attempt, role).resolves.toBeTruthy();
+        else await expect(attempt, role).rejects.toBeInstanceOf(ForbiddenError);
+      }
     });
   });
 });
