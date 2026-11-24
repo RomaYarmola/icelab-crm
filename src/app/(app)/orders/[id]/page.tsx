@@ -21,6 +21,7 @@ import { listOrderBoxes } from "@/server/boxes";
 import { getOrder } from "@/server/orders";
 import { can } from "@/server/permissions";
 import { listEntityHistory } from "@/server/audit";
+import { listOrderPayments } from "@/server/payment-views";
 import { cashLinkFor } from "@/utils/cashLink";
 
 export const metadata: Metadata = { title: "Замовлення" };
@@ -56,6 +57,13 @@ export default async function OrderPage({
   // Накладна Нової Пошти (B10): власник, менеджер і старший локації (своєї локації).
   const shipmentCard = await getShipmentCard(getDb(), user, id);
 
+  // Платежі з банку (B13): власник і бухгалтер, лише для безготівкових замовлень.
+  const bankPayments =
+    can(user.role, "bank_payments", "read") &&
+    (order.paymentKind === "fop" || order.paymentKind === "company")
+      ? await listOrderPayments(getDb(), user, id)
+      : null;
+
   return (
     <OrderCardContent
       order={order}
@@ -69,6 +77,7 @@ export default async function OrderPage({
       cashHref={cashLinkFor(user.role, order)}
       changeHistory={changeHistory}
       boxes={boxes}
+      bankPayments={bankPayments}
       shipment={
         shipmentCard
           ? {

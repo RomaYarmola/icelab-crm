@@ -128,3 +128,49 @@ export function isFullyAllocated(
 ): boolean {
   return allocatedKopecks >= amountKopecks - toleranceKopecks;
 }
+
+export type OrderSuggestion = {
+  order: MatchOrder;
+  /** Чому запропоновано: номер у коментарі, платник, сума. */
+  reasons: ("number" | "name" | "amount")[];
+};
+
+/**
+ * Підказки для бухгалтера в черзі «Нерозпізнані» (ТЗ 6.10): замовлення з номером із коментаря, того
+ * ж клієнта за іменем платника чи з сумою в допуску за вікно днів. Найпереконливіші першими.
+ */
+export function suggestOrders(
+  payment: Omit<MatchPayment, "amountKopecks"> & { unallocatedKopecks: number },
+  orders: readonly MatchOrder[],
+  toleranceKopecks: number,
+  limit = 5,
+): OrderSuggestion[] {
+  const numbers = new Set(extractOrderNumbers(payment.comment, payment.description));
+  const paidAt = payment.occurredAt.getTime();
+  const scored: (OrderSuggestion & { score: number })[] = [];
+  for (const order of orders) {
+    const reasons: OrderSuggestion["reasons"] = [];
+    if (order.number !== null && numbers.has(order.number)) reasons.push("number");
+    if (namesMatch(payment.counterName, order.clientName)) reasons.push("name");
+    const date = dayOf(order.orderDate);
+    const inWindow =
+      date >= paidAt - MATCH_WINDOW_DAYS_BACK * DAY_MS &&
+      date <= paidAt + MATCH_WINDOW_DAYS_FORWARD * DAY_MS;
+    if (
+      inWindow &&
+      amountFitsRemaining(payment.unallocatedKopecks, order.remainingKopecks, toleranceKopecks)
+    ) {
+      reasons.push("amount");
+    }
+    if (reasons.length === 0) continue;
+    const score =
+      (reasons.includes("number") ? 4 : 0) +
+      (reasons.includes("name") ? 2 : 0) +
+      (reasons.includes("amount") ? 1 : 0);
+    scored.push({ order, reasons, score });
+  }
+  return scored
+    .sort((a, b) => b.score - a.score || a.order.orderDate.localeCompare(b.order.orderDate))
+    .slice(0, limit)
+    .map(({ order, reasons }) => ({ order, reasons }));
+}

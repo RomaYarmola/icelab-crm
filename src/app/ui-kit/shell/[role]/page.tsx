@@ -5,6 +5,10 @@ import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
 import DraftsPreview from "@/components/uiKitPage/DraftsPreview";
 import IntakePreview from "@/components/uiKitPage/IntakePreview";
+import PaymentsPreview, {
+  PAYMENTS_PREVIEW_SCREENS,
+  type PaymentsPreviewScreen,
+} from "@/components/uiKitPage/PaymentsPreview";
 import ShipmentDayPreview from "@/components/uiKitPage/ShipmentDayPreview";
 import ShipmentPreview from "@/components/uiKitPage/ShipmentPreview";
 import NpPreview from "@/components/uiKitPage/NpPreview";
@@ -332,6 +336,7 @@ const PREVIEW_SCREENS = [
   "np-day",
   "intake",
   "drafts",
+  ...PAYMENTS_PREVIEW_SCREENS,
 ] as const;
 
 /**
@@ -455,6 +460,8 @@ export default async function ShellPreviewPage({
         />
       ) : screen === "drafts" ? (
         <DraftsPreview actions={{ confirm: previewFormAction, reject: previewFormAction }} />
+      ) : (PAYMENTS_PREVIEW_SCREENS as readonly string[]).includes(screen) ? (
+        <PaymentsPreview screen={screen as PaymentsPreviewScreen} formAction={previewFormAction} />
       ) : screen === "intake" ? (
         <IntakePreview formAction={previewFormAction} />
       ) : screen === "np-day" ? (

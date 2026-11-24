@@ -138,3 +138,37 @@ describe("правила зіставлення платежів (B13, D188)", (
     });
   });
 });
+
+describe("підказки для черги (B13, ТЗ 6.10)", () => {
+  const input = (over: Record<string, unknown> = {}) => ({
+    occurredAt: PAID_AT,
+    comment: null,
+    description: null,
+    counterName: null,
+    unallocatedKopecks: 225000,
+    ...over,
+  });
+  it("номер у коментарі важить найбільше, далі платник, далі сума", async () => {
+    const { suggestOrders } = await import("@/server/payment-rules");
+    const list = suggestOrders(
+      input({ comment: "замовлення 7", counterName: "Кафе Тест" }),
+      [
+        order({ id: "amount", number: 1, clientName: "Інший", remainingKopecks: 225000 }),
+        order({ id: "name", number: 2, remainingKopecks: 100 }),
+        order({ id: "number", number: 7, clientName: "Хтось", remainingKopecks: 5 }),
+      ],
+      0,
+    );
+    expect(list.map((s) => s.order.id)).toEqual(["number", "name", "amount"]);
+    expect(list[0]!.reasons).toEqual(["number"]);
+    expect(list[1]!.reasons).toEqual(["name"]);
+  });
+  it("зайвих замовлень не пропонує й обмежує кількість", async () => {
+    const { suggestOrders } = await import("@/server/payment-rules");
+    expect(
+      suggestOrders(input(), [order({ clientName: "Інший", remainingKopecks: 5 })], 0),
+    ).toEqual([]);
+    const many = Array.from({ length: 9 }, (_, i) => order({ id: `o${i}`, number: i + 100 }));
+    expect(suggestOrders(input(), many, 0, 3)).toHaveLength(3);
+  });
+});
