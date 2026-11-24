@@ -13,9 +13,10 @@ export const PAYMENT_PARAMS = {
   min: "min",
   max: "max",
   page: "page",
+  month: "month",
 } as const;
 
-export const PAYMENT_TABS = ["queue", "statement", "debts", "import", "bank"] as const;
+export const PAYMENT_TABS = ["queue", "statement", "debts", "summary", "import", "bank"] as const;
 export type PaymentTab = (typeof PAYMENT_TABS)[number];
 
 export const STATEMENT_STATUSES = ["unmatched", "auto", "manual", "ignored"] as const;
@@ -30,6 +31,8 @@ export type PaymentParams = {
   min: number | null;
   max: number | null;
   page: number;
+  /** Місяць зведення `YYYY-MM`; `null` означає поточний. */
+  month: string | null;
 };
 
 type RawParams = Record<string, string | string[] | undefined>;
@@ -57,5 +60,8 @@ export function parsePaymentParams(raw: RawParams): PaymentParams {
     min: amountParam(first(raw[PAYMENT_PARAMS.min])),
     max: amountParam(first(raw[PAYMENT_PARAMS.max])),
     page: Number.isInteger(page) && page >= 1 ? page : 1,
+    month: /^\d{4}-(0[1-9]|1[0-2])$/.test(first(raw[PAYMENT_PARAMS.month]) ?? "")
+      ? (first(raw[PAYMENT_PARAMS.month]) as string)
+      : null,
   };
 }

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import PaymentsContent from "@/components/paymentsPage/PaymentsContent";
 import { getDb } from "@/db/client";
+import { getLocationFilter } from "@/server/location-filter";
+import { getMonthSummary } from "@/server/month-summary";
 import { getMonobankStatus } from "@/server/monobank/status";
 import {
   countQueue,
@@ -12,6 +14,7 @@ import {
 } from "@/server/payment-views";
 import { can } from "@/server/permissions";
 import { requirePageUser } from "@/server/page-access";
+import { todayIso } from "@/utils/isoDate";
 import { parsePaymentParams } from "@/utils/paymentParams";
 import {
   commitImportAction,
@@ -41,15 +44,21 @@ export default async function PaymentsPage({
   const params = parsePaymentParams(await searchParams);
   const db = getDb();
   const needsRequisites = params.tab === "debts" || params.tab === "bank";
-  const [queueCount, queue, statement, debts, debtDays, requisites, monobank] = await Promise.all([
-    countQueue(db, user),
-    params.tab === "queue" ? listQueue(db, user) : null,
-    params.tab === "statement" ? listStatement(db, user, params) : null,
-    params.tab === "debts" ? listDebts(db, user) : null,
-    loadDebtDays(db),
-    needsRequisites ? getRequisites(db, user) : null,
-    params.tab === "bank" ? getMonobankStatus(db, user) : { hasToken: false, accounts: [] },
-  ]);
+  const location = params.tab === "summary" ? await getLocationFilter() : null;
+  const month = params.month ?? todayIso().slice(0, 7);
+  const [queueCount, queue, statement, debts, summary, debtDays, requisites, monobank] =
+    await Promise.all([
+      countQueue(db, user),
+      params.tab === "queue" ? listQueue(db, user) : null,
+      params.tab === "statement" ? listStatement(db, user, params) : null,
+      params.tab === "debts" ? listDebts(db, user) : null,
+      params.tab === "summary"
+        ? getMonthSummary(db, user, { month, locationId: location?.selectedId })
+        : null,
+      loadDebtDays(db),
+      needsRequisites ? getRequisites(db, user) : null,
+      params.tab === "bank" ? getMonobankStatus(db, user) : { hasToken: false, accounts: [] },
+    ]);
   return (
     <PaymentsContent
       params={params}
@@ -57,6 +66,8 @@ export default async function PaymentsPage({
       queue={queue}
       statement={statement}
       debts={debts}
+      summary={summary}
+      month={month}
       debtDays={debtDays}
       requisites={requisites}
       monobank={monobank}

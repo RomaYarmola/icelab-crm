@@ -9,6 +9,7 @@ export const PAYMENTS_PREVIEW_SCREENS = [
   "payments-queue",
   "payments-statement",
   "payments-debts",
+  "payments-summary",
   "payments-import",
   "payments-bank",
 ] as const;
@@ -118,6 +119,41 @@ const STATEMENT = {
   pageSize: 30,
 };
 
+const SUMMARY_TOTALS = {
+  orders: 4,
+  kg: "120",
+  ice: "9000.00",
+  delivery: "300.00",
+  boxes: "1000.00",
+  other: "900.00",
+  total: "11200.00",
+  paid: "8950.00",
+  debt: "2250.00",
+};
+
+const SUMMARY = {
+  month: "2026-11",
+  dateFrom: "2026-11-01",
+  dateTo: "2026-11-30",
+  locationId: null,
+  totals: SUMMARY_TOTALS,
+  locations: [{ locationId: "l1", locationName: "Київ", ...SUMMARY_TOTALS }],
+  clients: [
+    { clientId: "c1", clientName: "Кафе Тест", clientCode: "КТ21", ...SUMMARY_TOTALS },
+    {
+      clientId: "c2",
+      clientName: "Бар Лев",
+      clientCode: "БЛ12",
+      ...SUMMARY_TOTALS,
+      orders: 1,
+      kg: "30",
+      total: "2250.00",
+      paid: "2250.00",
+      debt: "0.00",
+    },
+  ],
+};
+
 const DEBTS = [
   {
     clientId: "c1",
@@ -174,6 +210,8 @@ export default function PaymentsPreview({
       queueCount={QUEUE.length}
       queue={QUEUE}
       debts={DEBTS}
+      summary={SUMMARY}
+      month="2026-11"
       debtDays={1}
       requisites={"Отримувач: ФОП Тестовий Тест Тестович\nРахунок: UA000000000000000000000000000"}
       statement={STATEMENT}

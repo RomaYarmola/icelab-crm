@@ -28,7 +28,8 @@ export async function GET(request: NextRequest, context: { params: Promise<{ lis
     list === "cash" ||
     list === "boxes" ||
     list === "box-stock" ||
-    list === "shipments"
+    list === "shipments" ||
+    list === "month-summary"
       ? await getLocationFilter()
       : null;
 

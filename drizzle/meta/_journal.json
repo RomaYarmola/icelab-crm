@@ -183,6 +183,13 @@
       "when": 1795445695719,
       "tag": "0025_money",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795532978826,
+      "tag": "0026_month_summary_export",
+      "breakpoints": true
     }
   ]
 }

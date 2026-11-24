@@ -142,6 +142,7 @@ export const EXPORT_KIND_LABELS = {
   box_debts: "Борги по боксах",
   box_stock: "Склад боксів",
   shipments: "Накладні Нової Пошти",
+  month_summary: "Зведення за місяць",
 };
 
 export const AUDIT_TABLES: Record<string, AuditTable> = {
