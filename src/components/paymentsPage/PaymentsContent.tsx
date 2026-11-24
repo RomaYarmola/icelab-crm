@@ -6,6 +6,7 @@ import ActionForm from "../intakePage/ActionForm";
 import type { FormAction } from "../clientsPage/clientActions";
 import TabLinks from "../shared/tabs/TabLinks";
 import DebtsTab from "./DebtsTab";
+import ImportTab from "./ImportTab";
 import QueueTab from "./QueueTab";
 import RequisitesForm from "./RequisitesForm";
 import StatementTab from "./StatementTab";
@@ -52,6 +53,7 @@ export default function PaymentsContent({
     { id: "queue", label: queueCount > 0 ? `Нерозпізнані · ${queueCount}` : "Нерозпізнані" },
     { id: "statement", label: "Виписка" },
     { id: "debts", label: "Борги" },
+    ...(canSync ? [{ id: "import" as const, label: "Імпорт" }] : []),
     { id: "bank", label: "Банк" },
   ];
   return (
@@ -73,6 +75,7 @@ export default function PaymentsContent({
       {params.tab === "debts" && debts ? (
         <DebtsTab debts={debts} requisites={requisites} debtDays={debtDays} />
       ) : null}
+      {params.tab === "import" && canSync ? <ImportTab actions={actions} /> : null}
       {params.tab === "bank" ? (
         <section aria-labelledby="payments-bank" className="flex max-w-xl flex-col gap-3">
           <SectionTitle id="payments-bank">Банк (monobank)</SectionTitle>

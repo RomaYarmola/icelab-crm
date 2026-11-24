@@ -1,6 +1,7 @@
 import type { PaymentView, QueueItem } from "@/server/payment-views";
 import { parsePaymentParams } from "@/utils/paymentParams";
 import PaymentsContent from "../paymentsPage/PaymentsContent";
+import type { ImportActionResult } from "@/app/(app)/payments/actions";
 import type { PaymentActions } from "../paymentsPage/paymentTypes";
 import type { FormAction } from "../clientsPage/clientActions";
 
@@ -8,6 +9,7 @@ export const PAYMENTS_PREVIEW_SCREENS = [
   "payments-queue",
   "payments-statement",
   "payments-debts",
+  "payments-import",
   "payments-bank",
 ] as const;
 export type PaymentsPreviewScreen = (typeof PAYMENTS_PREVIEW_SCREENS)[number];
@@ -147,9 +149,11 @@ const DEBTS = [
 export default function PaymentsPreview({
   screen,
   formAction,
+  importAction,
 }: {
   screen: PaymentsPreviewScreen;
   formAction: FormAction;
+  importAction: (formData: FormData) => Promise<ImportActionResult<never>>;
 }) {
   const actions: PaymentActions = {
     sync: formAction,
@@ -160,6 +164,8 @@ export default function PaymentsPreview({
     byNumbers: formAction,
     selected: formAction,
     requisites: formAction,
+    importPreview: importAction,
+    importCommit: importAction,
   };
   const tab = screen.replace("payments-", "");
   return (

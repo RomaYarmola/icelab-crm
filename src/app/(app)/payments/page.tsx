@@ -14,10 +14,12 @@ import { can } from "@/server/permissions";
 import { requirePageUser } from "@/server/page-access";
 import { parsePaymentParams } from "@/utils/paymentParams";
 import {
+  commitImportAction,
   ignorePaymentAction,
   matchByNumbersAction,
   matchPaymentAction,
   matchSelectedAction,
+  previewImportAction,
   restorePaymentAction,
   saveRequisitesAction,
   syncMonobankAction,
@@ -69,6 +71,8 @@ export default async function PaymentsPage({
         byNumbers: matchByNumbersAction,
         selected: matchSelectedAction,
         requisites: saveRequisitesAction,
+        importPreview: previewImportAction,
+        importCommit: commitImportAction,
       }}
     />
   );

@@ -15,7 +15,7 @@ export const PAYMENT_PARAMS = {
   page: "page",
 } as const;
 
-export const PAYMENT_TABS = ["queue", "statement", "debts", "bank"] as const;
+export const PAYMENT_TABS = ["queue", "statement", "debts", "import", "bank"] as const;
 export type PaymentTab = (typeof PAYMENT_TABS)[number];
 
 export const STATEMENT_STATUSES = ["unmatched", "auto", "manual", "ignored"] as const;

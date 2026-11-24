@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Імпорт файла виписки (B13): файл до 3 МБ плюс службові байти форми.
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
   async redirects() {
     // Екрани «Готівка», «Прайс», «Журнал змін», «Експорт даних» і «Користувачі» самостійні, а не
     // частина «Ще». Старі закладки й посилання ведуть на нові адреси.
