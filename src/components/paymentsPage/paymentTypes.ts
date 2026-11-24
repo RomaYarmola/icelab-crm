@@ -7,4 +7,7 @@ export interface PaymentActions {
   ignore: FormAction;
   restore: FormAction;
   unmatch: FormAction;
+  byNumbers: FormAction;
+  selected: FormAction;
+  requisites: FormAction;
 }

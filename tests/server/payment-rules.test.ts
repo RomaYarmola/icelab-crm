@@ -73,8 +73,7 @@ describe("правила зіставлення платежів (B13, D188)", (
   describe("рішення", () => {
     it("правило 1: номер у коментарі й сума збігаються", () => {
       expect(decideAutoMatch(payment({ comment: "Замовлення 1340" }), [order()], 0)).toEqual({
-        orderId: "o1",
-        appliedKopecks: 225000,
+        allocations: [{ orderId: "o1", appliedKopecks: 225000 }],
         rule: "comment_number",
       });
     });
@@ -100,12 +99,11 @@ describe("правила зіставлення платежів (B13, D188)", (
         [order()],
         500,
       );
-      expect(result).toMatchObject({ appliedKopecks: 225000 });
+      expect(result).toMatchObject({ allocations: [{ appliedKopecks: 225000 }] });
     });
     it("правило 2: платник збігається, сума точна, замовлення одне", () => {
       expect(decideAutoMatch(payment({ counterName: "Кафе Тест" }), [order()], 0)).toEqual({
-        orderId: "o1",
-        appliedKopecks: 225000,
+        allocations: [{ orderId: "o1", appliedKopecks: 225000 }],
         rule: "amount_date_name",
       });
     });
@@ -136,6 +134,60 @@ describe("правила зіставлення платежів (B13, D188)", (
     it("без номера й без платника нічого не зіставляємо", () => {
       expect(decideAutoMatch(payment(), [order()], 0)).toBeNull();
     });
+  });
+});
+
+describe("кілька замовлень у призначенні (D198)", () => {
+  const three = [
+    order({ id: "a", number: 1340 }),
+    order({ id: "b", number: 1351 }),
+    order({ id: "c", number: 1360 }),
+  ];
+  it("сума дорівнює сумі залишків: усі названі замовлення оплачуються", () => {
+    const result = decideAutoMatch(
+      payment({ comment: "Оплата за замовлення №1340, 1351 та 1360", amountKopecks: 675000 }),
+      three,
+      0,
+    );
+    expect(result).toEqual({
+      allocations: [
+        { orderId: "a", appliedKopecks: 225000 },
+        { orderId: "b", appliedKopecks: 225000 },
+        { orderId: "c", appliedKopecks: 225000 },
+      ],
+      rule: "comment_number",
+    });
+  });
+  it("порядок номерів у тексті не важливий, а четверте замовлення не чіпаємо", () => {
+    const result = decideAutoMatch(
+      payment({ comment: "№1360, №1340", amountKopecks: 450000 }),
+      [...three, order({ id: "d", number: 1370 })],
+      0,
+    );
+    expect(result!.allocations.map((a) => a.orderId)).toEqual(["a", "c"]);
+  });
+  it("сума менша чи більша, невідомий номер: у чергу", () => {
+    const comment = "замовлення 1340, 1351, 1360";
+    expect(decideAutoMatch(payment({ comment, amountKopecks: 500000 }), three, 0)).toBeNull();
+    expect(decideAutoMatch(payment({ comment, amountKopecks: 700000 }), three, 0)).toBeNull();
+    expect(
+      decideAutoMatch(
+        payment({ comment: "замовлення 1340, 1999", amountKopecks: 450000 }),
+        three,
+        0,
+      ),
+    ).toBeNull();
+  });
+  it("з допуском остання сума зменшується на різницю", () => {
+    const result = decideAutoMatch(
+      payment({ comment: "замовлення 1340 і 1351", amountKopecks: 449900 }),
+      three,
+      500,
+    );
+    expect(result!.allocations).toEqual([
+      { orderId: "a", appliedKopecks: 225000 },
+      { orderId: "b", appliedKopecks: 224900 },
+    ]);
   });
 });
 

@@ -9,9 +9,12 @@ import { requireUser } from "@/server/auth";
 import { ValidationError } from "@/server/errors";
 import { readText, runFormAction } from "@/server/form-state";
 import { syncMonobankNow } from "@/server/monobank/status";
+import { setRequisites } from "@/server/payment-views";
 import {
   ignorePayment,
+  matchPaymentByNumbers,
   matchPaymentManually,
+  matchPaymentToOrders,
   restorePayment,
   unmatchPayment,
 } from "@/server/payments";
@@ -138,5 +141,63 @@ export async function unmatchPaymentAction(
       refresh();
     },
     { success: "Зіставлення скасовано.", values },
+  );
+}
+
+/** «Погасити за номерами з призначення» (D198): названі замовлення гасяться у порядку номерів. */
+export async function matchByNumbersAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  return runFormAction(
+    async () => {
+      await matchPaymentByNumbers(
+        getDb(),
+        actor,
+        readId(formData, "paymentId", "Платіж не знайдено."),
+      );
+      refresh();
+    },
+    { success: "Платіж погашено за номерами з призначення." },
+  );
+}
+
+/** Платіж без номерів: гасимо замовлення, які бухгалтер відзначив у списку клієнта. */
+export async function matchSelectedAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  return runFormAction(
+    async () => {
+      const ids = formData
+        .getAll("orderId")
+        .filter((value): value is string => typeof value === "string");
+      await matchPaymentToOrders(
+        getDb(),
+        actor,
+        readId(formData, "paymentId", "Платіж не знайдено."),
+        ids,
+      );
+      refresh();
+    },
+    { success: "Платіж зіставлено з вибраними замовленнями." },
+  );
+}
+
+/** Реквізити для повідомлення клієнтові (порожній текст прибирає їх). */
+export async function saveRequisitesAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const values = { requisites: readText(formData, "requisites") };
+  return runFormAction(
+    async () => {
+      await setRequisites(getDb(), actor, values.requisites);
+      refresh();
+    },
+    { success: "Реквізити збережено.", values },
   );
 }

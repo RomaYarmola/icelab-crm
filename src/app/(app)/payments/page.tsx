@@ -2,14 +2,24 @@ import type { Metadata } from "next";
 import PaymentsContent from "@/components/paymentsPage/PaymentsContent";
 import { getDb } from "@/db/client";
 import { getMonobankStatus } from "@/server/monobank/status";
-import { countQueue, listQueue, listStatement } from "@/server/payment-views";
+import {
+  countQueue,
+  getRequisites,
+  listDebts,
+  listQueue,
+  listStatement,
+  loadDebtDays,
+} from "@/server/payment-views";
 import { can } from "@/server/permissions";
 import { requirePageUser } from "@/server/page-access";
 import { parsePaymentParams } from "@/utils/paymentParams";
 import {
   ignorePaymentAction,
+  matchByNumbersAction,
   matchPaymentAction,
+  matchSelectedAction,
   restorePaymentAction,
+  saveRequisitesAction,
   syncMonobankAction,
   unmatchPaymentAction,
 } from "./actions";
@@ -28,10 +38,14 @@ export default async function PaymentsPage({
   const user = await requirePageUser("payments");
   const params = parsePaymentParams(await searchParams);
   const db = getDb();
-  const [queueCount, queue, statement, monobank] = await Promise.all([
+  const needsRequisites = params.tab === "debts" || params.tab === "bank";
+  const [queueCount, queue, statement, debts, debtDays, requisites, monobank] = await Promise.all([
     countQueue(db, user),
     params.tab === "queue" ? listQueue(db, user) : null,
     params.tab === "statement" ? listStatement(db, user, params) : null,
+    params.tab === "debts" ? listDebts(db, user) : null,
+    loadDebtDays(db),
+    needsRequisites ? getRequisites(db, user) : null,
     params.tab === "bank" ? getMonobankStatus(db, user) : { hasToken: false, accounts: [] },
   ]);
   return (
@@ -40,6 +54,9 @@ export default async function PaymentsPage({
       queueCount={queueCount}
       queue={queue}
       statement={statement}
+      debts={debts}
+      debtDays={debtDays}
+      requisites={requisites}
       monobank={monobank}
       canSync={can(user.role, "bank_payments", "write")}
       canUnmatch={can(user.role, "cash_reversal", "write")}
@@ -49,6 +66,9 @@ export default async function PaymentsPage({
         ignore: ignorePaymentAction,
         restore: restorePaymentAction,
         unmatch: unmatchPaymentAction,
+        byNumbers: matchByNumbersAction,
+        selected: matchSelectedAction,
+        requisites: saveRequisitesAction,
       }}
     />
   );

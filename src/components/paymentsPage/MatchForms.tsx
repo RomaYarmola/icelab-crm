@@ -129,3 +129,65 @@ export function RestoreForm({ paymentId, action }: { paymentId: string; action: 
     </Form>
   );
 }
+
+/** Одна кнопка «Погасити за номерами з призначення» (D198). */
+export function ByNumbersForm({
+  paymentId,
+  action,
+  label,
+}: {
+  paymentId: string;
+  action: FormAction;
+  label: string;
+}) {
+  const [state, formAction, isPending] = useActionState(action, INITIAL_FORM_STATE);
+  return (
+    <Form action={formAction}>
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <FormMessage state={state} />
+      <MainButton type="submit" isLoading={isPending} loadingText="Гасимо…">
+        {label}
+      </MainButton>
+    </Form>
+  );
+}
+
+export type SelectableOrder = { orderId: string; label: string };
+
+/** Список замовлень клієнта з прапорцями: платіж без номерів гасить вибрані (D198). */
+export function SelectOrdersForm({
+  paymentId,
+  options,
+  action,
+}: {
+  paymentId: string;
+  options: SelectableOrder[];
+  action: FormAction;
+}) {
+  const [state, formAction, isPending] = useActionState(action, INITIAL_FORM_STATE);
+  return (
+    <Disclosure variant="plain" summary="Вибрати замовлення клієнта зі списку">
+      <Form action={formAction}>
+        <input type="hidden" name="paymentId" value={paymentId} />
+        <fieldset className="flex flex-col gap-2">
+          <legend className="sr-only">Замовлення клієнта</legend>
+          {options.map((option) => (
+            <label key={option.orderId} className="flex min-h-11 items-center gap-3 text-body">
+              <input
+                type="checkbox"
+                name="orderId"
+                value={option.orderId}
+                className="size-5 shrink-0 accent-navy"
+              />
+              <span className="min-w-0 break-words">{option.label}</span>
+            </label>
+          ))}
+        </fieldset>
+        <FormMessage state={state} />
+        <MainButton type="submit" isLoading={isPending} loadingText="Гасимо…">
+          Погасити вибрані
+        </MainButton>
+      </Form>
+    </Disclosure>
+  );
+}
