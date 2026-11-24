@@ -3,12 +3,19 @@
 import { useState } from "react";
 import { DELIVERY_METHOD_LABELS } from "@/constants/orders";
 import type { ClientDebt } from "@/server/payment-views";
-import { buildDebtMessage } from "@/utils/debtMessage";
+import {
+  amountField,
+  buildDebtMessage,
+  PURPOSE_MAX,
+  splitPaymentGroups,
+} from "@/utils/debtMessage";
 import { formatMoney } from "@/utils/formatNumber";
 import { formatIsoDate } from "@/utils/isoDate";
 import { parseDecimal } from "@/utils/orderMath";
 import MainButton from "../shared/buttons/MainButton";
 import Card from "../shared/cards/Card";
+import CustomizedInput from "../shared/customizedInput/CustomizedInput";
+import Disclosure from "../shared/disclosure/Disclosure";
 import EmptyState from "../shared/emptyState/EmptyState";
 import Tag from "../shared/chips/Tag";
 import Text from "../shared/texts/Text";
@@ -47,12 +54,14 @@ function DebtCard({ debt, requisites }: { debt: ClientDebt; requisites: string |
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(debt.orders.map((order) => order.id)),
   );
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [links, setLinks] = useState<string[]>([]);
   const selected = debt.orders.filter((order) => checked.has(order.id));
-  const message = buildDebtMessage(selected, requisites);
+  const groups = splitPaymentGroups(selected);
+  const message = buildDebtMessage(selected, requisites, links);
 
   const toggle = (id: string) => {
-    setCopied(false);
+    setCopied(null);
     setChecked((previous) => {
       const next = new Set(previous);
       if (next.has(id)) next.delete(id);
@@ -61,12 +70,12 @@ function DebtCard({ debt, requisites }: { debt: ClientDebt; requisites: string |
     });
   };
 
-  const copy = async () => {
+  const copy = async (key: string, text: string) => {
     try {
-      await navigator.clipboard.writeText(message);
-      setCopied(true);
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
     } catch {
-      setCopied(false);
+      setCopied(null);
     }
   };
 
@@ -95,6 +104,61 @@ function DebtCard({ debt, requisites }: { debt: ClientDebt; requisites: string |
           </label>
         ))}
       </fieldset>
+      {groups.length > 0 ? (
+        <Disclosure variant="plain" summary="Посилання на оплату (ibanoplata.com)">
+          <div className="flex flex-col gap-4">
+            <Text variant="muted">
+              Створіть у кабінеті сервісу посилання з цією сумою й призначенням, вставте його нижче:
+              воно потрапить у повідомлення.
+              {groups.length > 1
+                ? ` Призначення в сервісі не довше ${PURPOSE_MAX} символів, тому потрібно ${groups.length} посилання.`
+                : ""}
+            </Text>
+            {groups.map((group, index) => (
+              <div key={group.numbers.join("-")} className="flex flex-col gap-2">
+                {groups.length > 1 ? <Text variant="label">Посилання {index + 1}</Text> : null}
+                <Text>
+                  Сума: <b>{amountField(group.kopecks)}</b>
+                </Text>
+                <MainButton
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copy(`sum${index}`, amountField(group.kopecks))}
+                >
+                  {copied === `sum${index}` ? "Скопійовано" : "Скопіювати суму"}
+                </MainButton>
+                <Text className="break-words">
+                  Призначення ({group.purpose.length} з {PURPOSE_MAX}): <b>{group.purpose}</b>
+                </Text>
+                <MainButton
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copy(`purpose${index}`, group.purpose)}
+                >
+                  {copied === `purpose${index}` ? "Скопійовано" : "Скопіювати призначення"}
+                </MainButton>
+                <CustomizedInput
+                  name={`link${index}`}
+                  label="Посилання з сервісу"
+                  autoComplete="off"
+                  inputMode="url"
+                  value={links[index] ?? ""}
+                  onChange={(event) =>
+                    setLinks((previous) => {
+                      const next = [...previous];
+                      next[index] = event.target.value;
+                      return next;
+                    })
+                  }
+                  hint="https://ibanoplata.com/iban-qr/…"
+                />
+              </div>
+            ))}
+          </div>
+        </Disclosure>
+      ) : null}
       {message ? (
         <>
           <textarea
@@ -104,8 +168,8 @@ function DebtCard({ debt, requisites }: { debt: ClientDebt; requisites: string |
             aria-label="Повідомлення клієнтові"
             className="w-full rounded-card border border-grey-field bg-white p-3 text-body text-navy"
           />
-          <MainButton type="button" variant="outline" onClick={copy}>
-            {copied ? "Скопійовано" : "Скопіювати повідомлення"}
+          <MainButton type="button" variant="outline" onClick={() => copy("message", message)}>
+            {copied === "message" ? "Скопійовано" : "Скопіювати повідомлення"}
           </MainButton>
         </>
       ) : (
