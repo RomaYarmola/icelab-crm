@@ -1,5 +1,6 @@
 import type { OrderStatus } from "@/constants/constants";
 import type { AnyPgDatabase } from "@/db/types";
+import { parseAnalyticsParams, parseAnalyticsTab } from "@/utils/analyticsParams";
 import { parseClientListParams } from "@/utils/clientListParams";
 import { todayIso } from "@/utils/isoDate";
 import { parseOrderListParams } from "@/utils/orderListParams";
@@ -11,6 +12,7 @@ import {
   exportCash,
   exportClients,
   exportShipments,
+  exportAnalytics,
   exportEverything,
   exportMonthSummary,
   exportOrders,
@@ -34,6 +36,7 @@ export const EXPORT_LISTS = [
   "box-stock",
   "shipments",
   "month-summary",
+  "analytics",
 ] as const;
 export type ExportList = (typeof EXPORT_LISTS)[number];
 
@@ -87,6 +90,14 @@ export async function runExport(
     case "month-summary": {
       const raw = Array.isArray(params.month) ? params.month[0] : params.month;
       return exportMonthSummary(db, actor, { month: raw ?? todayIso().slice(0, 7), locationId });
+    }
+    case "analytics": {
+      const period = parseAnalyticsParams(params, todayIso());
+      return exportAnalytics(db, actor, {
+        ...period,
+        tab: parseAnalyticsTab(params.tab),
+        locationId,
+      });
     }
     case "all":
       return exportEverything(db, actor);

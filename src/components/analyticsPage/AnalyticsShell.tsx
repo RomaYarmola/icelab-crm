@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ANALYTICS_PARAMS, type AnalyticsTab } from "@/utils/analyticsParams";
+import ExportButton from "../shared/export/ExportButton";
 import TabLinks from "../shared/tabs/TabLinks";
 import AnalyticsFilters from "./AnalyticsFilters";
 
@@ -48,6 +49,11 @@ export default function AnalyticsShell({
       />
       {tab === "inactive" || tab === "reminders" ? null : (
         <AnalyticsFilters key={`${from}-${to}`} from={from} to={to} />
+      )}
+      {tab === "reminders" ? null : (
+        <ExportButton list="analytics" hint="Файл Excel з тим, що на цій вкладці.">
+          Експорт у Excel
+        </ExportButton>
       )}
       {children}
     </div>

@@ -44,6 +44,14 @@ import { ValidationError } from "./errors";
 import { buildWorkbook, sheetOf, type ExportColumn, type ExportSheet } from "./export-xlsx";
 import { can } from "./permissions";
 import { ForbiddenError, type AppUser, locationScope, requirePermission } from "./guards";
+import { getAnalytics, type SliceRow } from "./analytics";
+import {
+  getBoxAnalytics,
+  getDeliveryAnalytics,
+  type BoxSlice,
+  type DeliverySlice,
+} from "./analytics-sales";
+import { listInactiveClients } from "./inactive";
 import { getMonthSummary, type MonthSummary, type SummaryTotals } from "./month-summary";
 import { listOrders, type OrderListQuery } from "./orders";
 
@@ -944,5 +952,138 @@ export async function exportMonthSummary(
     params,
     fileName: `${FILE_PREFIX}-month-summary-${summary.month}.xlsx`,
     sheets: monthSummarySheets(summary),
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Аналітика (B14, D212)
+// ---------------------------------------------------------------------------------------------
+
+const THRESHOLD_SOURCE = { client: "картка", rhythm: "ритм", default: "загальний" } as const;
+
+const sliceSheet = (name: string, title: string, rows: SliceRow[]) =>
+  sheet(name, rows, (c) => [
+    c.text(title, (r) => r.label),
+    c.num("Замовлень", (r) => r.orders),
+    c.num("Кг", (r) => r.kg),
+    c.money("Сума, грн", (r) => Number(r.uah)),
+  ]);
+
+const boxSliceSheet = (name: string, title: string, rows: BoxSlice[]) =>
+  sheet(name, rows, (c) => [
+    c.text(title, (r) => r.label),
+    c.num("Боксів, шт", (r) => r.count),
+    c.money("Сума, грн", (r) => Number(r.uah)),
+  ]);
+
+const deliverySliceSheet = (name: string, title: string, rows: DeliverySlice[]) =>
+  sheet(name, rows, (c) => [
+    c.text(title, (r) => r.label),
+    c.num("Замовлень", (r) => r.orders),
+    c.num("З доставкою", (r) => r.delivered),
+    c.money("Платна доставка, грн", (r) => Number(r.paid)),
+  ]);
+
+async function analyticsSheets(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  query: { tab: string; from: string; to: string; locationId?: string | null },
+): Promise<ExportSheet<unknown>[]> {
+  if (query.tab === "boxes") {
+    const data = await getBoxAnalytics(db, actor, query);
+    return [
+      sheet("По місяцях", data.months, (c) => [
+        c.text("Місяць", (r) => r.month),
+        c.num("Боксів, шт", (r) => r.count),
+        c.money("Сума, грн", (r) => Number(r.uah)),
+      ]),
+      boxSliceSheet("Типи тари", "Тип тари", data.byType),
+      boxSliceSheet("Клієнти", "Клієнт", data.byClient),
+      boxSliceSheet("Менеджери", "Менеджер", data.byManager),
+    ];
+  }
+  if (query.tab === "delivery") {
+    const data = await getDeliveryAnalytics(db, actor, query);
+    return [
+      sheet("По місяцях", data.months, (c) => [
+        c.text("Місяць", (r) => r.month),
+        ...(["pickup", "our_delivery", "np", "bus", "other"] as const).map((method) =>
+          c.num(DELIVERY_METHOD_LABELS[method], (r) => r.counts[method]),
+        ),
+        c.money("Платна доставка, грн", (r) => Number(r.paid)),
+      ]),
+      deliverySliceSheet("Локації", "Локація", data.byLocation),
+      deliverySliceSheet("Клієнти", "Клієнт", data.byClient),
+      deliverySliceSheet("Менеджери", "Менеджер", data.byManager),
+    ];
+  }
+  if (query.tab === "inactive") {
+    const rows = await listInactiveClients(db, actor);
+    return [
+      sheet("Давно не замовляли", rows, (c) => [
+        c.text("Код клієнта", (r) => r.clientCode),
+        c.text("Клієнт", (r) => r.clientName),
+        c.text("Менеджер", (r) => r.managerName),
+        c.day("Останнє замовлення", (r) => r.lastOrderDate),
+        c.num("Днів без замовлення", (r) => r.days),
+        c.num("Поріг, днів", (r) => r.threshold.days),
+        c.text("Поріг з", (r) => THRESHOLD_SOURCE[r.threshold.source]),
+      ]),
+    ];
+  }
+  const data = await getAnalytics(db, actor, query);
+  return [
+    sheet("По місяцях", data.months, (c) => [
+      c.text("Місяць", (r) => r.month),
+      c.num("Замовлень", (r) => r.orders),
+      c.num("Кг", (r) => r.kg),
+      c.money("Сума, грн", (r) => Number(r.uah)),
+    ]),
+    sheet("Клієнти", data.clients, (c) => [
+      c.text("Код клієнта", (r) => r.clientCode),
+      c.text("Клієнт", (r) => r.clientName),
+      c.num("Замовлень", (r) => r.orders),
+      c.num("Кг", (r) => r.kg),
+      c.money("Сума, грн", (r) => Number(r.uah)),
+      c.num("Кг за останній місяць", (r) => r.lastMonth.kg),
+      c.num("Кг за попередній місяць", (r) => r.previousMonth.kg),
+      c.money("Сума за останній місяць, грн", (r) => Number(r.lastMonth.uah)),
+      c.money("Сума за попередній місяць, грн", (r) => Number(r.previousMonth.uah)),
+    ]),
+    sliceSheet("Менеджери", "Менеджер", data.byManager),
+    sliceSheet("Типи льоду", "Тип льоду", data.byIceType),
+    sliceSheet("Застосування", "Застосування", data.byApplication),
+    sliceSheet("Джерела", "Джерело", data.bySource),
+  ];
+}
+
+const ANALYTICS_TAB_LABELS: Record<string, string> = {
+  panel: "Панель",
+  boxes: "Бокси",
+  delivery: "Доставки",
+  inactive: "Давно не замовляли",
+};
+
+/** Таблиці аналітики в Excel: те, що на вкладці; менеджер отримує лише свої дані (як на екрані). */
+export async function exportAnalytics(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  query: { tab: string; from: string; to: string; locationId?: string | null },
+): Promise<ExportFile> {
+  requirePermission(actor, "excel_export", "write");
+  const tab = query.tab in ANALYTICS_TAB_LABELS ? query.tab : "panel";
+  const sheets = await analyticsSheets(db, actor, { ...query, tab });
+  const params: ExportParams = { Вкладка: ANALYTICS_TAB_LABELS[tab]! };
+  if (tab !== "inactive") {
+    params["Період"] = `${query.from} - ${query.to}`;
+    params["Локація"] = query.locationId
+      ? await nameOf(db, locations, query.locationId, "name")
+      : "усі";
+  }
+  return finish(db, actor, {
+    kind: "analytics",
+    params,
+    fileName: `${FILE_PREFIX}-analytics-${tab}-${tab === "inactive" ? todayIso() : query.to}.xlsx`,
+    sheets,
   });
 }
