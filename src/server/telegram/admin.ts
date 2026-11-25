@@ -29,10 +29,21 @@ export const LINK_CODE_HOURS = 24;
 /** Скільки чекаємо повідомлення в топіку, щоб його запам'ятати. */
 export const CAPTURE_MINUTES = 10;
 
+/** Кому власник підключає Telegram (бот): заявки, водії, нагадування. */
+export const LINKABLE_ROLES = [
+  "owner",
+  "manager",
+  "location_lead",
+  "production",
+  "driver",
+  "accountant",
+] as const;
+export type LinkableRole = (typeof LINKABLE_ROLES)[number];
+
 export type IntakeUser = {
   id: string;
   fullName: string;
-  role: "owner" | "manager" | "driver" | "accountant";
+  role: LinkableRole;
   locationName: string | null;
   isLinked: boolean;
   /** Може підтверджувати чернетки (D151). */
@@ -63,12 +74,7 @@ export async function getIntakeStatus(db: AnyPgDatabase, actor: AppUser): Promis
       })
       .from(profiles)
       .leftJoin(locations, eq(locations.id, profiles.locationId))
-      .where(
-        and(
-          eq(profiles.isActive, true),
-          inArray(profiles.role, ["owner", "manager", "driver", "accountant"]),
-        ),
-      )
+      .where(and(eq(profiles.isActive, true), inArray(profiles.role, [...LINKABLE_ROLES])))
       .orderBy(asc(profiles.role), asc(profiles.fullName)),
   ]);
   return {
@@ -78,7 +84,7 @@ export async function getIntakeStatus(db: AnyPgDatabase, actor: AppUser): Promis
     users: rows.map((row) => ({
       id: row.id,
       fullName: row.fullName,
-      role: row.role as "owner" | "manager" | "driver" | "accountant",
+      role: row.role as LinkableRole,
       locationName: row.locationName,
       isLinked: row.telegramUserId !== null,
       isConfirmer: confirmerIds.includes(row.id),
@@ -196,14 +202,8 @@ export async function createLinkCode(
     .select()
     .from(profiles)
     .where(and(eq(profiles.id, profileId), eq(profiles.isActive, true)));
-  if (
-    !profile ||
-    (profile.role !== "owner" &&
-      profile.role !== "manager" &&
-      profile.role !== "driver" &&
-      profile.role !== "accountant")
-  ) {
-    throw new ValidationError("Telegram підключаємо менеджерам, водіям, бухгалтерам і власнику.");
+  if (!profile || !(LINKABLE_ROLES as readonly string[]).includes(profile.role)) {
+    throw new ValidationError("Користувача не знайдено або він вимкнений.");
   }
   const code = generateLinkCode();
   const expiresAt = new Date(now.getTime() + LINK_CODE_HOURS * 3_600_000);

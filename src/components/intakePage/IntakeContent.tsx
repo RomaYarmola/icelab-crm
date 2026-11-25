@@ -104,8 +104,9 @@ export default function IntakeContent({ status, actions }: IntakeContentProps) {
         <SectionTitle id="intake-users">Підключення користувачів</SectionTitle>
         <Text variant="muted" className="max-w-xl">
           Заявки приймаємо лише від підключених менеджерів і власника. Водіям підключення потрібне,
-          щоб бачити свої доставки в боті, а бухгалтерам, щоб отримувати нагадування про платежі.
-          Створіть код, користувач надсилає його боту в Telegram: /start КОД.
+          щоб бачити свої доставки в боті, бухгалтерам, щоб отримувати нагадування про платежі, а
+          старшим локації й виробництву, щоб отримувати нагадування про посилки з боксами. Створіть
+          код, користувач надсилає його боту в Telegram: /start КОД.
         </Text>
         <Text variant="muted" className="max-w-xl">
           {status.anyoneConfirms
@@ -135,7 +136,7 @@ export default function IntakeContent({ status, actions }: IntakeContentProps) {
                 loadingText="Створюємо…"
                 disabled={!status.hasToken}
               />
-              {user.role === "driver" || user.role === "accountant" ? null : (
+              {user.role !== "owner" && user.role !== "manager" ? null : (
                 <ActionForm
                   action={actions.setConfirmer}
                   fields={{ profileId: user.id, allowed: user.isConfirmer ? "no" : "yes" }}

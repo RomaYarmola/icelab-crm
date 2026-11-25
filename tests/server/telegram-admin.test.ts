@@ -61,11 +61,10 @@ describe("екран «Прийом заявок»: налаштування Tel
     status = await getIntakeStatus(t.db, owner());
     expect(status).toMatchObject({ hasToken: true, hasWebhookSecret: true });
     expect(JSON.stringify(status)).not.toMatch(/SECRETTOKEN|SECRETHOOK/);
-    expect(
-      status.users
-        .map((u) => u.role)
-        .every((r) => r === "owner" || r === "manager" || r === "driver" || r === "accountant"),
-    ).toBe(true);
+    // З B17 підключаємо й працівників локацій: їм приходять нагадування про посилки з боксами.
+    expect(status.users.map((u) => u.role)).toEqual(
+      expect.arrayContaining(["owner", "manager", "location_lead", "production"]),
+    );
     expect(status.users.length).toBeGreaterThanOrEqual(2);
   });
 
@@ -161,9 +160,12 @@ describe("екран «Прийом заявок»: налаштування Tel
     const hours = (second.expiresAt.getTime() - Date.now()) / 3_600_000;
     expect(hours).toBeGreaterThan(23.9);
     expect(hours).toBeLessThanOrEqual(24);
-    await expect(createLinkCode(t.db, owner(), t.users.production.id)).rejects.toThrow(
-      "менеджерам, водіям, бухгалтерам і власнику",
-    );
+    await expect(createLinkCode(t.db, owner(), t.users.production.id)).resolves.toMatchObject({
+      code: expect.any(String),
+    });
+    await expect(
+      createLinkCode(t.db, owner(), "00000000-0000-4000-8000-000000000000"),
+    ).rejects.toThrow("не знайдено");
     await t.db
       .update(profiles)
       .set({ telegramUserId: 31337 })

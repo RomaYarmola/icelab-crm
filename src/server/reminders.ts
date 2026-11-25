@@ -1,21 +1,33 @@
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { withActor } from "@/db/actor";
-import { boxes, clients, payments, profiles, reminders, settings } from "@/db/schema";
+import {
+  boxes,
+  clients,
+  locations,
+  payments,
+  profiles,
+  reminders,
+  settings,
+  shipmentReturns,
+} from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { todayIso } from "@/utils/isoDate";
 import { z } from "zod";
 import { getPublicUrl } from "./box-labels";
+import { daysAtClient } from "./boxes";
 import { parseInput, ValidationError } from "./errors";
 import { type AppUser, requirePermission } from "./guards";
 import { findInactiveClients } from "./inactive";
 import {
   DEFAULT_BOX_REMINDER_DAYS,
   DEFAULT_REMINDERS_TIME,
+  DEFAULT_RETURN_REMINDER_DAYS,
   describeReminder,
   formatReminderMessage,
   REPEAT_DAYS,
   type ReminderLine,
 } from "./reminder-rules";
+import { can } from "./permissions";
 import { claimDay } from "./telegram/day-claim";
 import { getTelegramToken, sendMessage } from "./telegram/client";
 import { kyivTime } from "./telegram/daily-report";
@@ -24,13 +36,16 @@ import { kyivTime } from "./telegram/daily-report";
  * Ранкові нагадування (B14, ТЗ 7.7, D209, D210). Раз на київський день (не раніше 09:00):
  *  - клієнт давно не замовляв: менеджеру клієнта, без менеджера власникам;
  *  - бокси довго в клієнта: так само;
- *  - є нерозпізнані платежі: бухгалтерам (без них власникам), раз на день.
+ *  - є нерозпізнані платежі: бухгалтерам (без них власникам), раз на день;
+ *  - повернення боксу чекає на пошті 3 дні й довше (B17, D226): власникам, менеджерам, старшим
+ *    локації й виробництву свого міста, раз на день, доки не заберуть.
  * Про клієнта й бокси не частіше ніж раз на 7 днів. У списку показуємо лише те, що ще актуальне:
  * клієнт замовив, бокс повернули чи чергу розібрали: нагадування зникає саме. Клієнтам нічого не
  * надсилаємо.
  */
 
 export const BOX_DAYS_KEY = "box.reminder_days";
+export const RETURN_DAYS_KEY = "box.return_days";
 const TIME_KEY = "report.reminders_time";
 const STATE_KEY = "reminders";
 const DAY_MS = 86_400_000;
@@ -44,12 +59,16 @@ async function readSetting(db: AnyPgDatabase, key: string): Promise<unknown> {
   return row?.value;
 }
 
-export async function loadBoxReminderDays(db: AnyPgDatabase): Promise<number> {
-  const value = await readSetting(db, BOX_DAYS_KEY);
-  return typeof value === "number" && Number.isInteger(value) && value > 0
-    ? value
-    : DEFAULT_BOX_REMINDER_DAYS;
+async function loadDays(db: AnyPgDatabase, key: string, fallback: number): Promise<number> {
+  const value = await readSetting(db, key);
+  return typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fallback;
 }
+
+export const loadBoxReminderDays = (db: AnyPgDatabase) =>
+  loadDays(db, BOX_DAYS_KEY, DEFAULT_BOX_REMINDER_DAYS);
+
+export const loadReturnReminderDays = (db: AnyPgDatabase) =>
+  loadDays(db, RETURN_DAYS_KEY, DEFAULT_RETURN_REMINDER_DAYS);
 
 export async function loadRemindersTime(db: AnyPgDatabase): Promise<string> {
   const value = await readSetting(db, TIME_KEY);
@@ -57,9 +76,10 @@ export async function loadRemindersTime(db: AnyPgDatabase): Promise<string> {
   return /^([01]\d|2[0-3]):[0-5]\d$/.test(text) ? text : DEFAULT_REMINDERS_TIME;
 }
 
-export async function setBoxReminderDays(
+async function saveDays(
   db: AnyPgDatabase,
   actor: AppUser,
+  key: string,
   days: number,
 ): Promise<void> {
   requirePermission(actor, "migration_settings", "write");
@@ -70,12 +90,17 @@ export async function setBoxReminderDays(
     const [existing] = await tx
       .select({ key: settings.key })
       .from(settings)
-      .where(eq(settings.key, BOX_DAYS_KEY));
-    if (existing)
-      await tx.update(settings).set({ value: days }).where(eq(settings.key, BOX_DAYS_KEY));
-    else await tx.insert(settings).values({ key: BOX_DAYS_KEY, value: days });
+      .where(eq(settings.key, key));
+    if (existing) await tx.update(settings).set({ value: days }).where(eq(settings.key, key));
+    else await tx.insert(settings).values({ key, value: days });
   });
 }
+
+export const setBoxReminderDays = (db: AnyPgDatabase, actor: AppUser, days: number) =>
+  saveDays(db, actor, BOX_DAYS_KEY, days);
+
+export const setReturnReminderDays = (db: AnyPgDatabase, actor: AppUser, days: number) =>
+  saveDays(db, actor, RETURN_DAYS_KEY, days);
 
 // ---------------------------------------------------------------------------------------------
 // Поточний стан: що зараз варте нагадування
@@ -139,13 +164,55 @@ async function countUnmatched(db: AnyPgDatabase): Promise<number> {
   return row?.n ?? 0;
 }
 
+export type WaitingReturn = { locationId: string; locationName: string; days: number };
+
+/** Повернення боксів, що чекають на відділенні не менше порогу (B17, D226). */
+export async function findWaitingReturns(
+  db: AnyPgDatabase,
+  now: Date = new Date(),
+): Promise<WaitingReturn[]> {
+  const threshold = await loadReturnReminderDays(db);
+  const rows = await db
+    .select({
+      locationId: locations.id,
+      locationName: locations.name,
+      arrivedAt: shipmentReturns.arrivedAt,
+    })
+    .from(shipmentReturns)
+    .innerJoin(locations, eq(locations.id, shipmentReturns.locationId))
+    .where(
+      and(
+        eq(shipmentReturns.status, "arrived"),
+        isNull(shipmentReturns.closedAt),
+        isNotNull(shipmentReturns.arrivedAt),
+      ),
+    )
+    .orderBy(asc(locations.name));
+  return rows
+    .map(({ arrivedAt, ...row }) => ({ ...row, days: daysAtClient(arrivedAt!, now) }))
+    .filter((row) => row.days >= threshold);
+}
+
+/** Рядок нагадування для людини: з локацією лише своє місто; нічого не чекає, то `null`. */
+function returnLine(waiting: WaitingReturn[], locationId: string | null): ReminderLine | null {
+  const own = locationId ? waiting.filter((item) => item.locationId === locationId) : waiting;
+  if (own.length === 0) return null;
+  const counts = new Map<string, number>();
+  for (const item of own) counts.set(item.locationName, (counts.get(item.locationName) ?? 0) + 1);
+  return {
+    kind: "box_return_waiting",
+    places: [...counts].map(([name, count]) => ({ name, count })),
+    days: Math.max(...own.map((item) => item.days)),
+  };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Складання
 // ---------------------------------------------------------------------------------------------
 
 async function recipients(db: AnyPgDatabase) {
   const rows = await db
-    .select({ id: profiles.id, role: profiles.role })
+    .select({ id: profiles.id, role: profiles.role, locationId: profiles.locationId })
     .from(profiles)
     .where(eq(profiles.isActive, true));
   const owners = rows.filter((p) => p.role === "owner").map((p) => p.id);
@@ -158,11 +225,22 @@ async function recipients(db: AnyPgDatabase) {
     forClient: (managerId: string | null) =>
       managerId && active.has(managerId) ? [managerId] : owners,
     forPayments: accountants.length > 0 ? accountants : owners,
+    /** Власники й менеджери, а старші локації й виробництво з локацією, де щось чекає. */
+    forReturns: (waiting: WaitingReturn[]) =>
+      rows
+        .filter((p) => {
+          if (p.role === "owner" || p.role === "manager") return waiting.length > 0;
+          if (p.role !== "location_lead" && p.role !== "production") return false;
+          return waiting.some((item) => item.locationId === p.locationId);
+        })
+        .map((p) => p.id),
   };
 }
 
+export type ReminderKind = ReminderLine["kind"];
+
 type Draft = {
-  kind: "client_inactive" | "box_overdue" | "payment_unmatched";
+  kind: ReminderKind;
   clientId: string | null;
   boxId: string | null;
   assigneeId: string;
@@ -178,10 +256,11 @@ export async function generateReminders(
 ): Promise<string[]> {
   const day = todayIso(now);
   const to = await recipients(db);
-  const [inactive, overdue, unmatched] = await Promise.all([
+  const [inactive, overdue, unmatched, waiting] = await Promise.all([
     findInactiveClients(db, { now }),
     findOverdueBoxes(db, now),
     countUnmatched(db),
+    findWaitingReturns(db, now),
   ]);
 
   const drafts: Draft[] = [];
@@ -205,6 +284,9 @@ export async function generateReminders(
       drafts.push({ kind: "payment_unmatched", clientId: null, boxId: null, assigneeId });
     }
   }
+  for (const assigneeId of to.forReturns(waiting)) {
+    drafts.push({ kind: "box_return_waiting", clientId: null, boxId: null, assigneeId });
+  }
   if (drafts.length === 0) return [];
 
   const recent = await db
@@ -219,7 +301,8 @@ export async function generateReminders(
 
   const created: string[] = [];
   for (const draft of drafts) {
-    const repeatable = draft.kind !== "payment_unmatched";
+    // Про черги (платежі, посилки) нагадуємо щодня, про клієнта й бокси раз на 7 днів.
+    const repeatable = draft.kind === "client_inactive" || draft.kind === "box_overdue";
     if (repeatable && seen.has(`${draft.kind}:${draft.clientId}:${draft.assigneeId}`)) continue;
     const [row] = await db
       .insert(reminders)
@@ -241,7 +324,7 @@ export async function generateReminders(
 
 export type ReminderView = {
   id: string;
-  kind: "client_inactive" | "box_overdue" | "payment_unmatched";
+  kind: ReminderKind;
   clientId: string | null;
   text: string;
   dueAt: Date;
@@ -252,12 +335,15 @@ async function toViews(
   db: AnyPgDatabase,
   rows: (typeof reminders.$inferSelect)[],
   now: Date,
+  /** Локація одержувача: посилки показуємо лише його міста. */
+  locationId: string | null,
 ): Promise<ReminderView[]> {
   if (rows.length === 0) return [];
-  const [inactive, overdue, unmatched] = await Promise.all([
+  const [inactive, overdue, unmatched, waiting] = await Promise.all([
     findInactiveClients(db, { now }),
     findOverdueBoxes(db, now),
     countUnmatched(db),
+    findWaitingReturns(db, now),
   ]);
   const byInactive = new Map(inactive.map((c) => [c.clientId, c]));
   const byOverdue = new Map(overdue.map((c) => [c.clientId, c]));
@@ -273,6 +359,8 @@ async function toViews(
     } else if (row.kind === "box_overdue") {
       const c = byOverdue.get(row.clientId!);
       if (c) line = { kind: row.kind, clientName: c.clientName, count: c.count, days: c.days };
+    } else if (row.kind === "box_return_waiting") {
+      line = returnLine(waiting, locationId);
     } else if (unmatched > 0) line = { kind: row.kind, count: unmatched };
     seen.add(key);
     if (!line) continue;
@@ -305,7 +393,7 @@ export async function listReminders(
       ),
     )
     .orderBy(desc(reminders.dueAt));
-  return toViews(db, rows, now);
+  return toViews(db, rows, now, actor.locationId);
 }
 
 /** «Відкласти»: прибирає зі свого списку всі нагадування того самого про того самого. */
@@ -359,7 +447,12 @@ export async function sendReminders(
     .from(reminders)
     .where(and(inArray(reminders.id, [...ids]), isNull(reminders.sentAt)));
   const people = await db
-    .select({ id: profiles.id, chat: profiles.telegramUserId })
+    .select({
+      id: profiles.id,
+      chat: profiles.telegramUserId,
+      role: profiles.role,
+      locationId: profiles.locationId,
+    })
     .from(profiles)
     .where(and(eq(profiles.isActive, true), isNotNull(profiles.telegramUserId)));
   const base = await getPublicUrl(db);
@@ -367,14 +460,20 @@ export async function sendReminders(
   for (const person of people) {
     const own = rows.filter((row) => row.assigneeId === person.id);
     if (own.length === 0) continue;
-    const views = await toViews(db, own, now);
+    const views = await toViews(db, own, now, person.locationId);
     if (views.length === 0) continue;
+    // Старший локації й виробництво аналітики не бачать: їм одразу список посилок.
+    const onlyReturns = views.every((view) => view.kind === "box_return_waiting");
+    const path =
+      onlyReturns || !can(person.role, "analytics", "read")
+        ? "/boxes/returns"
+        : "/analytics?tab=reminders";
     try {
       await send(
         person.chat!,
         formatReminderMessage(
           views.map((view) => view.text),
-          `${base}/analytics?tab=reminders`,
+          `${base}${path}`,
         ),
       );
     } catch {

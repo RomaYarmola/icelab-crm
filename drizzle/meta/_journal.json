@@ -218,6 +218,13 @@
       "when": 1795618179954,
       "tag": "0030_shipment_returns",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1795618979397,
+      "tag": "0031_return_reminder_kind",
+      "breakpoints": true
     }
   ]
 }

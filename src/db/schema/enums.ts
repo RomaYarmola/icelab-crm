@@ -137,4 +137,5 @@ export const reminderKind = pgEnum("reminder_kind", [
   "client_inactive",
   "box_overdue",
   "payment_unmatched",
+  "box_return_waiting",
 ]);
