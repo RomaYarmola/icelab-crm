@@ -195,3 +195,17 @@ describe("екрани боксів: борги, склад, клієнт (B9, P
     expect(read("src/app/(app)/boxes/[code]/page.tsx")).toContain('user.role === "owner"');
   });
 });
+
+describe("«Чекають на пошті» (B17)", () => {
+  it("вкладка доступна ролям розділу, список читає лише `listPostReturns`, сканер веде на неї", () => {
+    const page = read("src/app/(app)/boxes/returns/page.tsx");
+    expect(page).toContain('requirePageUser("boxes")');
+    expect(page).toContain("listPostReturns");
+    // Виробництво не переводимо на сканер: це і його список.
+    expect(page).not.toContain("redirect(");
+    expect(read("src/components/boxesPage/BoxScanner.tsx")).toContain('href="/boxes/returns"');
+    const tabs = read("src/components/boxesPage/BoxesTabs.tsx");
+    expect(tabs).toContain('href: "/boxes/returns"');
+    expect(tabs).toContain("production");
+  });
+});

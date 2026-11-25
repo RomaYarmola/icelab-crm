@@ -470,6 +470,7 @@ export default async function ShellPreviewPage({
         <BoxesPreview
           screen={screen as BoxPreviewScreen}
           isOwner={knownRole === "owner"}
+          isProduction={knownRole === "production"}
           formAction={previewFormAction}
         />
       ) : screen === "drafts" ? (
