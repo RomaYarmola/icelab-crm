@@ -125,6 +125,49 @@ export const shipments = pgTable(
 ).enableRLS();
 
 /**
+ * «Легке повернення» за нашою накладною (B17, D222). Рядок з'являється після першої перевірки
+ * відправки; `ttn_number` порожній, доки клієнт не оформив повернення. Це копія даних Нової Пошти,
+ * яку розклад постійно оновлює, тому журналу змін на неї немає. Імен і телефонів не зберігаємо.
+ */
+export const shipmentReturns = pgTable(
+  "shipment_returns",
+  {
+    id: pk(),
+    shipmentId: uuid("shipment_id")
+      .notNull()
+      .references(() => shipments.id, { onDelete: "cascade" }),
+    ttnNumber: text("ttn_number"),
+    /** Місто, чий це список (D223): за містом отримання повернення, інакше локація відправки. */
+    locationId: uuid("location_id").references(() => locations.id, restrict),
+    status: shipmentStatus("status"),
+    statusCode: text("status_code"),
+    statusText: text("status_text"),
+    city: text("city"),
+    warehouseNumber: text("warehouse_number"),
+    warehouseName: text("warehouse_name"),
+    arrivedAt: timestamp("arrived_at", { withTimezone: true }),
+    paidStorageFrom: timestamp("paid_storage_from", { withTimezone: true }),
+    /** Коли повернення прибрали зі списку: отримано чи накладну видалено (D227). */
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+    /** Коли востаннє питали Нову Пошту про повернення за цією відправкою. */
+    checkedAt: timestamp("checked_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("shipment_returns_shipment_id_key").on(t.shipmentId),
+    uniqueIndex("shipment_returns_ttn_number_key")
+      .on(t.ttnNumber)
+      .where(sql`${t.ttnNumber} is not null`),
+    index("shipment_returns_location_id_idx").on(t.locationId),
+    index("shipment_returns_checked_at_idx").on(t.checkedAt),
+    check(
+      "shipment_returns_found_has_location",
+      sql`${t.ttnNumber} is null or ${t.locationId} is not null`,
+    ),
+  ],
+).enableRLS();
+
+/**
  * Стан оновлення довідників (D125): де зупинилось порційне завантаження. Окрема таблиця, а не
  * `settings`: запис змінюється після кожної сторінки, і журнал змін від цього захлинувся б.
  * Один рядок з ключем `directories`.

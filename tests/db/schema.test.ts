@@ -43,6 +43,7 @@ const EXPECTED_TABLES = [
   "regions",
   "reminders",
   "settings",
+  "shipment_returns",
   "shipments",
   "site_leads",
   "telegram_link_codes",
