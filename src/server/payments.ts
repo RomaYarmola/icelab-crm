@@ -113,6 +113,15 @@ export async function loadCandidates(db: AnyPgDatabase): Promise<MatchOrder[]> {
     .filter((order) => order.remainingKopecks > 0);
 }
 
+/** Те з платежу, на що дивляться правила зіставлення. */
+const toMatchPayment = (payment: PaymentRow): MatchPayment => ({
+  amountKopecks: toKopecks(payment.amount),
+  occurredAt: payment.occurredAt,
+  comment: payment.comment,
+  description: payment.description,
+  counterName: payment.counterName,
+});
+
 export type AutoMatchOutcome =
   | { matched: false }
   | { matched: true; orderIds: string[]; rule: "comment_number" | "amount_date_name" };
@@ -139,14 +148,11 @@ export async function tryAutoMatch(
       if (!payment || payment.matchStatus !== "unmatched") return { matched: false };
       if ((await allocatedKopecks(tx, { paymentId })) > 0) return { matched: false };
 
-      const input: MatchPayment = {
-        amountKopecks: toKopecks(payment.amount),
-        occurredAt: payment.occurredAt,
-        comment: payment.comment,
-        description: payment.description,
-        counterName: payment.counterName,
-      };
-      const decision = decideAutoMatch(input, await loadCandidates(tx), tolerance);
+      const decision = decideAutoMatch(
+        toMatchPayment(payment),
+        await loadCandidates(tx),
+        tolerance,
+      );
       if (!decision) return { matched: false };
 
       const ids = decision.allocations.map((item) => item.orderId).sort();
@@ -188,17 +194,31 @@ export async function tryAutoMatch(
   return outcome;
 }
 
-/** Автозіставлення всіх нових платежів (після кожної виписки). Повертає, скільки зіставлено. */
+/**
+ * Автозіставлення всіх нових платежів (після кожної виписки). Повертає, скільки зіставлено.
+ *
+ * Спершу перевіряємо кожен платіж у пам'яті за один раз завантаженими замовленнями й лише для тих,
+ * де правила дали відповідь, відкриваємо транзакцію (`tryAutoMatch` перевіряє все ще раз). Окремі
+ * запити на кожен платіж у черзі не вкладались у час розкладу, і до новіших платежів черга могла
+ * не дійти.
+ */
 export async function matchNewPayments(
   db: AnyPgDatabase,
 ): Promise<{ checked: number; matched: number }> {
   const rows = await db
-    .select({ id: payments.id })
+    .select()
     .from(payments)
-    .where(eq(payments.matchStatus, "unmatched"));
+    .where(eq(payments.matchStatus, "unmatched"))
+    .orderBy(payments.occurredAt, payments.id);
+  if (rows.length === 0) return { checked: 0, matched: 0 };
+  const tolerance = Math.round((await loadCashTolerance(db)) * 100);
+  let candidates = await loadCandidates(db);
   let matched = 0;
   for (const row of rows) {
+    if (!decideAutoMatch(toMatchPayment(row), candidates, tolerance)) continue;
     if ((await tryAutoMatch(db, row.id)).matched) matched += 1;
+    // Залишки замовлень змінились (тут чи поруч): наступні платежі перевіряємо за свіжими.
+    candidates = await loadCandidates(db);
   }
   return { checked: rows.length, matched };
 }
