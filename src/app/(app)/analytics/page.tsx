@@ -4,16 +4,23 @@ import AnalyticsShell from "@/components/analyticsPage/AnalyticsShell";
 import BoxesContent from "@/components/analyticsPage/BoxesContent";
 import DeliveryContent from "@/components/analyticsPage/DeliveryContent";
 import InactiveContent from "@/components/analyticsPage/InactiveContent";
+import RemindersContent from "@/components/analyticsPage/RemindersContent";
 import { getDb } from "@/db/client";
 import { getAnalytics } from "@/server/analytics";
 import { getBoxAnalytics, getDeliveryAnalytics } from "@/server/analytics-sales";
 import { listInactiveClients, loadInactiveDays } from "@/server/inactive";
 import { getLocationFilter } from "@/server/location-filter";
 import { requirePageUser } from "@/server/page-access";
+import { listReminders, loadBoxReminderDays } from "@/server/reminders";
 import { can } from "@/server/permissions";
 import { parseAnalyticsParams, parseAnalyticsTab } from "@/utils/analyticsParams";
 import { todayIso } from "@/utils/isoDate";
-import { markOneTimeAction, saveInactiveDaysAction } from "./actions";
+import {
+  dismissReminderAction,
+  markOneTimeAction,
+  saveBoxDaysAction,
+  saveInactiveDaysAction,
+} from "./actions";
 
 export const metadata: Metadata = { title: "Аналітика" };
 
@@ -33,9 +40,17 @@ export default async function AnalyticsPage({
   const location = await getLocationFilter();
   const db = getDb();
   const query = { ...period, locationId: location.selectedId };
+  const myReminders = await listReminders(db, user);
   return (
-    <AnalyticsShell tab={tab} from={period.from} to={period.to}>
-      {tab === "inactive" ? (
+    <AnalyticsShell tab={tab} from={period.from} to={period.to} reminderCount={myReminders.length}>
+      {tab === "reminders" ? (
+        <RemindersContent
+          reminders={myReminders}
+          boxDays={await loadBoxReminderDays(db)}
+          boxDaysAction={can(user.role, "migration_settings", "write") ? saveBoxDaysAction : null}
+          dismissAction={dismissReminderAction}
+        />
+      ) : tab === "inactive" ? (
         <InactiveContent
           clients={await listInactiveClients(db, user)}
           generalDays={await loadInactiveDays(db)}

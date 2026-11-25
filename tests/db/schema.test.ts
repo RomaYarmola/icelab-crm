@@ -41,6 +41,7 @@ const EXPECTED_TABLES = [
   "products",
   "profiles",
   "regions",
+  "reminders",
   "settings",
   "shipments",
   "site_leads",

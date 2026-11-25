@@ -130,3 +130,10 @@ export const paymentMatchStatus = pgEnum("payment_match_status", [
 
 /** Звідки платіж: з API monobank чи з файла виписки. */
 export const paymentImportedVia = pgEnum("payment_imported_via", ["api", "file"]);
+
+/** Вид нагадування (B14, ТЗ 4.8, 7.7). */
+export const reminderKind = pgEnum("reminder_kind", [
+  "client_inactive",
+  "box_overdue",
+  "payment_unmatched",
+]);

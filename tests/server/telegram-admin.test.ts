@@ -64,7 +64,7 @@ describe("екран «Прийом заявок»: налаштування Tel
     expect(
       status.users
         .map((u) => u.role)
-        .every((r) => r === "owner" || r === "manager" || r === "driver"),
+        .every((r) => r === "owner" || r === "manager" || r === "driver" || r === "accountant"),
     ).toBe(true);
     expect(status.users.length).toBeGreaterThanOrEqual(2);
   });
@@ -162,7 +162,7 @@ describe("екран «Прийом заявок»: налаштування Tel
     expect(hours).toBeGreaterThan(23.9);
     expect(hours).toBeLessThanOrEqual(24);
     await expect(createLinkCode(t.db, owner(), t.users.production.id)).rejects.toThrow(
-      "менеджерам, водіям і власнику",
+      "менеджерам, водіям, бухгалтерам і власнику",
     );
     await t.db
       .update(profiles)

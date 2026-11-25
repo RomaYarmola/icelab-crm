@@ -8,6 +8,7 @@ const TABS: { id: AnalyticsTab; label: string }[] = [
   { id: "boxes", label: "Бокси" },
   { id: "delivery", label: "Доставки" },
   { id: "inactive", label: "Давно не замовляли" },
+  { id: "reminders", label: "Нагадування" },
 ];
 
 /** Каркас аналітики: вкладки й вибір періоду (період переходить між вкладками). */
@@ -15,11 +16,14 @@ export default function AnalyticsShell({
   tab,
   from,
   to,
+  reminderCount = 0,
   children,
 }: {
   tab: AnalyticsTab;
   from: string;
   to: string;
+  /** Скільки актуальних нагадувань у користувача: число в назві вкладки. */
+  reminderCount?: number;
   children: ReactNode;
 }) {
   const href = (id: AnalyticsTab) =>
@@ -33,9 +37,18 @@ export default function AnalyticsShell({
       <TabLinks
         label="Розділи аналітики"
         activeId={tab}
-        items={TABS.map((item) => ({ ...item, href: href(item.id) }))}
+        items={TABS.map((item) => ({
+          ...item,
+          label:
+            item.id === "reminders" && reminderCount > 0
+              ? `${item.label} · ${reminderCount}`
+              : item.label,
+          href: href(item.id),
+        }))}
       />
-      {tab === "inactive" ? null : <AnalyticsFilters key={`${from}-${to}`} from={from} to={to} />}
+      {tab === "inactive" || tab === "reminders" ? null : (
+        <AnalyticsFilters key={`${from}-${to}`} from={from} to={to} />
+      )}
       {children}
     </div>
   );
