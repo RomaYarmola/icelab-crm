@@ -157,9 +157,17 @@ describe("екрани всередині «Ще» («Готівка», «Пра
   const ids = (role: UserRole) => accountNavItemsFor(role).map((item) => item.id);
 
   it("власник бачить «Прайс», «Журнал змін», «Експорт даних» і «Користувачі», бухгалтер «Прайс» і «Журнал змін», менеджер «Прайс»", () => {
-    expect(ids("owner")).toEqual(["prices", "audit", "export", "users", "np", "intake"]);
-    expect(ids("manager")).toEqual(["prices"]);
-    expect(ids("accountant")).toEqual(["prices", "audit"]);
+    expect(ids("owner")).toEqual([
+      "analytics",
+      "prices",
+      "audit",
+      "export",
+      "users",
+      "np",
+      "intake",
+    ]);
+    expect(ids("manager")).toEqual(["analytics", "prices"]);
+    expect(ids("accountant")).toEqual(["analytics", "prices", "audit"]);
   });
 
   it("старший локації, виробництво й водій цих екранів не мають", () => {
@@ -240,12 +248,21 @@ describe("екрани в бічній панелі комп'ютера післ
   const ids = (role: UserRole) => sideExtraNavItemsFor(role).map((item) => item.id);
 
   it("власник: «Прайс», «Журнал змін», «Експорт даних», «Користувачі»", () => {
-    expect(ids("owner")).toEqual(["prices", "audit", "export", "users", "np", "intake"]);
+    expect(ids("owner")).toEqual([
+      "analytics",
+      "prices",
+      "audit",
+      "export",
+      "users",
+      "np",
+      "intake",
+    ]);
   });
 
   it("бухгалтер лише «Журнал змін», решта ролей нічого", () => {
-    expect(ids("accountant")).toEqual(["audit"]);
-    for (const role of ["manager", "location_lead", "production", "driver"] as const) {
+    expect(ids("accountant")).toEqual(["analytics", "audit"]);
+    expect(ids("manager")).toEqual(["analytics"]);
+    for (const role of ["location_lead", "production", "driver"] as const) {
       expect(ids(role), role).toEqual([]);
     }
   });

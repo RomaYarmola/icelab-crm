@@ -5,6 +5,7 @@ export type NavItemId =
   | "production"
   | "boxes"
   | "payments"
+  | "analytics"
   | "cash"
   | "prices"
   | "audit"
@@ -30,6 +31,8 @@ export const NAV_ITEMS: Record<NavItemId, NavItem> = {
   production: { id: "production", label: "Виробництво", href: "/production" },
   boxes: { id: "boxes", label: "Бокси", href: "/boxes" },
   payments: { id: "payments", label: "Оплати", href: "/payments" },
+  // «Аналітика»: власник, менеджер, бухгалтер (B14); на телефоні в меню «Ще».
+  analytics: { id: "analytics", label: "Аналітика", href: "/analytics" },
   // Екрани всередині «Ще» («Готівка» для власника, менеджера, бухгалтера й старшого локації,
   // «Прайс» для власника, менеджера й бухгалтера, «Користувачі» для власника): у нижній панелі їх
   // немає, лише в меню «Ще».
