@@ -30,18 +30,30 @@ export function OneTimeForm({ clientId, action }: { clientId: string; action: Fo
 }
 
 /** Загальний поріг «давно не замовляв» (лише власник). */
-export function ThresholdForm({ days, action }: { days: number; action: FormAction }) {
+export function ThresholdForm({
+  days,
+  action,
+  summary = "Загальний поріг",
+  label = "Давно не замовляє через, днів",
+  hint = "Для окремого клієнта поріг можна задати в його картці.",
+}: {
+  days: number;
+  action: FormAction;
+  summary?: string;
+  label?: string;
+  hint?: string;
+}) {
   const [state, formAction, isPending] = useActionState(action, INITIAL_FORM_STATE);
   return (
-    <Disclosure variant="plain" summary="Загальний поріг">
+    <Disclosure variant="plain" summary={summary}>
       <Form action={formAction}>
         <CustomizedInput
           name="days"
-          label="Давно не замовляє через, днів"
+          label={label}
           inputMode="numeric"
           autoComplete="off"
           defaultValue={state.values?.days ?? String(days)}
-          hint="Для окремого клієнта поріг можна задати в його картці."
+          hint={hint}
           required
         />
         <FormMessage state={state} />

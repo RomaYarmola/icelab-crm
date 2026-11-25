@@ -6,6 +6,7 @@ import AnalyticsShell from "../analyticsPage/AnalyticsShell";
 import BoxesContent from "../analyticsPage/BoxesContent";
 import DeliveryContent from "../analyticsPage/DeliveryContent";
 import InactiveContent from "../analyticsPage/InactiveContent";
+import RemindersContent from "../analyticsPage/RemindersContent";
 import type { FormAction } from "../clientsPage/clientActions";
 
 const m = (kg: number, uah: string, orders = 3) => ({ kg, uah, orders });
@@ -102,7 +103,36 @@ export default function AnalyticsPreview({
 }) {
   return (
     <AnalyticsShell tab={tab} from="2026-07" to="2026-11">
-      {tab === "inactive" ? (
+      {tab === "reminders" ? (
+        <RemindersContent
+          reminders={[
+            {
+              id: "r1",
+              kind: "client_inactive",
+              clientId: "c1",
+              text: "«Кафе Вогник» не замовляє 55 дн.",
+              dueAt: new Date("2026-11-25T07:00:00Z"),
+            },
+            {
+              id: "r2",
+              kind: "box_overdue",
+              clientId: "c2",
+              text: "Бокси в «ДСВ Логістика»: 2 шт, найдовше 21 дн.",
+              dueAt: new Date("2026-11-25T07:00:00Z"),
+            },
+            {
+              id: "r3",
+              kind: "payment_unmatched",
+              clientId: null,
+              text: "Нерозпізнаних платежів: 3",
+              dueAt: new Date("2026-11-25T07:00:00Z"),
+            },
+          ]}
+          boxDays={14}
+          boxDaysAction={ownOnly ? null : formAction}
+          dismissAction={formAction}
+        />
+      ) : tab === "inactive" ? (
         <InactiveContent
           clients={[
             {

@@ -349,6 +349,7 @@ const PREVIEW_SCREENS = [
   "analytics-boxes",
   "analytics-delivery",
   "analytics-inactive",
+  "analytics-reminders",
   ...PAYMENTS_PREVIEW_SCREENS,
 ] as const;
 
@@ -482,7 +483,8 @@ export default async function ShellPreviewPage({
       ) : screen === "analytics" ||
         screen === "analytics-boxes" ||
         screen === "analytics-delivery" ||
-        screen === "analytics-inactive" ? (
+        screen === "analytics-inactive" ||
+        screen === "analytics-reminders" ? (
         <AnalyticsPreview
           tab={
             screen === "analytics-boxes"
@@ -491,7 +493,9 @@ export default async function ShellPreviewPage({
                 ? "delivery"
                 : screen === "analytics-inactive"
                   ? "inactive"
-                  : "panel"
+                  : screen === "analytics-reminders"
+                    ? "reminders"
+                    : "panel"
           }
           ownOnly={knownRole === "manager"}
           formAction={previewFormAction}
