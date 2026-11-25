@@ -4,6 +4,7 @@ import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
 import DraftsPreview from "@/components/uiKitPage/DraftsPreview";
+import AnalyticsPreview from "@/components/uiKitPage/AnalyticsPreview";
 import IntakePreview from "@/components/uiKitPage/IntakePreview";
 import PaymentsPreview, {
   PAYMENTS_PREVIEW_SCREENS,
@@ -342,6 +343,7 @@ const PREVIEW_SCREENS = [
   "np-day",
   "intake",
   "drafts",
+  "analytics",
   ...PAYMENTS_PREVIEW_SCREENS,
 ] as const;
 
@@ -472,6 +474,8 @@ export default async function ShellPreviewPage({
           formAction={previewFormAction}
           importAction={previewImportAction}
         />
+      ) : screen === "analytics" ? (
+        <AnalyticsPreview ownOnly={knownRole === "manager"} />
       ) : screen === "intake" ? (
         <IntakePreview formAction={previewFormAction} />
       ) : screen === "np-day" ? (
