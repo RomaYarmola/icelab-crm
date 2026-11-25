@@ -1,0 +1,44 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { getDb } from "@/db/client";
+import { requireUser } from "@/server/auth";
+import { readText, runFormAction } from "@/server/form-state";
+import { setClientOneTime, setInactiveDays } from "@/server/inactive";
+import type { FormState } from "@/utils/formState";
+
+/** Дії аналітики (B14): позначка «Разовий клієнт» і загальний поріг. Права перевіряє сервер. */
+
+function refresh() {
+  revalidatePath("/analytics");
+  revalidatePath("/clients", "layout");
+}
+
+export async function markOneTimeAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  return runFormAction(
+    async () => {
+      await setClientOneTime(getDb(), actor, readText(formData, "clientId"), true);
+      refresh();
+    },
+    { success: "Клієнта позначено разовим." },
+  );
+}
+
+export async function saveInactiveDaysAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  const values = { days: readText(formData, "days") };
+  return runFormAction(
+    async () => {
+      await setInactiveDays(getDb(), actor, Number(values.days.trim()));
+      refresh();
+    },
+    { success: "Поріг збережено.", values },
+  );
+}

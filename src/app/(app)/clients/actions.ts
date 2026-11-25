@@ -84,6 +84,7 @@ function readClientFields(formData: FormData) {
     defaultBoxTypeId: readOptionalText(formData, "defaultBoxTypeId"),
     markupPercentOverride: readOptionalText(formData, "markupPercentOverride"),
     inactiveDaysThreshold: readOptionalInt(formData, "inactiveDaysThreshold"),
+    isOneTime: formData.get("isOneTime") === "on",
     notes: readOptionalText(formData, "notes"),
   };
 }
@@ -100,6 +101,7 @@ const CLIENT_FIELD_NAMES = [
   "defaultBoxTypeId",
   "markupPercentOverride",
   "inactiveDaysThreshold",
+  "isOneTime",
   "notes",
 ];
 

@@ -27,6 +27,7 @@ export default function ClientSummary({ client }: { client: ClientCardView }) {
           label: "Нагадати, якщо не замовляє, днів",
           value: client.inactiveDaysThreshold,
         },
+        { label: "Разовий клієнт", value: client.isOneTime ? "так" : null },
         { label: "Примітка", value: client.notes },
       ]}
     />

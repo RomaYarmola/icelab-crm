@@ -160,6 +160,7 @@ export default function ClientCardContent({
                     : String(Number(client.markupPercentOverride)),
                 inactiveDaysThreshold:
                   client.inactiveDaysThreshold === null ? "" : String(client.inactiveDaysThreshold),
+                isOneTime: client.isOneTime ? "on" : "",
                 notes: client.notes ?? "",
               }}
               action={actions.update}

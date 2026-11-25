@@ -180,6 +180,7 @@ async function previewSearchClients(): Promise<ClientListItem[]> {
       managerId: null,
       managerName: null,
       primaryPhone: "+380501234567",
+      isOneTime: false,
       isDeleted: false,
     },
     {
@@ -191,6 +192,7 @@ async function previewSearchClients(): Promise<ClientListItem[]> {
       managerId: null,
       managerName: null,
       primaryPhone: null,
+      isOneTime: false,
       isDeleted: false,
     },
   ];
@@ -346,6 +348,7 @@ const PREVIEW_SCREENS = [
   "analytics",
   "analytics-boxes",
   "analytics-delivery",
+  "analytics-inactive",
   ...PAYMENTS_PREVIEW_SCREENS,
 ] as const;
 
@@ -478,16 +481,20 @@ export default async function ShellPreviewPage({
         />
       ) : screen === "analytics" ||
         screen === "analytics-boxes" ||
-        screen === "analytics-delivery" ? (
+        screen === "analytics-delivery" ||
+        screen === "analytics-inactive" ? (
         <AnalyticsPreview
           tab={
             screen === "analytics-boxes"
               ? "boxes"
               : screen === "analytics-delivery"
                 ? "delivery"
-                : "panel"
+                : screen === "analytics-inactive"
+                  ? "inactive"
+                  : "panel"
           }
           ownOnly={knownRole === "manager"}
+          formAction={previewFormAction}
         />
       ) : screen === "intake" ? (
         <IntakePreview formAction={previewFormAction} />

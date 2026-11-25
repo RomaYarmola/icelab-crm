@@ -22,6 +22,7 @@ export type ClientListItem = {
   statusName: string | null;
   managerId: string | null;
   managerName: string | null;
+  isOneTime: boolean;
   /** Основний телефон (або перший, якщо основного немає). */
   primaryPhone: string | null;
   isDeleted: boolean;
@@ -101,6 +102,7 @@ export type ClientCardView = Pick<
   | "markupPercentOverride"
   | "notes"
   | "inactiveDaysThreshold"
+  | "isOneTime"
   | "isPlaceholder"
   | "mergedIntoId"
   | "createdAt"
@@ -137,6 +139,7 @@ export function toClientCardView(
     markupPercentOverride: client.markupPercentOverride,
     notes: client.notes,
     inactiveDaysThreshold: client.inactiveDaysThreshold,
+    isOneTime: client.isOneTime,
     isPlaceholder: client.isPlaceholder,
     mergedIntoId: client.mergedIntoId,
     createdAt: client.createdAt,

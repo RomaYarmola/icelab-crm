@@ -6,7 +6,7 @@
 
 export const ANALYTICS_PARAMS = { tab: "tab", from: "from", to: "to" } as const;
 
-export const ANALYTICS_TABS = ["panel", "boxes", "delivery"] as const;
+export const ANALYTICS_TABS = ["panel", "boxes", "delivery", "inactive"] as const;
 export type AnalyticsTab = (typeof ANALYTICS_TABS)[number];
 
 export function parseAnalyticsTab(value: string | string[] | undefined): AnalyticsTab {

@@ -44,6 +44,8 @@ export const clients = pgTable(
     markupPercentOverride: percent("markup_percent_override"),
     notes: text("notes"),
     inactiveDaysThreshold: integer("inactive_days_threshold"),
+    /** Разовий клієнт (D208): про нього не нагадуємо й не показуємо в «Давно не замовляли». */
+    isOneTime: boolean("is_one_time").notNull().default(false),
     /** Клієнт-заглушка «Новий клієнт»: для нього формат коду не перевіряється. */
     isPlaceholder: boolean("is_placeholder").notNull().default(false),
     deletedAt: timestamp("deleted_at", { withTimezone: true }),
