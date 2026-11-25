@@ -313,11 +313,22 @@ export default function BoxScanner() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3">
         <h1 className="text-h1 text-navy">Сканер боксів</h1>
-        <Link href="/boxes" className="text-body font-semibold text-blue">
-          До реєстру
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-4">
+          <Link
+            href="/boxes/returns"
+            className="inline-flex min-h-11 items-center text-body font-semibold text-blue"
+          >
+            Чекають на пошті
+          </Link>
+          <Link
+            href="/boxes"
+            className="inline-flex min-h-11 items-center text-body font-semibold text-blue"
+          >
+            До реєстру
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
