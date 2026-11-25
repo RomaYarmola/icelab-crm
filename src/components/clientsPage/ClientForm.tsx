@@ -6,6 +6,7 @@ import type { ClientFormOptions } from "@/server/client-options";
 import type { SimilarClient } from "@/server/clients";
 import { INITIAL_FORM_STATE } from "@/utils/formState";
 import MainButton from "../shared/buttons/MainButton";
+import Checkbox from "../shared/customizedInput/Checkbox";
 import CustomizedInput from "../shared/customizedInput/CustomizedInput";
 import PhoneField from "../shared/customizedInput/PhoneField";
 import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
@@ -32,6 +33,8 @@ export interface ClientFormDefaults {
   defaultBoxTypeId: string;
   markupPercentOverride: string;
   inactiveDaysThreshold: string;
+  /** «on», якщо клієнт разовий. */
+  isOneTime: string;
   notes: string;
 }
 
@@ -50,6 +53,7 @@ export const EMPTY_CLIENT_DEFAULTS: ClientFormDefaults = {
   defaultBoxTypeId: "",
   markupPercentOverride: "",
   inactiveDaysThreshold: "",
+  isOneTime: "",
   notes: "",
 };
 
@@ -216,6 +220,12 @@ export default function ClientForm({
         label="Менеджер"
         options={toSelectOptions(options.managers, isCreate ? undefined : "Не призначено")}
         defaultValue={values.managerId}
+      />
+      <Checkbox
+        name="isOneTime"
+        label="Разовий клієнт"
+        defaultChecked={values.isOneTime === "on"}
+        hint="Про разового клієнта не нагадуємо, що він давно не замовляв."
       />
       <CustomizedInput
         name="notes"

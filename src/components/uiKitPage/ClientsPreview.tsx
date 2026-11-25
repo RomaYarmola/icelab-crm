@@ -83,6 +83,7 @@ const LIST: ClientListItem[] = [
     managerId: "mgr-1",
     managerName: "Олена Коваль",
     primaryPhone: "+380501234567",
+    isOneTime: false,
     isDeleted: false,
   },
   {
@@ -94,6 +95,7 @@ const LIST: ClientListItem[] = [
     managerId: "mgr-2",
     managerName: "Марія Менеджер",
     primaryPhone: "+380679998877",
+    isOneTime: false,
     isDeleted: false,
   },
   {
@@ -105,6 +107,7 @@ const LIST: ClientListItem[] = [
     managerId: null,
     managerName: null,
     primaryPhone: null,
+    isOneTime: false,
     isDeleted: false,
   },
   {
@@ -116,6 +119,7 @@ const LIST: ClientListItem[] = [
     managerId: "mgr-1",
     managerName: "Олена Коваль",
     primaryPhone: "+380931112233",
+    isOneTime: false,
     isDeleted: true,
   },
 ];
@@ -198,6 +202,7 @@ function cardFor(role: UserRole, overrides: Partial<ClientCardView> = {}): Clien
     markupPercentOverride: "5.00",
     notes: "Просить привозити до 10:00.",
     inactiveDaysThreshold: 30,
+    isOneTime: false,
     isPlaceholder: false,
     mergedIntoId: null,
     createdAt: new Date("2026-10-01"),

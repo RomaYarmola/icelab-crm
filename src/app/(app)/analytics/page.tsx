@@ -3,19 +3,23 @@ import AnalyticsContent from "@/components/analyticsPage/AnalyticsContent";
 import AnalyticsShell from "@/components/analyticsPage/AnalyticsShell";
 import BoxesContent from "@/components/analyticsPage/BoxesContent";
 import DeliveryContent from "@/components/analyticsPage/DeliveryContent";
+import InactiveContent from "@/components/analyticsPage/InactiveContent";
 import { getDb } from "@/db/client";
 import { getAnalytics } from "@/server/analytics";
 import { getBoxAnalytics, getDeliveryAnalytics } from "@/server/analytics-sales";
+import { listInactiveClients, loadInactiveDays } from "@/server/inactive";
 import { getLocationFilter } from "@/server/location-filter";
 import { requirePageUser } from "@/server/page-access";
+import { can } from "@/server/permissions";
 import { parseAnalyticsParams, parseAnalyticsTab } from "@/utils/analyticsParams";
 import { todayIso } from "@/utils/isoDate";
+import { markOneTimeAction, saveInactiveDaysAction } from "./actions";
 
 export const metadata: Metadata = { title: "Аналітика" };
 
 /**
- * Аналітика (B14, ТЗ 6.11): вкладки «Панель», «Бокси», «Доставки». Вкладка й період в адресі,
- * локація з вибору в шапці.
+ * Аналітика (B14, ТЗ 6.11): вкладки «Панель», «Бокси», «Доставки», «Давно не замовляли». Вкладка й
+ * період в адресі, локація з вибору в шапці (список «Давно не замовляли» від них не залежить).
  */
 export default async function AnalyticsPage({
   searchParams,
@@ -31,7 +35,18 @@ export default async function AnalyticsPage({
   const query = { ...period, locationId: location.selectedId };
   return (
     <AnalyticsShell tab={tab} from={period.from} to={period.to}>
-      {tab === "boxes" ? (
+      {tab === "inactive" ? (
+        <InactiveContent
+          clients={await listInactiveClients(db, user)}
+          generalDays={await loadInactiveDays(db)}
+          ownOnly={user.role === "manager"}
+          canMark={can(user.role, "clients", "write")}
+          thresholdAction={
+            can(user.role, "migration_settings", "write") ? saveInactiveDaysAction : null
+          }
+          markAction={markOneTimeAction}
+        />
+      ) : tab === "boxes" ? (
         <BoxesContent data={await getBoxAnalytics(db, user, query)} />
       ) : tab === "delivery" ? (
         <DeliveryContent data={await getDeliveryAnalytics(db, user, query)} />

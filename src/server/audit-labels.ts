@@ -270,6 +270,7 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       markup_percent_override: { label: "Окрема надбавка", kind: "percent" },
       notes: text("Примітки"),
       inactive_days_threshold: number("Поріг «давно не замовляв», днів"),
+      is_one_time: bool("Разовий клієнт"),
       is_placeholder: bool("Заглушка"),
       deleted_at: timestamp("Видалено"),
       merged_into_id: ref("Об'єднано з", "client"),

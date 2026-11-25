@@ -21,6 +21,7 @@ export default function ClientListRow({ client }: { client: ClientListItem }) {
         </div>
         {details ? <Text variant="muted">{details}</Text> : null}
         {client.primaryPhone ? <Text>{formatPhone(client.primaryPhone)}</Text> : null}
+        {client.isOneTime ? <Tag className="w-fit">Разовий</Tag> : null}
         {client.isDeleted ? <Tag className="w-fit">Видалено</Tag> : null}
       </Link>
     </li>

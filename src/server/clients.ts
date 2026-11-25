@@ -131,6 +131,7 @@ export async function listClients(
       statusName: clientStatuses.name,
       managerId: clients.managerId,
       managerName: profiles.fullName,
+      isOneTime: clients.isOneTime,
       primaryPhone: sql<string | null>`(
         select cc.phone from client_contacts cc
         where cc.client_id = ${clients.id} and cc.phone is not null
@@ -263,6 +264,7 @@ const clientFields = {
   markupPercentOverride: markupSchema,
   notes: notesSchema,
   inactiveDaysThreshold: thresholdSchema,
+  isOneTime: z.boolean(),
 };
 
 const clientFieldsSchema = z.object(clientFields).partial();
@@ -399,6 +401,7 @@ export async function createClient(
           markupPercentOverride: data.markupPercentOverride ?? null,
           notes: data.notes ?? null,
           inactiveDaysThreshold: data.inactiveDaysThreshold ?? null,
+          isOneTime: data.isOneTime ?? false,
         })
         .returning({ id: clients.id, code: clients.code });
 

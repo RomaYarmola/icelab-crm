@@ -5,6 +5,8 @@ import AnalyticsContent from "../analyticsPage/AnalyticsContent";
 import AnalyticsShell from "../analyticsPage/AnalyticsShell";
 import BoxesContent from "../analyticsPage/BoxesContent";
 import DeliveryContent from "../analyticsPage/DeliveryContent";
+import InactiveContent from "../analyticsPage/InactiveContent";
+import type { FormAction } from "../clientsPage/clientActions";
 
 const m = (kg: number, uah: string, orders = 3) => ({ kg, uah, orders });
 
@@ -92,13 +94,45 @@ const DELIVERY: DeliveryAnalytics = {
 export default function AnalyticsPreview({
   tab,
   ownOnly,
+  formAction,
 }: {
   tab: AnalyticsTab;
   ownOnly: boolean;
+  formAction: FormAction;
 }) {
   return (
     <AnalyticsShell tab={tab} from="2026-07" to="2026-11">
-      {tab === "boxes" ? (
+      {tab === "inactive" ? (
+        <InactiveContent
+          clients={[
+            {
+              clientId: "c1",
+              clientName: "Кафе «Вогник»",
+              clientCode: "КВ12",
+              managerId: "u1",
+              managerName: "Марія Менеджер",
+              lastOrderDate: "2026-10-01",
+              days: 55,
+              threshold: { days: 30, source: "default" },
+            },
+            {
+              clientId: "c2",
+              clientName: "ДСВ Логістика",
+              clientCode: "ДЛ11",
+              managerId: null,
+              managerName: null,
+              lastOrderDate: "2026-09-10",
+              days: 76,
+              threshold: { days: 60, source: "rhythm" },
+            },
+          ]}
+          generalDays={30}
+          ownOnly={ownOnly}
+          canMark
+          thresholdAction={ownOnly ? null : formAction}
+          markAction={formAction}
+        />
+      ) : tab === "boxes" ? (
         <BoxesContent data={{ ...BOXES, ownOnly }} />
       ) : tab === "delivery" ? (
         <DeliveryContent data={{ ...DELIVERY, ownOnly }} />

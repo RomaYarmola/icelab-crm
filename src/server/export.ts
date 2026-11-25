@@ -679,6 +679,7 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
       c.num("Надбавка, %", (r) => r.markupPercentOverride),
       c.text("Примітки", (r) => r.notes),
       c.num("Неактивний, днів", (r) => r.inactiveDaysThreshold),
+      c.flag("Разовий", (r) => r.isOneTime),
       c.flag("Заглушка", (r) => r.isPlaceholder),
       c.moment("Видалено", (r) => r.deletedAt),
       c.text("Об'єднано з", (r) => name("client", r.mergedIntoId)),
