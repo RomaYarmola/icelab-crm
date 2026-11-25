@@ -11,7 +11,7 @@ import { getBoxAnalytics, getDeliveryAnalytics } from "@/server/analytics-sales"
 import { listInactiveClients, loadInactiveDays } from "@/server/inactive";
 import { getLocationFilter } from "@/server/location-filter";
 import { requirePageUser } from "@/server/page-access";
-import { listReminders, loadBoxReminderDays } from "@/server/reminders";
+import { listReminders, loadBoxReminderDays, loadReturnReminderDays } from "@/server/reminders";
 import { can } from "@/server/permissions";
 import { parseAnalyticsParams, parseAnalyticsTab } from "@/utils/analyticsParams";
 import { todayIso } from "@/utils/isoDate";
@@ -19,6 +19,7 @@ import {
   dismissReminderAction,
   markOneTimeAction,
   saveBoxDaysAction,
+  saveReturnDaysAction,
   saveInactiveDaysAction,
 } from "./actions";
 
@@ -48,6 +49,10 @@ export default async function AnalyticsPage({
           reminders={myReminders}
           boxDays={await loadBoxReminderDays(db)}
           boxDaysAction={can(user.role, "migration_settings", "write") ? saveBoxDaysAction : null}
+          returnDays={await loadReturnReminderDays(db)}
+          returnDaysAction={
+            can(user.role, "migration_settings", "write") ? saveReturnDaysAction : null
+          }
           dismissAction={dismissReminderAction}
         />
       ) : tab === "inactive" ? (

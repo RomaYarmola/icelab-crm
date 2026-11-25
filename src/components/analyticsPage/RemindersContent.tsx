@@ -13,12 +13,18 @@ interface RemindersContentProps {
   boxDays: number;
   /** Форма порога боксів (лише власник). */
   boxDaysAction: FormAction | null;
+  returnDays: number;
+  /** Форма порога посилок на пошті (лише власник). */
+  returnDaysAction: FormAction | null;
   dismissAction: FormAction;
 }
 
 const linkFor = (reminder: ReminderView): { href: string; label: string } | null => {
   if (reminder.kind === "payment_unmatched") {
     return { href: "/payments?tab=queue", label: "Відкрити чергу" };
+  }
+  if (reminder.kind === "box_return_waiting") {
+    return { href: "/boxes/returns", label: "Посилки на пошті" };
   }
   if (!reminder.clientId) return null;
   return {
@@ -35,13 +41,15 @@ export default function RemindersContent({
   reminders,
   boxDays,
   boxDaysAction,
+  returnDays,
+  returnDaysAction,
   dismissAction,
 }: RemindersContentProps) {
   return (
     <div className="flex flex-col gap-4">
       <Text variant="muted">
         Нагадування складаються щоранку о 09:00 і зникають самі, коли клієнт замовив, бокс повернули
-        чи платежі розібрали.
+        чи забрали з пошти, а платежі розібрали.
       </Text>
       {boxDaysAction ? (
         <ThresholdForm
@@ -50,6 +58,15 @@ export default function RemindersContent({
           summary="Поріг для боксів"
           label="Нагадувати про бокс у клієнта через, днів"
           hint="За замовчуванням 14 днів."
+        />
+      ) : null}
+      {returnDaysAction ? (
+        <ThresholdForm
+          days={returnDays}
+          action={returnDaysAction}
+          summary="Поріг для посилок на пошті"
+          label="Нагадувати, коли посилка чекає, днів"
+          hint="За замовчуванням 3 дні."
         />
       ) : null}
       {reminders.length === 0 ? (

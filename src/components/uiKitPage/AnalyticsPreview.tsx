@@ -114,6 +114,13 @@ export default function AnalyticsPreview({
               dueAt: new Date("2026-11-25T07:00:00Z"),
             },
             {
+              id: "r0",
+              kind: "box_return_waiting",
+              clientId: null,
+              text: "Бокси чекають на пошті: 3 посил. (Київ 2, Львів 1), найдовше 5 дн.",
+              dueAt: new Date("2026-11-25T07:00:00Z"),
+            },
+            {
               id: "r2",
               kind: "box_overdue",
               clientId: "c2",
@@ -130,6 +137,8 @@ export default function AnalyticsPreview({
           ]}
           boxDays={14}
           boxDaysAction={ownOnly ? null : formAction}
+          returnDays={3}
+          returnDaysAction={ownOnly ? null : formAction}
           dismissAction={formAction}
         />
       ) : tab === "inactive" ? (
