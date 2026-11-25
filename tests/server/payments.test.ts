@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { bankAccounts, orders, paymentMatches, payments, settings } from "@/db/schema";
 import { ForbiddenError } from "@/server/guards";
 import { transitionOrder } from "@/server/order-status";
@@ -80,6 +80,33 @@ describe("платежі: автозіставлення, ручне, ігнор
     }
     return id;
   };
+
+  describe("уся черга після виписки", () => {
+    it("платежі без відповідності не відкривають транзакцій; новіший у кінці черги зіставляється", async () => {
+      const id = await bankOrder();
+      const number = (await row(id)).number;
+      for (let index = 0; index < 30; index += 1) {
+        await pay({ occurredAt: new Date(Date.now() - 86_400_000), counterName: "Хтось інший" });
+      }
+      const last = await pay({ comment: `Оплата за замовлення №${number}` });
+      const transaction = vi.spyOn(t.db, "transaction");
+      const result = await matchNewPayments(t.db);
+      // Одна транзакція зіставлення й ще закриття оплаченого замовлення, а не 31.
+      expect(transaction.mock.calls.length).toBeLessThanOrEqual(2);
+      transaction.mockRestore();
+      expect(result).toEqual({ checked: 31, matched: 1 });
+      expect(await statusOf(last)).toBe("auto");
+    });
+
+    it("два платежі за те саме замовлення: другий бачить уже нульовий залишок", async () => {
+      const id = await bankOrder();
+      const comment = `Оплата за замовлення №${(await row(id)).number}`;
+      const first = await pay({ comment, occurredAt: new Date(Date.now() - 3_600_000) });
+      const second = await pay({ comment });
+      expect(await matchNewPayments(t.db)).toEqual({ checked: 2, matched: 1 });
+      expect([await statusOf(first), await statusOf(second)]).toEqual(["auto", "unmatched"]);
+    });
+  });
 
   describe("автоматично", () => {
     it("номер у коментарі й точна сума: платіж «само», замовлення оплачене й закрите", async () => {
