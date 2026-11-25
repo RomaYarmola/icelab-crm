@@ -344,6 +344,8 @@ const PREVIEW_SCREENS = [
   "intake",
   "drafts",
   "analytics",
+  "analytics-boxes",
+  "analytics-delivery",
   ...PAYMENTS_PREVIEW_SCREENS,
 ] as const;
 
@@ -474,8 +476,19 @@ export default async function ShellPreviewPage({
           formAction={previewFormAction}
           importAction={previewImportAction}
         />
-      ) : screen === "analytics" ? (
-        <AnalyticsPreview ownOnly={knownRole === "manager"} />
+      ) : screen === "analytics" ||
+        screen === "analytics-boxes" ||
+        screen === "analytics-delivery" ? (
+        <AnalyticsPreview
+          tab={
+            screen === "analytics-boxes"
+              ? "boxes"
+              : screen === "analytics-delivery"
+                ? "delivery"
+                : "panel"
+          }
+          ownOnly={knownRole === "manager"}
+        />
       ) : screen === "intake" ? (
         <IntakePreview formAction={previewFormAction} />
       ) : screen === "np-day" ? (
