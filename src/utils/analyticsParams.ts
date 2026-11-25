@@ -4,7 +4,17 @@
  * правка адреси не ламає екран.
  */
 
-export const ANALYTICS_PARAMS = { from: "from", to: "to" } as const;
+export const ANALYTICS_PARAMS = { tab: "tab", from: "from", to: "to" } as const;
+
+export const ANALYTICS_TABS = ["panel", "boxes", "delivery"] as const;
+export type AnalyticsTab = (typeof ANALYTICS_TABS)[number];
+
+export function parseAnalyticsTab(value: string | string[] | undefined): AnalyticsTab {
+  const tab = Array.isArray(value) ? value[0] : value;
+  return (ANALYTICS_TABS as readonly string[]).includes(tab ?? "")
+    ? (tab as AnalyticsTab)
+    : "panel";
+}
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const DEFAULT_SPAN = 6;

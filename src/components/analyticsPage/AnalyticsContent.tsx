@@ -8,7 +8,6 @@ import EmptyState from "../shared/emptyState/EmptyState";
 import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import SubTitle from "../shared/titles/SubTitle";
-import AnalyticsFilters from "./AnalyticsFilters";
 import MonthBars from "./MonthBars";
 import { monthLabel } from "./monthLabel";
 import { shiftMonthLabel } from "./trend";
@@ -42,7 +41,6 @@ export default function AnalyticsContent({ data }: { data: Analytics }) {
   const empty = data.totals.orders === 0 && data.clients.length === 0;
   return (
     <div className="flex flex-col gap-6">
-      <AnalyticsFilters key={`${data.from}-${data.to}`} from={data.from} to={data.to} />
       {empty ? (
         <EmptyState title="За цей період замовлень немає" description="Оберіть інші місяці." />
       ) : (
