@@ -5,7 +5,7 @@ import { z } from "zod";
  * після цього ми ще раз перевіряємо відповідь тут, бо модель не вигадує поле, але може помилитись.
  */
 
-export const ICE_CODES = ["3mm", "16mm", "19mm"] as const;
+export const ICE_CODES = ["2mm", "3mm", "16mm", "19mm", "block"] as const;
 export const BOX_OWNERSHIPS = ["ours", "client", "sold"] as const;
 /** Способи доставки, які розуміє бот (Роман, 20.11.2026): самовивіз, власна доставка, Нова Пошта. */
 export const DELIVERY_METHODS = ["pickup", "our_delivery", "np"] as const;

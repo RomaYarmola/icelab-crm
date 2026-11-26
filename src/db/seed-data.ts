@@ -9,9 +9,12 @@ export const LOCATIONS = [
 ];
 
 export const ICE_TYPES = [
+  // D242: «2 мм» і «Блок» додано 26.11.2026; ціни на них лише в клієнтів.
+  { code: "2mm", name: "2 мм", sort: 0 },
   { code: "3mm", name: "3 мм", sort: 1 },
   { code: "16mm", name: "16 мм", sort: 2 },
   { code: "19mm", name: "19 мм", sort: 3 },
+  { code: "block", name: "Блок", sort: 4 },
 ];
 
 export const ORDER_SOURCES = [

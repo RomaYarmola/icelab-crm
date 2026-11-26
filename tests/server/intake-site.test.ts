@@ -79,6 +79,13 @@ describe("заявки з сайту (B11, PR 4)", () => {
     ]);
     expect(mixed).toMatchObject({ kg: 10, ice: "3mm" });
     expect(mixed.rest[0]).toContain("19 мм");
+    // Нові типи (D242): 2 мм і лід блоками; «12 мм» не стає двомілімітровим.
+    expect(summarizeItems([{ title: "Гранули 2мм", quantity: 5, unit: "кг" }]).ice).toBe("2mm");
+    expect(summarizeItems([{ title: "Сухий лід, блок", quantity: 8, unit: "кг" }])).toMatchObject({
+      ice: "block",
+      kg: 8,
+    });
+    expect(summarizeItems([{ title: "Гранули 12 мм", quantity: 5, unit: "кг" }]).ice).toBeNull();
     const a = dedupeKey("+380501234567", new Date("2034-08-10T09:01:00Z"));
     expect(dedupeKey("+380501234567", new Date("2034-08-10T09:09:00Z"))).toBe(a);
     expect(dedupeKey("+380501234567", new Date("2034-08-10T09:11:00Z"))).not.toBe(a);

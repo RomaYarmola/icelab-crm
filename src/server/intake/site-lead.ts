@@ -71,7 +71,16 @@ export function dedupeKey(phone: string, at: Date): string {
   return createHash("sha256").update(`${phone}|${bucket}`).digest("hex");
 }
 
-const ICE_FROM_TITLE = /(?:^|[^\d])(3|16|19)\s*(?:мм|mm)/i;
+const ICE_FROM_TITLE = /(?:^|[^\d])(2|3|16|19)\s*(?:мм|mm)/i;
+/** Лід блоками в назві позиції («Сухий лід, блок»). */
+const BLOCK_FROM_TITLE = /(?:^|[^\p{L}])блок/iu;
+
+/** Тип льоду за назвою позиції сайту; `null`, якщо це не лід. */
+function iceCodeFromTitle(title: string): ParseResult["ice_type"] {
+  const match = ICE_FROM_TITLE.exec(title);
+  if (match) return `${match[1]}mm` as "2mm" | "3mm" | "16mm" | "19mm";
+  return BLOCK_FROM_TITLE.test(title) ? "block" : null;
+}
 
 /** Спосіб доставки за текстом способу отримання. */
 export function methodFromText(text: string | undefined): ParseResult["delivery"]["method"] {
@@ -109,8 +118,7 @@ export function summarizeItems(items: z.infer<typeof itemSchema>[] | undefined) 
   for (const item of items ?? []) {
     const title = (item.title ?? "").trim();
     const quantity = num(item.quantity);
-    const match = ICE_FROM_TITLE.exec(title);
-    const code = match ? (`${match[1]}mm` as "3mm" | "16mm" | "19mm") : null;
+    const code = iceCodeFromTitle(title);
     if (code && quantity !== null && (!ice || ice === code)) {
       ice = code;
       kg += quantity;
