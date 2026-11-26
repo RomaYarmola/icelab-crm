@@ -7,9 +7,11 @@ import { getDb } from "@/db/client";
 import { orders } from "@/db/schema";
 import { requireUser } from "@/server/auth";
 import { ValidationError } from "@/server/errors";
-import { readText, runFormAction } from "@/server/form-state";
+import { readText, runFormAction, UNEXPECTED_ERROR_MESSAGE } from "@/server/form-state";
 import { syncMonobankNow } from "@/server/monobank/status";
+import { reportError } from "@/server/error-log";
 import { ForbiddenError } from "@/server/guards";
+import { createPaymentLinks, setPaymentLinkAccount } from "@/server/payment-links";
 import { setRequisites } from "@/server/payment-views";
 import { type ColumnMapping, MAPPING_FIELDS, StatementFileError } from "@/server/statement-file";
 import {
@@ -208,6 +210,39 @@ export async function saveRequisitesAction(
     },
     { success: "Реквізити збережено.", values },
   );
+}
+
+export async function saveLinkAccountAction(
+  _previous: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const actor = await requireUser();
+  return runFormAction(
+    async () => {
+      await setPaymentLinkAccount(getDb(), actor, readText(formData, "accountUid"));
+      refresh();
+    },
+    { success: "Рахунок для посилань збережено." },
+  );
+}
+
+export type PaymentLinksResult = { links: Record<string, string>; error: string | null };
+
+/** Посилання на оплату відзначених замовлень (D239). Права й суми перевіряє сервер. */
+export async function createPaymentLinksAction(input: {
+  clientId: string;
+  orderIds: string[];
+}): Promise<PaymentLinksResult> {
+  const actor = await requireUser();
+  try {
+    return await createPaymentLinks(getDb(), actor, input);
+  } catch (error) {
+    if (error instanceof ValidationError || error instanceof ForbiddenError) {
+      return { links: {}, error: error.message };
+    }
+    await reportError({ source: "form_action", error });
+    return { links: {}, error: UNEXPECTED_ERROR_MESSAGE };
+  }
 }
 
 export type ImportActionResult<T> = { ok: true; data: T } | { ok: false; error: string };

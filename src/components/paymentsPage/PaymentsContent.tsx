@@ -3,10 +3,12 @@ import { formatDateTime } from "@/utils/formatDate";
 import type { PaymentTab, PaymentParams } from "@/utils/paymentParams";
 import type { MonthSummary } from "@/server/month-summary";
 import type { ClientDebt, QueueItem, StatementPage } from "@/server/payment-views";
+import type { PaymentLinkStatus } from "@/server/payment-links";
 import ActionForm from "../intakePage/ActionForm";
 import type { FormAction } from "../clientsPage/clientActions";
 import TabLinks from "../shared/tabs/TabLinks";
 import DebtsTab from "./DebtsTab";
+import PaymentLinkSettings from "./PaymentLinkSettings";
 import ImportTab from "./ImportTab";
 import QueueTab from "./QueueTab";
 import RequisitesForm from "./RequisitesForm";
@@ -29,6 +31,10 @@ interface PaymentsContentProps {
   debtDays: number;
   requisites: string | null;
   monobank: MonobankStatus;
+  /** Є ключ IBAN oplata: на «Боргах» посилання створюються кнопкою. */
+  hasLinkKey: boolean;
+  /** Стан IBAN oplata для вкладки «Банк». */
+  linkStatus: PaymentLinkStatus | null;
   canSync: boolean;
   canUnmatch: boolean;
   actions: PaymentActions;
@@ -50,6 +56,8 @@ export default function PaymentsContent({
   debtDays,
   requisites,
   monobank,
+  hasLinkKey,
+  linkStatus,
   canSync,
   canUnmatch,
   actions,
@@ -80,7 +88,12 @@ export default function PaymentsContent({
         />
       ) : null}
       {params.tab === "debts" && debts ? (
-        <DebtsTab debts={debts} requisites={requisites} debtDays={debtDays} />
+        <DebtsTab
+          debts={debts}
+          requisites={requisites}
+          debtDays={debtDays}
+          createLinks={hasLinkKey && canSync ? actions.createLinks : null}
+        />
       ) : null}
       {params.tab === "summary" && summary ? <SummaryTab summary={summary} month={month} /> : null}
       {params.tab === "import" && canSync ? <ImportTab actions={actions} /> : null}
@@ -128,6 +141,15 @@ export default function PaymentsContent({
             />
           ) : null}
         </section>
+      ) : null}
+      {params.tab === "bank" && linkStatus ? (
+        <div className="max-w-xl">
+          <PaymentLinkSettings
+            status={linkStatus}
+            canWrite={canSync}
+            action={actions.linkAccount}
+          />
+        </div>
       ) : null}
     </div>
   );

@@ -82,6 +82,12 @@ async function previewImportAction(): Promise<{ ok: false; error: string }> {
   return { ok: false, error: "Це лише перегляд: у каталозі імпорт вимкнено." };
 }
 
+/** Заглушка посилань на оплату: сервіс не викликаємо. */
+async function previewLinksAction() {
+  "use server";
+  return { links: {}, error: "Це лише перегляд: посилання не створюються." };
+}
+
 /** Заглушки екрана «Нова Пошта» у каталозі: у Нову Пошту нічого не відправляють. */
 async function previewNpSenders() {
   "use server";
@@ -487,6 +493,7 @@ export default async function ShellPreviewPage({
           screen={screen as PaymentsPreviewScreen}
           formAction={previewFormAction}
           importAction={previewImportAction}
+          linksAction={previewLinksAction}
         />
       ) : screen === "analytics" ||
         screen === "analytics-boxes" ||

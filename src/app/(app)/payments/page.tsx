@@ -4,6 +4,8 @@ import { getDb } from "@/db/client";
 import { getLocationFilter } from "@/server/location-filter";
 import { getMonthSummary } from "@/server/month-summary";
 import { getMonobankStatus } from "@/server/monobank/status";
+import { getIbanOplataKey } from "@/server/ibanoplata/client";
+import { getPaymentLinkStatus } from "@/server/payment-links";
 import {
   countQueue,
   getRequisites,
@@ -18,12 +20,14 @@ import { todayIso } from "@/utils/isoDate";
 import { parsePaymentParams } from "@/utils/paymentParams";
 import {
   commitImportAction,
+  createPaymentLinksAction,
   ignorePaymentAction,
   matchByNumbersAction,
   matchPaymentAction,
   matchSelectedAction,
   previewImportAction,
   restorePaymentAction,
+  saveLinkAccountAction,
   saveRequisitesAction,
   syncMonobankAction,
   unmatchPaymentAction,
@@ -46,7 +50,7 @@ export default async function PaymentsPage({
   const needsRequisites = params.tab === "debts" || params.tab === "bank";
   const location = params.tab === "summary" ? await getLocationFilter() : null;
   const month = params.month ?? todayIso().slice(0, 7);
-  const [queueCount, queue, statement, debts, summary, debtDays, requisites, monobank] =
+  const [queueCount, queue, statement, debts, summary, debtDays, requisites, monobank, links] =
     await Promise.all([
       countQueue(db, user),
       params.tab === "queue" ? listQueue(db, user) : null,
@@ -58,6 +62,7 @@ export default async function PaymentsPage({
       loadDebtDays(db),
       needsRequisites ? getRequisites(db, user) : null,
       params.tab === "bank" ? getMonobankStatus(db, user) : { hasToken: false, accounts: [] },
+      params.tab === "bank" ? getPaymentLinkStatus(db, user) : null,
     ]);
   return (
     <PaymentsContent
@@ -71,6 +76,8 @@ export default async function PaymentsPage({
       debtDays={debtDays}
       requisites={requisites}
       monobank={monobank}
+      hasLinkKey={Boolean(getIbanOplataKey())}
+      linkStatus={links}
       canSync={can(user.role, "bank_payments", "write")}
       canUnmatch={can(user.role, "cash_reversal", "write")}
       actions={{
@@ -82,6 +89,8 @@ export default async function PaymentsPage({
         byNumbers: matchByNumbersAction,
         selected: matchSelectedAction,
         requisites: saveRequisitesAction,
+        linkAccount: saveLinkAccountAction,
+        createLinks: createPaymentLinksAction,
         importPreview: previewImportAction,
         importCommit: commitImportAction,
       }}

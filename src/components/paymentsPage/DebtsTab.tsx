@@ -6,6 +6,7 @@ import type { ClientDebt } from "@/server/payment-views";
 import {
   amountField,
   buildDebtMessage,
+  linkKey,
   PURPOSE_MAX,
   splitPaymentGroups,
 } from "@/utils/debtMessage";
@@ -20,11 +21,15 @@ import EmptyState from "../shared/emptyState/EmptyState";
 import Tag from "../shared/chips/Tag";
 import Text from "../shared/texts/Text";
 import SubTitle from "../shared/titles/SubTitle";
+import Notification from "../shared/notification/Notification";
+import type { PaymentActions } from "./paymentTypes";
 
 interface DebtsTabProps {
   debts: ClientDebt[];
   requisites: string | null;
   debtDays: number;
+  /** Створення посилань сервісом; `null`: ключа немає чи роль не має права, лишається вручну. */
+  createLinks: PaymentActions["createLinks"] | null;
 }
 
 /**
@@ -32,7 +37,7 @@ interface DebtsTabProps {
  * (поріг у днях від відправки чи видачі). Для кожного клієнта можна відзначити замовлення й отримати
  * готове повідомлення з сумою й номерами для призначення платежу: його копіюють у месенджер.
  */
-export default function DebtsTab({ debts, requisites, debtDays }: DebtsTabProps) {
+export default function DebtsTab({ debts, requisites, debtDays, createLinks }: DebtsTabProps) {
   if (debts.length === 0) {
     return (
       <EmptyState
@@ -44,21 +49,58 @@ export default function DebtsTab({ debts, requisites, debtDays }: DebtsTabProps)
   return (
     <ul className="flex flex-col gap-4">
       {debts.map((debt) => (
-        <DebtCard key={debt.clientId} debt={debt} requisites={requisites} />
+        <DebtCard
+          key={debt.clientId}
+          debt={debt}
+          requisites={requisites}
+          createLinks={createLinks}
+        />
       ))}
     </ul>
   );
 }
 
-function DebtCard({ debt, requisites }: { debt: ClientDebt; requisites: string | null }) {
+function DebtCard({
+  debt,
+  requisites,
+  createLinks,
+}: {
+  debt: ClientDebt;
+  requisites: string | null;
+  createLinks: DebtsTabProps["createLinks"];
+}) {
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(debt.orders.map((order) => order.id)),
   );
   const [copied, setCopied] = useState<string | null>(null);
-  const [links, setLinks] = useState<string[]>([]);
+  // Посилання за сумою й призначенням: після зміни вибору старе не потрапить у повідомлення.
+  const [links, setLinks] = useState<Record<string, string>>({});
+  const [isCreating, setCreating] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
   const selected = debt.orders.filter((order) => checked.has(order.id));
   const groups = splitPaymentGroups(selected);
-  const message = buildDebtMessage(selected, requisites, links);
+  const groupLinks = groups.map((group) => links[linkKey(group)]);
+  const message = buildDebtMessage(selected, requisites, groupLinks);
+  const isMissingLink = groupLinks.some((link) => !link);
+
+  const create = async () => {
+    if (!createLinks) return;
+    setCreating(true);
+    setLinkError(null);
+    setCopied(null);
+    try {
+      const result = await createLinks({
+        clientId: debt.clientId,
+        orderIds: selected.map((order) => order.id),
+      });
+      setLinks((previous) => ({ ...previous, ...result.links }));
+      setLinkError(result.error);
+    } catch {
+      setLinkError("Немає зв'язку. Перевірте інтернет і повторіть.");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const toggle = (id: string) => {
     setCopied(null);
@@ -104,8 +146,28 @@ function DebtCard({ debt, requisites }: { debt: ClientDebt; requisites: string |
           </label>
         ))}
       </fieldset>
+      {createLinks && groups.length > 0 ? (
+        <div className="flex flex-col gap-2">
+          {isMissingLink ? (
+            <MainButton
+              type="button"
+              onClick={create}
+              isLoading={isCreating}
+              loadingText="Створюємо…"
+            >
+              {groups.length > 1 ? "Створити посилання на оплату" : "Створити посилання"}
+            </MainButton>
+          ) : (
+            <Notification variant="success">Посилання додано в повідомлення.</Notification>
+          )}
+          {linkError ? <Notification variant="error">{linkError}</Notification> : null}
+        </div>
+      ) : null}
       {groups.length > 0 ? (
-        <Disclosure variant="plain" summary="Посилання на оплату (ibanoplata.com)">
+        <Disclosure
+          variant="plain"
+          summary={createLinks ? "Посилання вручну" : "Посилання на оплату (ibanoplata.com)"}
+        >
           <div className="flex flex-col gap-4">
             <Text variant="muted">
               Створіть у кабінеті сервісу посилання з цією сумою й призначенням, вставте його нижче:
@@ -144,13 +206,12 @@ function DebtCard({ debt, requisites }: { debt: ClientDebt; requisites: string |
                   label="Посилання з сервісу"
                   autoComplete="off"
                   inputMode="url"
-                  value={links[index] ?? ""}
+                  value={links[linkKey(group)] ?? ""}
                   onChange={(event) =>
-                    setLinks((previous) => {
-                      const next = [...previous];
-                      next[index] = event.target.value;
-                      return next;
-                    })
+                    setLinks((previous) => ({
+                      ...previous,
+                      [linkKey(group)]: event.target.value,
+                    }))
                   }
                   hint="https://ibanoplata.com/iban-qr/…"
                 />
