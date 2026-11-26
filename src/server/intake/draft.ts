@@ -1,5 +1,6 @@
 import { and, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import { withActor } from "@/db/actor";
+import { canChargeDelivery } from "@/constants/orders";
 import { clients, orderSources, products } from "@/db/schema";
 import type { AnyPgDatabase } from "@/db/types";
 import { normalizeClientCode } from "@/utils/clientCode";
@@ -247,9 +248,15 @@ export async function buildDraft(
     paymentKind: parsed.payment_hint ? PAYMENT_KINDS[parsed.payment_hint] : "unknown",
     comment: clip(parsed.comment, 2000),
   };
-  // Ціна доставки з повідомлення стає позицією «Доставка» (D161); ціну боксів беремо з довідника.
+  // Ціна доставки з повідомлення стає платною доставкою (D161, D235); ціну боксів беремо з довідника.
+  // Для Нової Пошти й самовивозу її не буває: лишаємо менеджеру підказку.
   if (parsed.delivery_price != null && parsed.delivery_price > 0) {
-    input.items = [{ kind: "delivery", title: "Доставка", qty: 1, price: parsed.delivery_price }];
+    if (canChargeDelivery(deliveryMethod)) input.deliveryPrice = parsed.delivery_price;
+    else {
+      unclear.push(
+        `У повідомленні доставка ${parsed.delivery_price} грн, але для Нової Пошти й самовивозу її не додаємо. Перевірте спосіб доставки.`,
+      );
+    }
   }
   // Ціна за кг з повідомлення діє лише для нового клієнта (D161, Роман 20.11.2026: бот ставить її
   // сам): вона стає ціною чернетки з позначкою «вказано вручну». Коли клієнт відомий, його прайс

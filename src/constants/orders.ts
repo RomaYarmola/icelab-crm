@@ -24,6 +24,12 @@ export type NpDeliveryKindValue = keyof typeof NP_DELIVERY_KIND_LABELS;
 
 export const SELECTABLE_DELIVERY_METHODS = ["pickup", "np", "our_delivery"] as const;
 
+/**
+ * Чи можна брати з клієнта платну доставку (D235): Новою Поштою клієнт платить перевізнику сам, а
+ * при самовивозі доставки немає.
+ */
+export const canChargeDelivery = (method: string) => method !== "np" && method !== "pickup";
+
 export type DeliveryMethodValue = keyof typeof DELIVERY_METHOD_LABELS;
 
 export const BOX_OWNERSHIP_LABELS = {

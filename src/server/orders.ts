@@ -24,12 +24,14 @@ import {
 } from "@/db/schema/enums";
 import type { AnyPgDatabase } from "@/db/types";
 import type { OrderStatus } from "@/constants/constants";
+import { canChargeDelivery } from "@/constants/orders";
 import { isIsoDate } from "@/utils/isoDate";
 import { computeKgToProduce, parseDecimal } from "@/utils/orderMath";
 import { normalizePhone } from "@/utils/phone";
 import { clientSearchCondition } from "./clients";
 import { parseInput, ValidationError } from "./errors";
 import { prepareBoxSales, saveBoxSaleItems } from "./order-box-sales";
+import { assertDeliveryPriceAllowed, parseDeliveryPrice, saveDeliveryItem } from "./order-delivery";
 import {
   assertDeliveryAllowed,
   existingProductLines,
@@ -147,6 +149,8 @@ const optionalFields = z
     boxSales: z.array(boxSaleSchema).max(10, "Забагато видів боксів на продаж.").optional(),
     /** Тара рядками (D164, 20.11.2026); без неї діють поля `boxTypeId`, `boxCount`, `clientOwnBoxId`. */
     boxes: z.array(boxLineSchema).max(20, "Забагато рядків тари.").optional(),
+    /** Платна доставка, грн (D235): порожньо чи нуль означає, що її немає. */
+    deliveryPrice: z.union([z.string(), z.number()]).nullable().optional(),
     npDeliveryKind: z
       .enum(npDeliveryKind.enumValues, "Оберіть вид відправки Новою Поштою.")
       .nullable()
@@ -199,6 +203,7 @@ const CORE_KEYS = [
   "kgSold",
   "sourceId",
   "deliveryMethod",
+  "deliveryPrice",
   "npDeliveryKind",
   "addressId",
   "deliveryText",
@@ -427,6 +432,8 @@ export async function createOrder(
   const method = data.deliveryMethod ?? "other";
   const productLines = await prepareProductLines(db, data.products ?? [], data.orderDate);
   assertDeliveryAllowed(productLines, method);
+  const deliveryPrice = parseDeliveryPrice(data.deliveryPrice);
+  assertDeliveryPriceAllowed(deliveryPrice, method);
   const auto = await autoValues(db, {
     clientId: data.clientId,
     iceTypeId,
@@ -486,6 +493,7 @@ export async function createOrder(
     });
     await saveBoxSaleItems(tx, order!.id, boxSales);
     if (productLines.length > 0) await saveProductLines(tx, order!.id, productLines);
+    if (deliveryPrice !== null) await saveDeliveryItem(tx, order!.id, deliveryPrice);
     for (const item of data.items ?? []) {
       await tx.insert(orderItems).values({
         orderId: order!.id,
@@ -635,6 +643,7 @@ export async function updateOrder(
   delete (set as Record<string, unknown>).boxes;
   delete (set as Record<string, unknown>).boxSales;
   delete (set as Record<string, unknown>).products;
+  delete (set as Record<string, unknown>).deliveryPrice;
 
   // Вид відправки Новою Поштою: з вибраної збереженої адреси (кур'єр чи відділення), а для інших
   // способів знімаємо. Отримувача підставляємо з адреси, якщо його не вказано.
@@ -687,6 +696,17 @@ export async function updateOrder(
   }
   const boxSalesPrepared =
     "boxSales" in changed ? await prepareBoxSales(db, changed.boxSales ?? [], orderDate) : null;
+  // Платна доставка (D235). Перехід на Нову Пошту чи самовивіз знімає її сам; `undefined`: не чіпаємо.
+  let deliveryPrice: string | null | undefined;
+  if ("deliveryPrice" in changed) {
+    deliveryPrice = parseDeliveryPrice(changed.deliveryPrice);
+    assertDeliveryPriceAllowed(deliveryPrice, deliveryMethodValue);
+  } else if (
+    deliveryMethodValue !== order.deliveryMethod &&
+    !canChargeDelivery(deliveryMethodValue)
+  ) {
+    deliveryPrice = null;
+  }
 
   // Ціна: вручну або за прайсом, доки замовлення чернетка (D52).
   let priceManual = order.priceManual;
@@ -776,6 +796,7 @@ export async function updateOrder(
       if (boxLines) await saveOrderBoxLines(tx, order.id, boxLines);
       if (boxSalesPrepared) await saveBoxSaleItems(tx, order.id, boxSalesPrepared);
       if (productsPrepared !== undefined) await saveProductLines(tx, order.id, productsPrepared);
+      if (deliveryPrice !== undefined) await saveDeliveryItem(tx, order.id, deliveryPrice);
       // Позиція «Лід» іде за полями замовлення (D55).
       const itemSet: Partial<typeof orderItems.$inferInsert> = {};
       if (touches("kgSold")) itemSet.qty = kgSold;
