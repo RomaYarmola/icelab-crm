@@ -27,7 +27,7 @@ import {
   REPEAT_DAYS,
   type ReminderLine,
 } from "./reminder-rules";
-import { can } from "./permissions";
+import { can, isBookkeepingManager } from "./permissions";
 import { claimDay } from "./telegram/day-claim";
 import { getTelegramToken, sendMessage } from "./telegram/client";
 import { kyivTime } from "./telegram/daily-report";
@@ -212,11 +212,18 @@ function returnLine(waiting: WaitingReturn[], locationId: string | null): Remind
 
 async function recipients(db: AnyPgDatabase) {
   const rows = await db
-    .select({ id: profiles.id, role: profiles.role, locationId: profiles.locationId })
+    .select({
+      id: profiles.id,
+      role: profiles.role,
+      locationId: profiles.locationId,
+      isBookkeeper: profiles.isBookkeeper,
+    })
     .from(profiles)
     .where(eq(profiles.isActive, true));
   const owners = rows.filter((p) => p.role === "owner").map((p) => p.id);
-  const accountants = rows.filter((p) => p.role === "accountant").map((p) => p.id);
+  const accountants = rows
+    .filter((p) => p.role === "accountant" || isBookkeepingManager(p))
+    .map((p) => p.id);
   const active = new Set(
     rows.filter((p) => p.role === "manager" || p.role === "owner").map((p) => p.id),
   );

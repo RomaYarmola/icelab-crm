@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "is_bookkeeper" boolean DEFAULT false NOT NULL;

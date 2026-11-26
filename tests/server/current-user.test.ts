@@ -37,6 +37,7 @@ describe("resolveAppUser: хто це", () => {
     const user = await resolveAppUser(db, { sub: profile.id, email: "olena@example.com" });
     expect(user).toEqual({
       id: profile.id,
+      isBookkeeper: false,
       email: "olena@example.com",
       fullName: "Олена Ковальчук",
       role: "location_lead",

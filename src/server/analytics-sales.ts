@@ -5,6 +5,7 @@ import { monthRange } from "./analytics";
 import { kopecksToUah, toKopecks } from "./cash-rules";
 import { type AppUser, locationScope, requirePermission } from "./guards";
 import { monthBounds, SUMMARY_STATUSES } from "./month-summary";
+import { seesOwnClientsOnly } from "./permissions";
 
 /**
  * Панелі «Продажі боксів» і «Доставки» (B14, вимога Романа 11.11.2026, Г3, D211). Ті самі правила, що
@@ -142,7 +143,7 @@ export async function getBoxAnalytics(
 ): Promise<BoxAnalytics> {
   requirePermission(actor, "analytics", "read");
   const months = monthRange(query.from, query.to);
-  const ownOnly = actor.role === "manager";
+  const ownOnly = seesOwnClientsOnly(actor);
   const { rows, where } = await loadOrders(db, actor, query);
   const byId = new Map(rows.map((row) => [row.id, row]));
   const items = await loadItems(db, where, "box_sale");
@@ -196,7 +197,7 @@ export async function getDeliveryAnalytics(
 ): Promise<DeliveryAnalytics> {
   requirePermission(actor, "analytics", "read");
   const months = monthRange(query.from, query.to);
-  const ownOnly = actor.role === "manager";
+  const ownOnly = seesOwnClientsOnly(actor);
   const { rows, where } = await loadOrders(db, actor, query);
   const items = await loadItems(db, where, "delivery");
   const paidByOrder = new Map<string, number>();

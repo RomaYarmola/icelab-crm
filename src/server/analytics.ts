@@ -5,6 +5,7 @@ import { kopecksToUah, toKopecks } from "./cash-rules";
 import { ValidationError } from "./errors";
 import { type AppUser, locationScope, requirePermission } from "./guards";
 import { monthBounds, SUMMARY_STATUSES } from "./month-summary";
+import { seesOwnClientsOnly } from "./permissions";
 
 /**
  * Панель аналітики (B14, ТЗ 6.11, D204, D205): кг і гривні по місяцях, по клієнтах із динамікою до
@@ -88,7 +89,7 @@ export async function getAnalytics(
 ): Promise<Analytics> {
   requirePermission(actor, "analytics", "read");
   const months = monthRange(query.from, query.to);
-  const ownOnly = actor.role === "manager";
+  const ownOnly = seesOwnClientsOnly(actor);
   const lastMonth = query.to;
   const previousMonth = shiftMonth(lastMonth, -1);
   // Для динаміки потрібен і місяць перед останнім, навіть коли період складається з одного місяця.

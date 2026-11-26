@@ -1,5 +1,5 @@
 import { NAV_ITEMS, type NavItem, type NavItemId } from "@/constants/navigation";
-import { can, canUseWeb, type UserRole } from "@/server/permissions";
+import { can, canUseWeb, roleOf, type Subject, type UserRole } from "@/server/permissions";
 
 /**
  * Які розділи бачить роль і куди веде вхід (ТЗ §6.1). Права беремо з матриці `permissions.ts`,
@@ -30,37 +30,37 @@ const HOME_PATH_BY_ROLE: Record<UserRole, string> = {
   driver: "/login",
 };
 
-function canSeeSection(role: UserRole, id: NavItemId): boolean {
+function canSeeSection(subject: Subject, id: NavItemId): boolean {
   switch (id) {
     case "orders":
-      return can(role, "orders", "read");
+      return can(subject, "orders", "read");
     case "clients":
-      return can(role, "clients", "read");
+      return can(subject, "clients", "read");
     case "production":
-      return can(role, "production_screen", "read");
+      return can(subject, "production_screen", "read");
     case "payments":
-      return can(role, "bank_payments", "read");
+      return can(subject, "bank_payments", "read");
     case "analytics":
-      return can(role, "analytics", "read");
+      return can(subject, "analytics", "read");
     case "finance":
-      return can(role, "finance", "read");
+      return can(subject, "finance", "read");
     case "boxes":
-      return can(role, "box_scan", "write") || can(role, "box_debts_stock", "read");
+      return can(subject, "box_scan", "write") || can(subject, "box_debts_stock", "read");
     case "cash":
-      return can(role, "order_cash", "read");
+      return can(subject, "order_cash", "read");
     case "prices":
-      return can(role, "default_prices", "read");
+      return can(subject, "default_prices", "read");
     case "audit":
-      return can(role, "audit_log", "read");
+      return can(subject, "audit_log", "read");
     case "export":
-      return can(role, "export_all", "write");
+      return can(subject, "export_all", "write");
     case "users":
-      return can(role, "users", "read");
+      return can(subject, "users", "read");
     case "np":
     case "intake":
-      return can(role, "migration_settings", "write");
+      return can(subject, "migration_settings", "write");
     case "shipments":
-      return can(role, "shipments", "write");
+      return can(subject, "shipments", "write");
     case "more":
       return true;
   }
@@ -77,9 +77,9 @@ export function homePathFor(role: UserRole): string {
 }
 
 /** Чи може роль відкрити сторінку розділу. Водій не може нічого: він працює через бот. */
-export function canOpenPage(role: UserRole, id: NavItemId): boolean {
-  if (!canUseWeb(role)) return false;
-  return canSeeSection(role, id);
+export function canOpenPage(subject: Subject, id: NavItemId): boolean {
+  if (!canUseWeb(roleOf(subject))) return false;
+  return canSeeSection(subject, id);
 }
 
 /**
@@ -89,13 +89,13 @@ export function canOpenPage(role: UserRole, id: NavItemId): boolean {
  * «Ще» в тому ж порядку. «Готівка» стоїть перед «Клієнтами» (після «Оплат», а без них після
  * «Виробництва»).
  */
-export function navItemsFor(role: UserRole, placement: NavPlacement): NavItem[] {
-  if (!canUseWeb(role)) return [];
+export function navItemsFor(subject: Subject, placement: NavPlacement): NavItem[] {
+  if (!canUseWeb(roleOf(subject))) return [];
 
-  const sections = SECTION_ORDER.filter((id) => canSeeSection(role, id)) as NavItemId[];
+  const sections = SECTION_ORDER.filter((id) => canSeeSection(subject, id)) as NavItemId[];
   // «Готівка», потім «Накладні» (ТТН на день): обидва перед «Клієнтами».
   for (const id of ["cash", "shipments"] as const) {
-    if (!canSeeSection(role, id)) continue;
+    if (!canSeeSection(subject, id)) continue;
     const at = sections.indexOf("clients");
     sections.splice(at === -1 ? sections.length : at, 0, id);
   }
@@ -109,10 +109,10 @@ export function navItemsFor(role: UserRole, placement: NavPlacement): NavItem[] 
  * нижньої панелі, на телефоні їх відкриває меню «Ще», на комп'ютері бічна панель. Мають власні адреси
  * (`/cash`, `/prices`…), до профілю не належать.
  */
-export function accountNavItemsFor(role: UserRole): NavItem[] {
-  if (!canUseWeb(role)) return [];
+export function accountNavItemsFor(subject: Subject): NavItem[] {
+  if (!canUseWeb(roleOf(subject))) return [];
   return (["analytics", "finance", "prices", "audit", "export", "users", "np", "intake"] as const)
-    .filter((id) => canSeeSection(role, id))
+    .filter((id) => canSeeSection(subject, id))
     .map((id) => NAV_ITEMS[id]);
 }
 
@@ -121,16 +121,16 @@ export function accountNavItemsFor(role: UserRole): NavItem[] {
  * змін» і «Експорт даних» тим, хто має на них право. На телефоні вони в меню «Ще»
  * (`accountNavItemsFor`). «Готівка» і «Прайс» менеджера та бухгалтера лишаються в меню профілю.
  */
-export function sideExtraNavItemsFor(role: UserRole): NavItem[] {
-  if (!canUseWeb(role)) return [];
+export function sideExtraNavItemsFor(subject: Subject): NavItem[] {
+  if (!canUseWeb(roleOf(subject))) return [];
   const ids = (
     ["analytics", "finance", "prices", "audit", "export", "users", "np", "intake"] as const
-  ).filter((id) => id !== "prices" || role === "owner");
-  return ids.filter((id) => canSeeSection(role, id)).map((id) => NAV_ITEMS[id]);
+  ).filter((id) => id !== "prices" || roleOf(subject) === "owner");
+  return ids.filter((id) => canSeeSection(subject, id)).map((id) => NAV_ITEMS[id]);
 }
 
 /** Розділи, які доступні ролі, але не вмістились у нижню панель телефона: вони в меню «Ще». */
-export function extraNavItemsFor(role: UserRole): NavItem[] {
-  const inBar = new Set(navItemsFor(role, "bar").map((item) => item.id));
-  return navItemsFor(role, "side").filter((item) => !inBar.has(item.id));
+export function extraNavItemsFor(subject: Subject): NavItem[] {
+  const inBar = new Set(navItemsFor(subject, "bar").map((item) => item.id));
+  return navItemsFor(subject, "side").filter((item) => !inBar.has(item.id));
 }

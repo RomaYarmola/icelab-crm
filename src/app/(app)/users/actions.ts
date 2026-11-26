@@ -7,7 +7,7 @@ import { getDb } from "@/db/client";
 import { createSupabaseAuthAdmin } from "@/lib/supabase/admin";
 import { requireUser } from "@/server/auth";
 import { ValidationError } from "@/server/errors";
-import { readText, runFormAction } from "@/server/form-state";
+import { readText, runFormAction, readFlag } from "@/server/form-state";
 import type { FormState } from "@/utils/formState";
 import type { UserRole } from "@/server/permissions";
 import {
@@ -45,6 +45,7 @@ function profileValues(formData: FormData) {
     role: readText(formData, "role"),
     locationId: readText(formData, "locationId"),
     phone: readText(formData, "phone"),
+    isBookkeeper: readFlag(formData, "isBookkeeper") ? "on" : "",
   };
 }
 
@@ -67,6 +68,7 @@ export async function createUserAction(
         role: values.role as UserRole,
         locationId: orNull(values.locationId),
         phone: orNull(values.phone),
+        isBookkeeper: values.isBookkeeper === "on",
       });
       createdId = profile.id;
     },
@@ -94,6 +96,7 @@ export async function updateUserAction(
         role: values.role as UserRole,
         locationId: orNull(values.locationId),
         phone: orNull(values.phone),
+        isBookkeeper: values.isBookkeeper === "on",
       });
       revalidatePath("/profile", "layout");
     },

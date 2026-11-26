@@ -12,6 +12,7 @@ import {
 } from "../driver";
 import { ForbiddenError, type AppUser } from "../guards";
 import { ValidationError } from "../errors";
+import { canDeliverOrders } from "../permissions";
 import type { TgCallback } from "../intake/telegram-flow";
 import { answerCallbackQuery, sendMessage } from "./client";
 import { clearSession, getSession, setSession } from "./sessions";
@@ -45,12 +46,12 @@ export async function driverByTelegram(
     .select()
     .from(profiles)
     .where(and(eq(profiles.telegramUserId, telegramUserId), eq(profiles.isActive, true)));
-  if (!row || row.role !== "driver" || !row.locationId) return null;
+  if (!row || !canDeliverOrders(row.role) || !row.locationId) return null;
   return {
     id: row.id,
     email: null,
     fullName: row.fullName,
-    role: "driver",
+    role: row.role,
     locationId: row.locationId,
     locationName: null,
   };

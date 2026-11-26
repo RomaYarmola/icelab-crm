@@ -47,6 +47,7 @@ export async function resolveAppUser(
       locationId: profiles.locationId,
       locationName: locations.name,
       isActive: profiles.isActive,
+      isBookkeeper: profiles.isBookkeeper,
     })
     .from(profiles)
     .leftJoin(locations, eq(locations.id, profiles.locationId))
@@ -64,5 +65,6 @@ export async function resolveAppUser(
     role: row.role,
     locationId: row.locationId,
     locationName: row.locationName,
+    isBookkeeper: row.isBookkeeper,
   };
 }

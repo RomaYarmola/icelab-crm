@@ -48,6 +48,7 @@ export type UserListItem = {
   locationId: string | null;
   locationName: string | null;
   phone: string | null;
+  isBookkeeper: boolean;
   isActive: boolean;
   createdAt: Date;
 };
@@ -62,6 +63,7 @@ function selectUsers(db: AnyPgDatabase) {
       locationId: profiles.locationId,
       locationName: locations.name,
       phone: profiles.phone,
+      isBookkeeper: profiles.isBookkeeper,
       isActive: profiles.isActive,
       createdAt: profiles.createdAt,
     })
@@ -107,6 +109,8 @@ const createUserSchema = z.object({
   role: roleSchema,
   locationId: locationIdSchema.default(null),
   phone: phoneSchema.default(null),
+  /** «Також бухгалтер» (D243): діє лише для менеджера. */
+  isBookkeeper: z.boolean().default(false),
 });
 
 const updateUserSchema = z
@@ -115,6 +119,7 @@ const updateUserSchema = z
     role: roleSchema,
     locationId: locationIdSchema,
     phone: phoneSchema,
+    isBookkeeper: z.boolean(),
   })
   .partial();
 
@@ -185,6 +190,7 @@ export async function provisionUser(
           role: data.role,
           locationId: data.locationId,
           phone: data.phone,
+          isBookkeeper: data.role === "manager" && data.isBookkeeper,
         })
         .returning();
       return profile!;
@@ -231,6 +237,7 @@ export async function updateUserProfile(
         ...(changes.phone !== undefined && { phone: changes.phone }),
         role,
         locationId,
+        isBookkeeper: role === "manager" && (changes.isBookkeeper ?? current.isBookkeeper),
       })
       .where(eq(profiles.id, userId))
       .returning();

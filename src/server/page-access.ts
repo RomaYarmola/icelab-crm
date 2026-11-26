@@ -12,6 +12,6 @@ import type { AppUser } from "./guards";
  */
 export async function requirePageUser(pageId: NavItemId): Promise<AppUser> {
   const user = await requireUser();
-  if (!canOpenPage(user.role, pageId)) redirect(homePathFor(user.role));
+  if (!canOpenPage(user, pageId)) redirect(homePathFor(user.role));
   return user;
 }

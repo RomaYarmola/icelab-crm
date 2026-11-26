@@ -12,7 +12,7 @@ import { listInactiveClients, loadInactiveDays } from "@/server/inactive";
 import { getLocationFilter } from "@/server/location-filter";
 import { requirePageUser } from "@/server/page-access";
 import { listReminders, loadBoxReminderDays, loadReturnReminderDays } from "@/server/reminders";
-import { can } from "@/server/permissions";
+import { can, seesOwnClientsOnly } from "@/server/permissions";
 import { parseAnalyticsParams, parseAnalyticsTab } from "@/utils/analyticsParams";
 import { todayIso } from "@/utils/isoDate";
 import {
@@ -59,7 +59,7 @@ export default async function AnalyticsPage({
         <InactiveContent
           clients={await listInactiveClients(db, user)}
           generalDays={await loadInactiveDays(db)}
-          ownOnly={user.role === "manager"}
+          ownOnly={seesOwnClientsOnly(user)}
           canMark={can(user.role, "clients", "write")}
           thresholdAction={
             can(user.role, "migration_settings", "write") ? saveInactiveDaysAction : null

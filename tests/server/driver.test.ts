@@ -1,12 +1,17 @@
 import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { cashEntries, orders, profiles, telegramSessions } from "@/db/schema";
+import { recordCashEntry } from "@/server/cash";
 import { driverMarkDelivered, driverRecordCash, listDriverOrders } from "@/server/driver";
 import { ValidationError } from "@/server/errors";
 import { ForbiddenError } from "@/server/guards";
 import { transitionOrder } from "@/server/order-status";
 import { clearSession, getSession, setSession } from "@/server/telegram/sessions";
-import { driverCardText, handleDriverMessage } from "@/server/telegram/driver-flow";
+import {
+  driverByTelegram,
+  driverCardText,
+  handleDriverMessage,
+} from "@/server/telegram/driver-flow";
 import { handleUpdate } from "@/server/telegram/updates";
 import { todayIso } from "@/utils/isoDate";
 import { type OrderTestContext, setupOrderTests } from "./order-helpers";
@@ -221,5 +226,44 @@ describe("водій: доставки дня, «Доставив», готів�
         await handleDriverMessage(t.db, t.users.driver, { id: TG }, CHAT, "привіт", deps),
       ).toBe("hint");
     });
+  });
+
+  it("виробництво й старший локації возять самі (D241): список, «Доставив», готівка через бота", async () => {
+    for (const actor of [t.users.production, t.users.location_lead]) {
+      const [profile] = await t.db.select().from(profiles).where(eq(profiles.id, actor.id));
+      const id = await delivery();
+      const user = { ...actor, locationId: t.location };
+      expect(profile!.role).toBe(actor.role);
+      expect((await listDriverOrders(t.db, user)).map((order) => order.id)).toContain(id);
+      expect(await driverMarkDelivered(t.db, user, id)).toMatchObject({ askCash: true });
+      await expect(driverRecordCash(t.db, user, id, "100")).resolves.toBeTruthy();
+      await expect(
+        driverRecordCash(t.db, { ...user, locationId: t.otherLocation }, id, "10"),
+      ).rejects.toBeInstanceOf(ForbiddenError);
+    }
+  });
+
+  it("виробництво не записує готівку з вебу, лише через бота", async () => {
+    const id = await delivery();
+    await expect(
+      recordCashEntry(t.db, t.users.production, { orderId: id, amount: "10" }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+  });
+
+  it("бот впізнає виробництво за Telegram, а менеджера й бухгалтера ні", async () => {
+    let telegramId = 880_000;
+    for (const [actor, expected] of [
+      [t.users.production, true],
+      [t.users.location_lead, true],
+      [t.users.manager, false],
+      [t.users.accountant, false],
+    ] as const) {
+      telegramId += 1;
+      await t.db
+        .update(profiles)
+        .set({ telegramUserId: telegramId })
+        .where(eq(profiles.id, actor.id));
+      expect(Boolean(await driverByTelegram(t.db, telegramId)), actor.role).toBe(expected);
+    }
   });
 });

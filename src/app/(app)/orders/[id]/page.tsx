@@ -59,7 +59,7 @@ export default async function OrderPage({
 
   // Платежі з банку (B13): власник і бухгалтер, лише для безготівкових замовлень.
   const bankPayments =
-    can(user.role, "bank_payments", "read") &&
+    can(user, "bank_payments", "read") &&
     (order.paymentKind === "fop" || order.paymentKind === "company")
       ? await listOrderPayments(getDb(), user, id)
       : null;

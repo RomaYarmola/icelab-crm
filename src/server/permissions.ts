@@ -19,6 +19,12 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   driver: "Водій",
 };
 
+/** Назва ролі людини: менеджера з правами бухгалтера називаємо обома. */
+export const roleLabelOf = (user: { role: UserRole; isBookkeeper?: boolean }): string =>
+  user.role === "manager" && user.isBookkeeper
+    ? `${ROLE_LABELS.manager}, бухгалтер`
+    : ROLE_LABELS[user.role];
+
 /** Рядки матриці прав. */
 export const RESOURCES = [
   "clients", // клієнти, адреси (без цін)
@@ -82,6 +88,8 @@ const MATRIX: Record<Resource, Partial<Record<UserRole, Access>>> = {
     owner: RW,
     manager: R,
     location_lead: RW_OWN,
+    // D241: виробництво возить замовлення й вносить готівку лише в боті, у вебі її не бачить.
+    production: { write: true, viaBotOnly: true, ownLocation: true },
     accountant: R,
     driver: { write: true, viaBotOnly: true },
   },
@@ -111,10 +119,38 @@ const MATRIX: Record<Resource, Partial<Record<UserRole, Access>>> = {
   migration_settings: { owner: W },
 };
 
+/**
+ * Кого перевіряємо: роль або користувач. Користувачем передаємо там, де важить позначка
+ * «також бухгалтер» (D243): вона додає менеджеру права з `BOOKKEEPER_EXTRA`.
+ */
+export type Subject = UserRole | { role: UserRole; isBookkeeper?: boolean };
+
+export const roleOf = (subject: Subject): UserRole =>
+  typeof subject === "string" ? subject : subject.role;
+
+/** Менеджер із позначкою «також бухгалтер». Для інших ролей позначка нічого не дає. */
+export const isBookkeepingManager = (subject: Subject): boolean =>
+  typeof subject !== "string" && subject.role === "manager" && subject.isBookkeeper === true;
+
+/** Менеджер, якому аналітику показуємо лише за своїми клієнтами (D205); бухгалтер бачить усю. */
+export const seesOwnClientsOnly = (subject: Subject): boolean =>
+  roleOf(subject) === "manager" && !isBookkeepingManager(subject);
+
+/** Що позначка «також бухгалтер» додає менеджеру понад його власні права. */
+const BOOKKEEPER_EXTRA: Partial<Record<Resource, Access>> = {
+  bank_payments: RW,
+  audit_log: R,
+};
+
+/** Ролі, що возять замовлення й користуються командами водія в боті (D241). */
+export const DELIVERY_ROLES: readonly UserRole[] = ["driver", "production", "location_lead"];
+
+export const canDeliverOrders = (role: UserRole) => DELIVERY_ROLES.includes(role);
+
 /** Чи дозволяє матриця роль для дії (локацію записів тут не перевіряємо). */
-export function can(role: UserRole, resource: Resource, kind: AccessKind): boolean {
-  const access = MATRIX[resource][role];
-  return access?.[kind] === true;
+export function can(subject: Subject, resource: Resource, kind: AccessKind): boolean {
+  if (MATRIX[resource][roleOf(subject)]?.[kind] === true) return true;
+  return isBookkeepingManager(subject) && BOOKKEEPER_EXTRA[resource]?.[kind] === true;
 }
 
 /** «св.»: дозвіл діє лише для записів своєї локації. */

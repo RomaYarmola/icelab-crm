@@ -5,7 +5,7 @@ import { ALL_LOCATIONS_LABEL } from "@/constants/constants";
 import { NAV_ITEMS } from "@/constants/navigation";
 import type { AppUser } from "@/server/guards";
 import type { LocationFilter } from "@/server/locations";
-import { ROLE_LABELS } from "@/server/permissions";
+import { roleLabelOf } from "@/server/permissions";
 import { getInitial } from "@/utils/initials";
 import {
   accountNavItemsFor,
@@ -44,11 +44,11 @@ export default function AppShell({
   setLocation = setLocationAction,
   children,
 }: AppShellProps) {
-  const sections = navItemsFor(user.role, "side");
-  const phoneOverflow = extraNavItemsFor(user.role);
-  const accountItems = accountNavItemsFor(user.role);
+  const sections = navItemsFor(user, "side");
+  const phoneOverflow = extraNavItemsFor(user);
+  const accountItems = accountNavItemsFor(user);
   const locationLabel = user.locationName ?? ALL_LOCATIONS_LABEL;
-  const roleLabel = ROLE_LABELS[user.role];
+  const roleLabel = roleLabelOf(user);
 
   const renderMoreMenu = (extraItems: typeof phoneOverflow) => (
     <MoreMenu
@@ -64,7 +64,7 @@ export default function AppShell({
   return (
     <div className="min-h-dvh bg-white lg:pl-72">
       <SideNav
-        items={[...sections, ...sideExtraNavItemsFor(user.role)]}
+        items={[...sections, ...sideExtraNavItemsFor(user)]}
         userName={user.fullName}
         userDescription={`${roleLabel} · ${locationLabel}`}
         signOutAction={signOutAction}

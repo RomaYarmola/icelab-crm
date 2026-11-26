@@ -4,6 +4,7 @@ import { intakeMessages, locations, profiles, telegramLinkCodes } from "@/db/sch
 import type { AnyPgDatabase } from "@/db/types";
 import { handleCallback, type FlowDeps, type TgCallback } from "../intake/telegram-flow";
 import { sendMessage } from "./client";
+import { canDeliverOrders } from "../permissions";
 import { driverByTelegram, handleDriverCallback, handleDriverMessage } from "./driver-flow";
 import {
   getTelegramSettings,
@@ -170,7 +171,7 @@ async function handlePrivate(
     db,
     deps,
     chatId,
-    row.profile.role === "driver"
+    canDeliverOrders(row.profile.role)
       ? `Готово, ${row.profile.fullName}. Telegram підключено. Напишіть /today, щоб побачити доставки на сьогодні.`
       : `Готово, ${row.profile.fullName}. Telegram підключено до CRM.`,
   );

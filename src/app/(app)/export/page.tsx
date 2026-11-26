@@ -12,5 +12,5 @@ export const metadata: Metadata = { title: "Експорт даних" };
  */
 export default async function ExportPage() {
   const user = await requirePageUser("export");
-  return <ExportAllContent canSeeJournal={can(user.role, "audit_log", "read")} />;
+  return <ExportAllContent canSeeJournal={can(user, "audit_log", "read")} />;
 }

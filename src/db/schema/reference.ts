@@ -47,6 +47,8 @@ export const profiles = pgTable(
     telegramUserId: bigint("telegram_user_id", { mode: "number" }).unique(),
     phone: text("phone"),
     isActive: boolean("is_active").notNull().default(true),
+    /** Менеджер, який ще й бухгалтер (D243): оплати, звірка, журнал змін, уся аналітика. */
+    isBookkeeper: boolean("is_bookkeeper").notNull().default(false),
     ...timestamps,
   },
   (t) => [

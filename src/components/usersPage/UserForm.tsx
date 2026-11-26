@@ -6,6 +6,7 @@ import { SCREEN_HINTS } from "@/constants/hints";
 import { isLocationBound, ROLE_LABELS, USER_ROLES, type UserRole } from "@/server/permissions";
 import { type FormState, INITIAL_FORM_STATE } from "@/utils/formState";
 import MainButton from "../shared/buttons/MainButton";
+import Checkbox from "../shared/customizedInput/Checkbox";
 import CustomizedInput from "../shared/customizedInput/CustomizedInput";
 import GeneratePasswordField from "../shared/customizedInput/GeneratePasswordField";
 import CustomizedSelect from "../shared/customizedSelect/CustomizedSelect";
@@ -20,6 +21,8 @@ export interface UserFormDefaults {
   role: UserRole;
   locationId: string;
   phone: string;
+  /** «on», якщо менеджер ще й бухгалтер. */
+  isBookkeeper?: string;
 }
 
 interface UserFormProps {
@@ -88,6 +91,14 @@ export default function UserForm({
         defaultValue={values.role}
         onChange={(event) => setRole(event.target.value)}
       />
+      {role === "manager" ? (
+        <Checkbox
+          name="isBookkeeper"
+          label="Також бухгалтер"
+          defaultChecked={values.isBookkeeper === "on"}
+          hint="Додає оплати зі звіркою, журнал змін і всю аналітику."
+        />
+      ) : null}
       <ScreenHint hint={SCREEN_HINTS.roles} />
 
       {needsLocation ? (

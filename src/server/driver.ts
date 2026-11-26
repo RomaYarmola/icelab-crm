@@ -10,10 +10,12 @@ import { kopecksToUah } from "./cash-rules";
 import { ValidationError } from "./errors";
 import { ForbiddenError, type AppUser } from "./guards";
 import { closeIfDone } from "./order-status";
+import { canDeliverOrders } from "./permissions";
 import { describeDeliveryPlace, describeMapQuery } from "./production-rules";
 
 /**
- * Водій (B12, ТЗ 2.1, 6.13, 8.2, D179–D184). Працює лише через Telegram-бота: бачить доставки дня
+ * Водій (B12, ТЗ 2.1, 6.13, 8.2, D179–D184; D241: водії це також виробництво й старший локації).
+ * Через Telegram-бота: бачить доставки дня
  * своєї локації, відмічає «Доставив» і вносить готівку. Окремі функції, а не картка замовлення:
  * водій отримує лише потрібне (клієнт, куди, коли, кг, телефон, скільки взяти готівкою), без цін.
  */
@@ -40,7 +42,7 @@ export type DriverOrder = {
 };
 
 function assertDriver(actor: AppUser): string {
-  if (actor.role !== "driver" || !actor.locationId) throw new ForbiddenError();
+  if (!canDeliverOrders(actor.role) || !actor.locationId) throw new ForbiddenError();
   return actor.locationId;
 }
 
