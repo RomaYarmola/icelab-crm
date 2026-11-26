@@ -13,7 +13,7 @@ import { createTestDb, type TestDb } from "./harness";
 
 const EXPECTED_COUNTS = {
   locations: 2,
-  ice_types: 3,
+  ice_types: 5,
   order_sources: 10,
   client_statuses: 5,
   client_applications: 7,
@@ -43,7 +43,7 @@ describe("початкові дані довідників", () => {
     expect(locationCodes.sort()).toEqual(["kyiv", "lviv"]);
 
     const ice = await db.select({ code: iceTypes.code }).from(iceTypes).orderBy(iceTypes.sort);
-    expect(ice.map((r) => r.code)).toEqual(["3mm", "16mm", "19mm"]);
+    expect(ice.map((r) => r.code)).toEqual(["2mm", "3mm", "16mm", "19mm", "block"]);
 
     const statuses = await db.select({ code: clientStatuses.code }).from(clientStatuses);
     expect(statuses.map((r) => r.code).sort()).toEqual([

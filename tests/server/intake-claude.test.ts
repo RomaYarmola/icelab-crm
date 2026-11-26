@@ -58,6 +58,9 @@ describe("розбір заявки: схема й клієнт Claude (B11, PR 
 
   it("схема приймає повну відповідь і відхиляє чужі значення й вихід за межі", () => {
     expect(parseResultSchema.safeParse(VALID).success).toBe(true);
+    for (const ice_type of ["2mm", "block"]) {
+      expect(parseResultSchema.safeParse({ ...VALID, ice_type }).success).toBe(true);
+    }
     const bad = [
       { ...VALID, ice_type: "5mm" },
       { ...VALID, client: { ...VALID.client, confidence: 1.5 } },
