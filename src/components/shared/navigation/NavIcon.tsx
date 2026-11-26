@@ -26,6 +26,7 @@ const icons: Record<NavItemId, typeof OrdersIcon> = {
   boxes: BoxIcon,
   payments: PaymentsIcon,
   analytics: AnalyticsIcon,
+  finance: AnalyticsIcon,
   cash: CashIcon,
   audit: HistoryIcon,
   export: DownloadIcon,
