@@ -42,6 +42,8 @@ export interface OrderFormValues {
   kgToProduce: string;
   sourceId: string;
   deliveryMethod: string;
+  /** Платна доставка, грн (D235); порожньо: безкоштовна чи входить у ціну. */
+  deliveryPrice: string;
   addressId: string;
   deliveryText: string;
   timeWindow: string;

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import {
+  canChargeDelivery,
   DELIVERY_METHOD_LABELS,
   SELECTABLE_DELIVERY_METHODS,
   PAYMENT_KIND_LABELS,
@@ -348,10 +349,13 @@ export default function OrderForm({
       if (!product.allowedDeliveryMethods.includes(method)) blockedMethods.add(method);
     }
   }
+  const chargesDelivery = canChargeDelivery(values.deliveryMethod);
+  const deliveryPrice = parseDecimal(values.deliveryPrice);
   const total = sumAmounts([
     lineAmount(Number.isFinite(kg) ? kg : 0, effectivePrice),
     ...boxSalesTotals,
     ...productTotals,
+    chargesDelivery && deliveryPrice > 0 ? lineAmount(1, deliveryPrice) : "0.00",
   ]);
 
   const coreLocked = policy.core === "none";
@@ -523,6 +527,17 @@ export default function OrderForm({
           value={values.deliveryMethod}
           onChange={(event) => set("deliveryMethod", event.target.value)}
         />
+        {chargesDelivery ? (
+          <CustomizedInput
+            name="deliveryPrice"
+            label="Платна доставка, ₴"
+            inputMode="decimal"
+            autoComplete="off"
+            value={values.deliveryPrice}
+            onChange={(event) => set("deliveryPrice", event.target.value)}
+            hint="Лише якщо доставка не входить у ціну льоду. Додається до суми замовлення й готівки водія."
+          />
+        ) : null}
         {fromSaved ? (
           shownAddresses.length > 0 ? (
             <>

@@ -12,6 +12,7 @@ describe("початкові значення форми замовлення", 
       kgToProduce: "",
       sourceId: "",
       deliveryMethod: "pickup",
+      deliveryPrice: "",
       addressId: "",
       deliveryText: "",
       timeWindow: "",
@@ -67,6 +68,15 @@ describe("початкові значення форми замовлення", 
       paymentKind: "fop",
       internalComment: "Постійний клієнт",
     });
+  });
+
+  it("платна доставка: сума позицій «Доставка», без них порожньо (D235)", () => {
+    expect(buildEditDefaults(order).deliveryPrice).toBe("");
+    const withDelivery = {
+      ...order,
+      items: [...order.items, { id: "i3", kind: "delivery", qty: "1.000", amount: "300.00" }],
+    } as unknown as OrderCardView;
+    expect(buildEditDefaults(withDelivery).deliveryPrice).toBe("300");
   });
 
   it("поля, яких роль не отримала (спосіб оплати, внутрішній коментар), стають порожніми значеннями", () => {

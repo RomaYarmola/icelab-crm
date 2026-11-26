@@ -1,5 +1,5 @@
 import type { OrderCardView } from "@/server/order-views";
-import { parseDecimal } from "@/utils/orderMath";
+import { parseDecimal, sumAmounts } from "@/utils/orderMath";
 import { formatPhone } from "@/utils/phone";
 import type { OrderFormValues } from "./orderFormTypes";
 
@@ -13,6 +13,7 @@ export function buildCreateDefaults(input: { today: string; locationId: string }
     kgToProduce: "",
     sourceId: "",
     deliveryMethod: "pickup",
+    deliveryPrice: "",
     addressId: "",
     deliveryText: "",
     timeWindow: "",
@@ -26,6 +27,14 @@ export function buildCreateDefaults(input: { today: string; locationId: string }
     comment: "",
     internalComment: "",
   };
+}
+
+/** Сума позицій «Доставка» (порожньо, якщо їх немає чи роль не бачить грошей). */
+function deliveryPriceOf(order: OrderCardView): string {
+  const amounts = order.items.flatMap((item) =>
+    item.kind === "delivery" && item.amount !== undefined ? [item.amount] : [],
+  );
+  return amounts.length > 0 ? String(parseDecimal(sumAmounts(amounts))) : "";
 }
 
 /** Початкові значення форми зміни з картки замовлення (поля, яких роль не отримала, порожні). */
@@ -43,6 +52,7 @@ export function buildEditDefaults(
     kgToProduce: kg(order.kgToProduce),
     sourceId: order.sourceId ?? "",
     deliveryMethod: order.deliveryMethod,
+    deliveryPrice: deliveryPriceOf(order),
     addressId: order.addressId ?? "",
     deliveryText: order.deliveryText ?? "",
     timeWindow: order.timeWindow ?? "",

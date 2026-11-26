@@ -319,6 +319,21 @@ describe("розбір заявки: підказка, чернетка, обр�
     expect(order!.priceManual).toBe(false);
   });
 
+  it("доставка з повідомлення при Новій Пошті не додається, лишається підказка (D235)", async () => {
+    const base = parsed();
+    const stub = claudeReturning(
+      parsed({ delivery: { ...base.delivery, method: "np" }, delivery_price: 300 }),
+    );
+    const outcome = await processIntakeMessage(t.db, (await message()).id, { claude: stub.fn });
+    const orderId = (outcome as { orderId: string }).orderId;
+    const items = await t.db.select().from(orderItems).where(eq(orderItems.orderId, orderId));
+    expect(items.filter((item) => item.kind === "delivery")).toEqual([]);
+    const [order] = await t.db.select().from(orders).where(eq(orders.id, orderId));
+    expect((order!.draftPayload as { unclear: string[] }).unclear.join(" ")).toContain(
+      "доставка 300 грн",
+    );
+  });
+
   it("новий клієнт (D161, Роман 20.11.2026): ціна за кг з повідомлення ставиться в чернетку сама", async () => {
     const stub = claudeReturning(
       parsed({
