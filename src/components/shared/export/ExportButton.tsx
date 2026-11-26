@@ -20,7 +20,8 @@ interface ExportButtonProps {
     | "box-stock"
     | "shipments"
     | "month-summary"
-    | "analytics";
+    | "analytics"
+    | "finance-report";
   /** Текст кнопки. */
   children?: string;
   /** Що потрапить у файл: короткий рядок під кнопкою (`INLINE_HINTS`). */

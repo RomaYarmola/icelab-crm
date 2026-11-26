@@ -14,6 +14,7 @@ import {
   exportShipments,
   exportAnalytics,
   exportEverything,
+  exportFinanceReport,
   exportMonthSummary,
   exportOrders,
   type ExportFile,
@@ -37,6 +38,7 @@ export const EXPORT_LISTS = [
   "shipments",
   "month-summary",
   "analytics",
+  "finance-report",
 ] as const;
 export type ExportList = (typeof EXPORT_LISTS)[number];
 
@@ -98,6 +100,10 @@ export async function runExport(
         tab: parseAnalyticsTab(params.tab),
         locationId,
       });
+    }
+    case "finance-report": {
+      const raw = Array.isArray(params.month) ? params.month[0] : params.month;
+      return exportFinanceReport(db, actor, { month: raw });
     }
     case "all":
       return exportEverything(db, actor);

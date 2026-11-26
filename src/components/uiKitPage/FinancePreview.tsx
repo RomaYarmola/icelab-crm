@@ -2,6 +2,7 @@ import type { Co2PageData } from "@/server/finance/co2";
 import type { FormAction } from "../clientsPage/clientActions";
 import FinancePageContent from "../financePage/FinancePageContent";
 import MonthPageContent from "../financePage/MonthPageContent";
+import ReportContent from "../financePage/ReportContent";
 import { buildReport } from "@/server/finance/month-rules";
 import type { MonthPageData } from "@/server/finance/month";
 
@@ -109,6 +110,11 @@ const MONTH: MonthPageData = {
     { id: "c3", name: "Інші доходи", kind: "income", repeatsMonthly: false, isActive: true },
   ],
 };
+
+/** Екран «Фінрезультат → Звіт» з вигаданими даними (лише для `/ui-kit`). */
+export function FinanceReportPreview() {
+  return <ReportContent data={MONTH} currency="uah" />;
+}
 
 /** Екран «Фінрезультат → Місяць» з вигаданими даними (лише для `/ui-kit`). */
 export function FinanceMonthPreview({ formAction }: { formAction: FormAction }) {
