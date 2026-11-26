@@ -15,10 +15,15 @@ import {
   co2Adjustments,
   co2Norms,
   co2Receipts,
+  commissionRates,
   dataExports,
   defaultPrices,
+  financeMonths,
+  fxRates,
   iceTypes,
   iceWriteoffs,
+  ledgerCategories,
+  ledgerEntries,
   locations,
   orderItems,
   orderPriceChanges,
@@ -55,6 +60,7 @@ import {
   type BoxSlice,
   type DeliverySlice,
 } from "./analytics-sales";
+import type { MonthReport } from "./finance/month-rules";
 import { listInactiveClients } from "./inactive";
 import { getMonthSummary, type MonthSummary, type SummaryTotals } from "./month-summary";
 import { listOrders, type OrderListQuery } from "./orders";
@@ -627,6 +633,11 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
     co2NormRows,
     co2AdjustmentRows,
     iceWriteoffRows,
+    categoryRows,
+    ledgerRows,
+    commissionRows,
+    fxRows,
+    closedRows,
   ] = await Promise.all([
     loadAll(db.select().from(clients).orderBy(asc(clients.code)), "Клієнти"),
     loadAll(db.select().from(clientContacts).orderBy(asc(clientContacts.createdAt)), "Контакти"),
@@ -667,6 +678,14 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
       "Виправлення CO2",
     ),
     loadAll(db.select().from(iceWriteoffs).orderBy(asc(iceWriteoffs.writtenOffOn)), "Списаний лід"),
+    loadAll(db.select().from(ledgerCategories).orderBy(asc(ledgerCategories.sort)), "Статті"),
+    loadAll(db.select().from(ledgerEntries).orderBy(asc(ledgerEntries.month)), "Суми статей"),
+    loadAll(
+      db.select().from(commissionRates).orderBy(asc(commissionRates.validFrom)),
+      "Ставки комісійних",
+    ),
+    loadAll(db.select().from(fxRates).orderBy(asc(fxRates.month)), "Курс долара"),
+    loadAll(db.select().from(financeMonths).orderBy(asc(financeMonths.month)), "Закриті місяці"),
   ]);
 
   const by = <T extends { id: string }>(rows: T[], name: (row: T) => string) =>
@@ -896,6 +915,34 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
       c.day("Дата", (r) => r.writtenOffOn),
       c.num("Лід, кг", (r) => Number(r.kg)),
       c.text("Примітка", (r) => r.note),
+    ]),
+    sheet("Статті", categoryRows, (c) => [
+      c.text("Назва", (r) => r.name),
+      c.text("Вид", (r) => (r.kind === "income" ? "дохід" : "витрата")),
+      c.flag("Однакова щомісяця", (r) => r.repeatsMonthly),
+      c.flag("Активна", (r) => r.isActive),
+    ]),
+    sheet("Суми статей", ledgerRows, (c) => [
+      c.day("Місяць", (r) => r.month),
+      c.text("Локація", (r) => name("location", r.locationId) ?? "спільні"),
+      c.text("Стаття", (r) => categoryRows.find((row) => row.id === r.categoryId)?.name ?? "—"),
+      c.money("Сума, ₴", (r) => r.amount),
+      c.text("Примітка", (r) => r.note),
+    ]),
+    sheet("Ставки комісійних", commissionRows, (c) => [
+      c.text("Менеджер", (r) => name("user", r.profileId)),
+      c.day("З місяця", (r) => r.validFrom),
+      c.money("Ставка за кг, ₴", (r) => r.ratePerKg),
+    ]),
+    sheet("Курс долара", fxRows, (c) => [
+      c.day("Місяць", (r) => r.month),
+      c.num("Курс, грн", (r) => Number(r.usdRate)),
+    ]),
+    sheet("Закриті місяці", closedRows, (c) => [
+      c.day("Місяць", (r) => r.month),
+      c.num("Дохід, ₴", (r) => (r.snapshot as MonthReport).total.income / 100),
+      c.num("Витрати, ₴", (r) => (r.snapshot as MonthReport).total.costs / 100),
+      c.num("Результат, ₴", (r) => (r.snapshot as MonthReport).total.result / 100),
     ]),
     sheet("Джерела замовлень", sourceRows, (c) => [
       c.text("Код", (r) => r.code),
