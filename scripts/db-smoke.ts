@@ -1,4 +1,5 @@
 import "./_load-env";
+import { EXPECTED_TABLES, EXPECTED_TRIGGERS } from "./_db-expect";
 import { eq, sql } from "drizzle-orm";
 import { closeSql, getDb, getSql } from "@/db/client";
 import {
@@ -15,16 +16,6 @@ import { getEnv } from "@/env";
 // Перевіряє структуру і тригери на справжній базі (dev або staging).
 // Усі записи виконуються в транзакції, яку наприкінці скасовують, тож у базі нічого не лишається.
 
-// 17 таблиць B1, login_failures (B2), error_log (B3), regions (B4), order_price_changes (B5),
-// cash_entries (B6), exports (B8) і boxes, box_events, box_debts_legacy (B9), integration_logs, np_cities, np_warehouses, shipments, np_sync_state (B10), intake_messages, site_leads, telegram_link_codes (B11)
-const EXPECTED_TABLES = 34;
-// 15 (updated_at) + 6 (created_by) + 1 (сума) + 1 (історія статусів) + 9 (журнал змін: з B4 ще
-// прайс, контакти й адреси клієнтів) + 1 (зміни цін, B5) + 3 (готівка, B6: час зміни, журнал,
-// захист від правки й видалення) + 2 (журнал експортів, B8: журнал змін і захист від правки)
-// + 6 (бокси, B9: час зміни, журнал, захист подій)
-// + 2 (накладні Нової Пошти, B10: час зміни, журнал)
-// + 1 (повідомлення-заявки, B11: час зміни)
-const EXPECTED_TRIGGERS = 47;
 const TEST_CODE = "ЯЯ9999"; // «ЯЯ9999» кирилицею
 
 class Rollback extends Error {}
