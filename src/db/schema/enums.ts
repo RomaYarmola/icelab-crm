@@ -107,6 +107,7 @@ export const integrationService = pgEnum("integration_service", [
   "claude",
   "stt",
   "site",
+  "ibanoplata",
 ]);
 
 /** Звідки заявка: група Telegram, форма на сайті чи голосове (B15). */

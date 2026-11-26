@@ -29,6 +29,10 @@ export function purposeFor(numbers: readonly number[]): string {
 /** Одне посилання на оплату: замовлення, сума в копійках і призначення не довше за ліміт сервісу. */
 export type PaymentGroup = { numbers: number[]; kopecks: number; purpose: string };
 
+/** Ключ посилання: інша сума чи інші номери означають, що потрібне нове посилання. */
+export const linkKey = (group: Pick<PaymentGroup, "kopecks" | "purpose">) =>
+  `${group.kopecks}|${group.purpose}`;
+
 const kopecksOf = (order: DebtMessageOrder) => Math.round(Number(order.remaining) * 100);
 
 /**

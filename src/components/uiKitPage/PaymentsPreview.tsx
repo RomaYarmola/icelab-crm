@@ -186,10 +186,12 @@ export default function PaymentsPreview({
   screen,
   formAction,
   importAction,
+  linksAction,
 }: {
   screen: PaymentsPreviewScreen;
   formAction: FormAction;
   importAction: (formData: FormData) => Promise<ImportActionResult<never>>;
+  linksAction: PaymentActions["createLinks"];
 }) {
   const actions: PaymentActions = {
     sync: formAction,
@@ -200,6 +202,8 @@ export default function PaymentsPreview({
     byNumbers: formAction,
     selected: formAction,
     requisites: formAction,
+    linkAccount: formAction,
+    createLinks: linksAction,
     importPreview: importAction,
     importCommit: importAction,
   };
@@ -215,6 +219,13 @@ export default function PaymentsPreview({
       debtDays={1}
       requisites={"Отримувач: ФОП Тестовий Тест Тестович\nРахунок: UA000000000000000000000000000"}
       statement={STATEMENT}
+      hasLinkKey
+      linkStatus={{
+        hasKey: true,
+        accounts: [{ uid: "a1", label: "ФОП Тестовий Тест, рахунок …0000" }],
+        selectedUid: "a1",
+        error: null,
+      }}
       monobank={{
         hasToken: true,
         accounts: [

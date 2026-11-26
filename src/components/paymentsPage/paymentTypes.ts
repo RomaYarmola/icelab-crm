@@ -1,4 +1,4 @@
-import type { ImportActionResult } from "@/app/(app)/payments/actions";
+import type { ImportActionResult, PaymentLinksResult } from "@/app/(app)/payments/actions";
 import type { ImportPreview, ImportResult } from "@/server/statement-import";
 import type { FormAction } from "../clientsPage/clientActions";
 
@@ -12,6 +12,8 @@ export interface PaymentActions {
   byNumbers: FormAction;
   selected: FormAction;
   requisites: FormAction;
+  linkAccount: FormAction;
+  createLinks: (input: { clientId: string; orderIds: string[] }) => Promise<PaymentLinksResult>;
   importPreview: (formData: FormData) => Promise<ImportActionResult<ImportPreview>>;
   importCommit: (formData: FormData) => Promise<ImportActionResult<ImportResult>>;
 }
