@@ -519,6 +519,7 @@ export const AUDIT_TABLES: Record<string, AuditTable> = {
       telegram_user_id: number("Telegram"),
       phone: text("Телефон"),
       is_active: bool("Активний"),
+      is_bookkeeper: bool("Також бухгалтер"),
       ...SYSTEM_FIELDS,
     },
   },

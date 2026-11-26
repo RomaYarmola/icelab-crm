@@ -16,6 +16,8 @@ export type AppUser = {
   /** `null` означає «усі локації» (власник, менеджер, бухгалтер). */
   locationId: string | null;
   locationName: string | null;
+  /** Менеджер, який ще й бухгалтер (D243). */
+  isBookkeeper?: boolean;
 };
 
 /** Користувач не має права на цю дію. */
@@ -48,7 +50,7 @@ export function requirePermission(
   kind: AccessKind,
   scope?: PermissionScope,
 ): void {
-  if (!can(user.role, resource, kind)) throw new ForbiddenError();
+  if (!can(user, resource, kind)) throw new ForbiddenError();
   if (!isOwnLocationOnly(user.role, resource)) return;
   if (!scope) {
     throw new Error(

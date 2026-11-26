@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import ProfileContent from "@/components/profilePage/ProfileContent";
 import { ALL_LOCATIONS_LABEL } from "@/constants/constants";
 import { requireUser } from "@/server/auth";
-import { ROLE_LABELS } from "@/server/permissions";
+import { roleLabelOf } from "@/server/permissions";
 
 export const metadata: Metadata = { title: "Профіль" };
 
@@ -14,7 +14,7 @@ export default async function MorePage() {
     <ProfileContent
       fullName={user.fullName}
       email={user.email}
-      roleLabel={ROLE_LABELS[user.role]}
+      roleLabel={roleLabelOf(user)}
       locationLabel={user.locationName ?? ALL_LOCATIONS_LABEL}
     />
   );

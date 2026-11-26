@@ -253,6 +253,13 @@
       "when": 1795701096091,
       "tag": "0035_ibanoplata_service",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1795703533115,
+      "tag": "0036_bookkeeper_flag",
+      "breakpoints": true
     }
   ]
 }

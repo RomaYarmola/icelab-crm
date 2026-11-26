@@ -56,6 +56,7 @@ export default function UserDetailContent({
             role: user.role,
             locationId: user.locationId ?? "",
             phone: user.phone ?? "",
+            isBookkeeper: user.isBookkeeper ? "on" : "",
           }}
           action={updateAction}
           submitLabel="Зберегти зміни"

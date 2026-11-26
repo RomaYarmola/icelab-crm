@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ALL_LOCATIONS_LABEL } from "@/constants/constants";
-import { ROLE_LABELS } from "@/server/permissions";
+import { roleLabelOf } from "@/server/permissions";
 import type { UserListItem } from "@/server/users";
 import EmptyState from "../shared/emptyState/EmptyState";
 import Tag from "../shared/chips/Tag";
@@ -33,7 +33,7 @@ export default function UsersList({ users }: UsersListProps) {
               )}
             </div>
             <Text variant="muted">
-              {ROLE_LABELS[user.role]} · {user.locationName ?? ALL_LOCATIONS_LABEL}
+              {roleLabelOf(user)} · {user.locationName ?? ALL_LOCATIONS_LABEL}
             </Text>
             <Text variant="muted" className="truncate">
               {user.email ?? "E-mail не вказано"}

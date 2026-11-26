@@ -78,7 +78,7 @@ export default async function PaymentsPage({
       monobank={monobank}
       hasLinkKey={Boolean(getIbanOplataKey())}
       linkStatus={links}
-      canSync={can(user.role, "bank_payments", "write")}
+      canSync={can(user, "bank_payments", "write")}
       canUnmatch={can(user.role, "cash_reversal", "write")}
       actions={{
         sync: syncMonobankAction,

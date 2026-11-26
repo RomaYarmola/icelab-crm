@@ -13,6 +13,7 @@ import {
   type Threshold,
 } from "./inactive-rules";
 import { SUMMARY_STATUSES } from "./month-summary";
+import { seesOwnClientsOnly } from "./permissions";
 
 /**
  * «Давно не замовляли» (B14, ТЗ 6.11, 7.7, D207, D208): клієнти зі статусом «Активний», не разові,
@@ -131,7 +132,7 @@ export async function listInactiveClients(
   requirePermission(actor, "analytics", "read");
   return findInactiveClients(db, {
     now,
-    managerId: actor.role === "manager" ? actor.id : null,
+    managerId: seesOwnClientsOnly(actor) ? actor.id : null,
   });
 }
 
