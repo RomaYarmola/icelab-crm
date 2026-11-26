@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { EXPECTED_TABLES, EXPECTED_TRIGGERS } from "../../scripts/_db-expect";
 import { createTestDb } from "./harness";
 
-const EXPECTED_TABLES = [
+const EXPECTED_TABLE_NAMES = [
   "audit_log",
   "bank_accounts",
   "box_debts_legacy",
@@ -74,7 +75,7 @@ describe("структура бази", () => {
       sql`select tablename from pg_tables where schemaname = 'public' order by tablename`,
     );
     const names = (result.rows as { tablename: string }[]).map((r) => r.tablename);
-    expect(names).toEqual(EXPECTED_TABLES);
+    expect(names).toEqual(EXPECTED_TABLE_NAMES);
   });
 
   it("має увімкнену RLS на кожній таблиці", async () => {
@@ -84,7 +85,7 @@ describe("структура бази", () => {
            where n.nspname = 'public' and c.relkind = 'r'`,
     );
     const rows = result.rows as { name: string; rls: boolean }[];
-    expect(rows).toHaveLength(EXPECTED_TABLES.length);
+    expect(rows).toHaveLength(EXPECTED_TABLE_NAMES.length);
     expect(rows.filter((r) => !r.rls).map((r) => r.name)).toEqual([]);
   });
 
@@ -100,6 +101,16 @@ describe("структура бази", () => {
              )`,
     );
     expect(result.rows).toEqual([]);
+  });
+
+  it("числа для перевірки справжньої бази (db:smoke) відповідають міграціям", async () => {
+    expect(EXPECTED_TABLES).toBe(EXPECTED_TABLE_NAMES.length);
+    const result = await ctx.db.execute(
+      sql`select count(*)::int as n from pg_trigger t
+            join pg_class c on c.oid = t.tgrelid join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'public' and not t.tgisinternal`,
+    );
+    expect(EXPECTED_TRIGGERS).toBe((result.rows as { n: number }[])[0]!.n);
   });
 
   it("повторне застосування міграцій нічого не ламає", async () => {

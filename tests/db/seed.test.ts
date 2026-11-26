@@ -8,11 +8,13 @@ import {
   iceTypes,
   locations,
   settings,
+  co2Norms,
 } from "@/db/schema";
 import { createTestDb, type TestDb } from "./harness";
 
 const EXPECTED_COUNTS = {
   locations: 2,
+  co2_norms: 2,
   ice_types: 5,
   order_sources: 10,
   client_statuses: 5,
@@ -74,6 +76,21 @@ describe("початкові дані довідників", () => {
       "payment.date_window_days": 14,
       "report.daily_time": "18:00",
     });
+  });
+
+  it("норми CO2 у новій базі: Київ 2,7 і Львів 2,5; видалену норму повторний запуск не множить", async () => {
+    const rows = await db
+      .select({ code: locations.code, norm: co2Norms.norm, from: co2Norms.validFrom })
+      .from(co2Norms)
+      .innerJoin(locations, eq(locations.id, co2Norms.locationId));
+    expect(rows.sort((a, b) => a.code.localeCompare(b.code))).toEqual([
+      { code: "kyiv", norm: "2.700", from: "2026-01-01" },
+      { code: "lviv", norm: "2.500", from: "2026-01-01" },
+    ]);
+    // Власник замінив норму іншою датою: повторне заповнення нічого не додає.
+    await db.update(co2Norms).set({ validFrom: "2026-11-01", norm: "3.000" });
+    expect((await seedReferenceData(db)).co2_norms).toBe(0);
+    expect(await db.select().from(co2Norms)).toHaveLength(2);
   });
 
   it("повторний запуск нічого не додає", async () => {

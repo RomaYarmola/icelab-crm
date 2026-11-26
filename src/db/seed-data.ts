@@ -8,6 +8,15 @@ export const LOCATIONS = [
   { code: "lviv", name: "Львів", boxPrefix: "L" },
 ];
 
+/**
+ * Норми CO2 на 1 кг льоду (D232, підтверджено Романом) з 01.01.2026. Міграція `0032` записує їх лише
+ * там, де локації вже є, тож у новій базі це робить заповнення довідників.
+ */
+export const CO2_NORMS = {
+  validFrom: "2026-01-01",
+  byLocationCode: { kyiv: "2.700", lviv: "2.500" } as Record<string, string>,
+};
+
 export const ICE_TYPES = [
   // D242: «2 мм» і «Блок» додано 26.11.2026; ціни на них лише в клієнтів.
   { code: "2mm", name: "2 мм", sort: 0 },

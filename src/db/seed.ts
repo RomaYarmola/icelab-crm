@@ -2,6 +2,7 @@ import {
   boxTypes,
   clientApplications,
   clientStatuses,
+  co2Norms,
   iceTypes,
   locations,
   orderSources,
@@ -12,6 +13,7 @@ import {
   BOX_TYPES,
   CLIENT_APPLICATIONS,
   CLIENT_STATUSES,
+  CO2_NORMS,
   ICE_TYPES,
   LOCATIONS,
   ORDER_SOURCES,
@@ -38,6 +40,21 @@ export async function seedReferenceData(db: AnyPgDatabase): Promise<SeedResult> 
         .onConflictDoNothing({ target: locations.code })
         .returning({ id: locations.id })
     ).length;
+
+    // Норму додаємо лише місту, в якого норм ще немає: видалену чи змінену власником не повертаємо.
+    const withNorm = new Set(
+      (await tx.select({ id: co2Norms.locationId }).from(co2Norms)).map((row) => row.id),
+    );
+    const norms = (await tx.select().from(locations)).flatMap((location) => {
+      const norm = CO2_NORMS.byLocationCode[location.code];
+      return norm && !withNorm.has(location.id)
+        ? [{ locationId: location.id, validFrom: CO2_NORMS.validFrom, norm }]
+        : [];
+    });
+    added.co2_norms =
+      norms.length === 0
+        ? 0
+        : (await tx.insert(co2Norms).values(norms).returning({ id: co2Norms.id })).length;
 
     added.ice_types = (
       await tx
