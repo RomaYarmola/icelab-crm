@@ -170,6 +170,15 @@ async function ledgerOf(
   });
 }
 
+/** Облік CO2 міста на дату для звіту місяця. Без перевірки прав. */
+export async function loadCo2Ledger(
+  db: AnyPgDatabase,
+  locationId: string,
+  asOf: string,
+): Promise<Co2Ledger> {
+  return ledgerOf(db, locationId, await loadEntries(db, locationId), asOf);
+}
+
 export type Co2UseView = { iceKg: number; co2Kg: number; cost: string };
 
 export type Co2PageData = {

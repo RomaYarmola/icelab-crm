@@ -12,6 +12,8 @@ import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
 import SubTitle from "../shared/titles/SubTitle";
 import Co2Form from "./Co2Form";
+import FinanceTabs from "./FinanceTabs";
+import { monthTitle } from "./monthTitle";
 
 export interface FinanceActions {
   addReceipt: FormAction;
@@ -29,22 +31,6 @@ interface FinancePageContentProps {
   actions: FinanceActions;
 }
 
-const MONTHS = [
-  "Січень",
-  "Лютий",
-  "Березень",
-  "Квітень",
-  "Травень",
-  "Червень",
-  "Липень",
-  "Серпень",
-  "Вересень",
-  "Жовтень",
-  "Листопад",
-  "Грудень",
-];
-
-const monthTitle = (month: string) => `${MONTHS[Number(month.slice(5)) - 1]} ${month.slice(0, 4)}`;
 const money = (value: string) => formatMoney(parseDecimal(value));
 
 function UseLine({ label, use }: { label: string; use: Co2UseView }) {
@@ -110,6 +96,7 @@ export default function FinancePageContent({ data, actions }: FinancePageContent
 
   return (
     <div className="flex flex-col gap-5">
+      <FinanceTabs active="co2" />
       <TabLinks
         label="Місто"
         activeId={location.code}

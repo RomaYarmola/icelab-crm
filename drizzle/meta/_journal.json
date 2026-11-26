@@ -232,6 +232,13 @@
       "when": 1795699032795,
       "tag": "0032_co2_finance",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795699670158,
+      "tag": "0033_finance_ledger",
+      "breakpoints": true
     }
   ]
 }
