@@ -4,7 +4,10 @@ import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
 import DraftsPreview from "@/components/uiKitPage/DraftsPreview";
-import FinancePreview, { FinanceMonthPreview } from "@/components/uiKitPage/FinancePreview";
+import FinancePreview, {
+  FinanceMonthPreview,
+  FinanceReportPreview,
+} from "@/components/uiKitPage/FinancePreview";
 import AnalyticsPreview from "@/components/uiKitPage/AnalyticsPreview";
 import IntakePreview from "@/components/uiKitPage/IntakePreview";
 import PaymentsPreview, {
@@ -342,6 +345,7 @@ const PREVIEW_SCREENS = [
   ...BOX_PREVIEW_SCREENS,
   "finance",
   "finance-month",
+  "finance-report",
   "export",
   "np",
   "np-shipment",
@@ -504,6 +508,8 @@ export default async function ShellPreviewPage({
           ownOnly={knownRole === "manager"}
           formAction={previewFormAction}
         />
+      ) : screen === "finance-report" ? (
+        <FinanceReportPreview />
       ) : screen === "finance-month" ? (
         <FinanceMonthPreview formAction={previewFormAction} />
       ) : screen === "finance" ? (

@@ -60,7 +60,9 @@ import {
   type BoxSlice,
   type DeliverySlice,
 } from "./analytics-sales";
+import { getMonthReport } from "./finance/month";
 import type { MonthReport } from "./finance/month-rules";
+import { buildReportTable, type ReportTable, toUsdTable } from "./finance/report-rows";
 import { listInactiveClients } from "./inactive";
 import { getMonthSummary, type MonthSummary, type SummaryTotals } from "./month-summary";
 import { listOrders, type OrderListQuery } from "./orders";
@@ -1171,5 +1173,43 @@ export async function exportAnalytics(
     params,
     fileName: `${FILE_PREFIX}-analytics-${tab}-${tab === "inactive" ? todayIso() : query.to}.xlsx`,
     sheets,
+  });
+}
+
+// ---------------------------------------------------------------------------------------------
+// Фінансовий результат (B15)
+// ---------------------------------------------------------------------------------------------
+
+function financeSheet(name: string, table: ReportTable): ExportSheet<unknown> {
+  return sheet(name, table.rows, (c) => [
+    c.text("Стаття", (r) => r.label),
+    ...table.cities.map((city, index) => c.money(city, (r) => r.values[index]! / 100)),
+    c.money("Разом", (r) => r.total / 100),
+  ]);
+}
+
+/** Звіт «Фінансовий результат» за місяць: аркуш у гривнях і, якщо внесено курс, у доларах. */
+export async function exportFinanceReport(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  query: { month?: string; today?: string },
+): Promise<ExportFile> {
+  requirePermission(actor, "finance", "read");
+  const data = await getMonthReport(db, actor, query);
+  const table = buildReportTable(data.report);
+  const rate = data.report.usdRate;
+  const params: ExportParams = {
+    Місяць: data.month,
+    Стан: data.closedAt ? "закритий" : "не закритий",
+  };
+  if (rate !== null) params["Курс долара"] = rate;
+  return finish(db, actor, {
+    kind: "finance_report",
+    params,
+    fileName: `${FILE_PREFIX}-finance-${data.month}.xlsx`,
+    sheets: [
+      financeSheet("Звіт, грн", table),
+      ...(rate === null ? [] : [financeSheet("Звіт, дол", toUsdTable(table, rate))]),
+    ],
   });
 }

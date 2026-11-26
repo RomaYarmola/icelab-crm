@@ -18,6 +18,7 @@ import { kopecksToUah, toKopecks } from "@/server/cash-rules";
 import { parseInput, ValidationError } from "@/server/errors";
 import { type AppUser, requirePermission } from "@/server/guards";
 import { addDays, todayIso } from "@/utils/isoDate";
+import { shiftMonth } from "@/utils/month";
 import { parseDecimal } from "@/utils/orderMath";
 import { loadCo2Ledger } from "./co2";
 import { buildReport, type ColumnInput, type MonthReport } from "./month-rules";
@@ -47,11 +48,6 @@ function lastDay(month: string): string {
   const next =
     number === 12 ? `${year + 1}-01-01` : `${year}-${String(number + 1).padStart(2, "0")}-01`;
   return addDays(next, -1);
-}
-
-export function shiftMonth(month: string, by: number): string {
-  const [year, number] = month.split("-").map(Number) as [number, number];
-  return new Date(Date.UTC(year, number - 1 + by, 1)).toISOString().slice(0, 7);
 }
 
 /** Не дає змінювати місяць і закривати його одночасно та відхиляє зміни в закритому. */
@@ -201,6 +197,37 @@ async function computeReport(
   });
 }
 
+export type MonthReportData = {
+  month: string;
+  currentMonth: string;
+  closedAt: string | null;
+  /** Для закритого місяця зафіксовані цифри, інакше пораховані зараз. */
+  report: MonthReport;
+};
+
+/** Звіт за місяць (Б4). Майбутній чи некоректний місяць замінюється поточним. */
+export async function getMonthReport(
+  db: AnyPgDatabase,
+  actor: AppUser,
+  query: { month?: string; today?: string } = {},
+): Promise<MonthReportData> {
+  requirePermission(actor, "finance", "read");
+  const today = query.today ?? todayIso();
+  const currentMonth = today.slice(0, 7);
+  const parsed = monthField.safeParse(query.month);
+  const month = parsed.success && parsed.data <= currentMonth ? parsed.data : currentMonth;
+  const [closed] = await db
+    .select()
+    .from(financeMonths)
+    .where(eq(financeMonths.month, firstDay(month)));
+  return {
+    month,
+    currentMonth,
+    closedAt: closed?.closedAt.toISOString() ?? null,
+    report: closed ? (closed.snapshot as MonthReport) : await computeReport(db, month, today),
+  };
+}
+
 export type EntryField = {
   categoryId: string;
   name: string;
@@ -213,12 +240,7 @@ export type EntryField = {
 
 export type EntryScope = { locationId: string | null; name: string; fields: EntryField[] };
 
-export type MonthPageData = {
-  month: string;
-  currentMonth: string;
-  closedAt: string | null;
-  /** Для закритого місяця зафіксовані цифри, інакше пораховані зараз. */
-  report: MonthReport;
+export type MonthPageData = MonthReportData & {
   scopes: EntryScope[];
   managers: { profileId: string; name: string; rate: string | null }[];
   categories: {
@@ -274,17 +296,10 @@ export async function getMonthPage(
   actor: AppUser,
   query: { month?: string; today?: string } = {},
 ): Promise<MonthPageData> {
-  requirePermission(actor, "finance", "read");
-  const today = query.today ?? todayIso();
-  const currentMonth = today.slice(0, 7);
-  const parsed = monthField.safeParse(query.month);
-  const month = parsed.success && parsed.data <= currentMonth ? parsed.data : currentMonth;
+  const base = await getMonthReport(db, actor, query);
+  const { month } = base;
 
-  const [[closed], scopes, categories, people, rates] = await Promise.all([
-    db
-      .select()
-      .from(financeMonths)
-      .where(eq(financeMonths.month, firstDay(month))),
+  const [scopes, categories, people, rates] = await Promise.all([
     loadScopes(db, month),
     db
       .select()
@@ -297,13 +312,9 @@ export async function getMonthPage(
       .orderBy(asc(profiles.fullName)),
     ratesFor(db, month),
   ]);
-  const report = closed ? (closed.snapshot as MonthReport) : await computeReport(db, month, today);
 
   return {
-    month,
-    currentMonth,
-    closedAt: closed?.closedAt.toISOString() ?? null,
-    report,
+    ...base,
     scopes,
     managers: people.map((person) => {
       const rate = rates.get(person.id);

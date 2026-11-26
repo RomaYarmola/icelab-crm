@@ -1,7 +1,6 @@
 import type { MonthPageData } from "@/server/finance/month";
-import type { ReportColumn } from "@/server/finance/month-rules";
 import { formatDateTime } from "@/utils/formatDate";
-import { formatKg, formatMoney, formatPricePerKg } from "@/utils/formatNumber";
+import { formatKg, formatMoney } from "@/utils/formatNumber";
 import type { FormAction } from "../clientsPage/clientActions";
 import Card from "../shared/cards/Card";
 import Disclosure from "../shared/disclosure/Disclosure";
@@ -9,7 +8,6 @@ import MainLink from "../shared/links/MainLink";
 import Notification from "../shared/notification/Notification";
 import Text from "../shared/texts/Text";
 import SectionTitle from "../shared/titles/SectionTitle";
-import SubTitle from "../shared/titles/SubTitle";
 import FinanceTabs from "./FinanceTabs";
 import {
   CategoryForm,
@@ -19,7 +17,7 @@ import {
   NewCategoryForm,
   UsdRateForm,
 } from "./MonthForms";
-import { monthTitle } from "./monthTitle";
+import MonthNav from "./MonthNav";
 
 export interface MonthActions {
   saveEntries: FormAction;
@@ -36,74 +34,13 @@ interface MonthPageContentProps {
   actions: MonthActions;
 }
 
-const uah = (kopecks: number) => formatMoney(kopecks / 100);
-
-/** Сусідній місяць: «2026-01» мінус один це «2025-12». */
-const shift = (month: string, by: number) =>
-  new Date(Date.UTC(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1 + by, 1))
-    .toISOString()
-    .slice(0, 7);
-
-function Line({ label, kopecks, strong }: { label: string; kopecks: number; strong?: boolean }) {
-  return (
-    <div className="flex items-baseline justify-between gap-x-3">
-      <Text as="span" variant={strong ? "label" : "muted"}>
-        {label}
-      </Text>
-      <Text as="span" variant={strong ? "label" : "muted"} className="whitespace-nowrap">
-        {uah(kopecks)}
-      </Text>
-    </div>
-  );
-}
-
-/** Рядки одного міста (чи спільних витрат); нульові не показуємо. */
-function Column({ column }: { column: ReportColumn }) {
-  const rows = [
-    { label: "Лід", kopecks: column.revenue.ice },
-    { label: "Платна доставка", kopecks: column.revenue.delivery },
-    { label: "Бокси", kopecks: column.revenue.boxes },
-    { label: "Інші товари", kopecks: column.revenue.other },
-    ...column.otherIncome,
-  ].filter((row) => row.kopecks !== 0);
-  const costs = [
-    { label: "CO2 на замовлення", kopecks: column.co2.orders },
-    { label: "CO2 на списаний лід", kopecks: column.co2.writeoffs },
-    ...column.expenses,
-    ...column.commissions.map((line) => ({
-      label: `Комісія: ${line.name} (${formatKg(line.grams / 1000)}${
-        line.rateKopecks === null ? "" : ` по ${formatPricePerKg(line.rateKopecks / 100)}`
-      })`,
-      kopecks: line.kopecks,
-    })),
-  ].filter((row) => row.kopecks !== 0);
-
-  return (
-    <Card as="li" className="flex flex-col gap-2">
-      <SubTitle>{column.name}</SubTitle>
-      <Line label="Доходи" kopecks={column.income} strong />
-      {rows.map((row, index) => (
-        <Line key={index} label={row.label} kopecks={row.kopecks} />
-      ))}
-      <Line label="Витрати" kopecks={column.costs} strong />
-      {costs.map((row, index) => (
-        <Line key={index} label={row.label} kopecks={row.kopecks} />
-      ))}
-      <Line label="Результат" kopecks={column.result} strong />
-    </Card>
-  );
-}
-
 /**
- * Екран «Фінрезультат → Місяць» (B15, D234, D236, D237): підсумки по містах і разом, суми статей,
+ * Екран «Фінрезультат → Місяць» (B15, D234, D236, D237): підсумок «Разом», суми статей,
  * курс долара, ставки комісійних, статті й закриття місяця.
  */
 export default function MonthPageContent({ data, actions }: MonthPageContentProps) {
   const { month, report, closedAt } = data;
   const isFinished = month < data.currentMonth;
-  const columns = report.columns.filter(
-    (column) => column.locationId !== null || column.income !== 0 || column.costs !== 0,
-  );
   const shortage = report.columns.reduce((sum, column) => sum + column.co2.shortageGrams, 0);
   const withoutRate = [
     ...new Set(
@@ -117,19 +54,7 @@ export default function MonthPageContent({ data, actions }: MonthPageContentProp
     <div className="flex flex-col gap-5">
       <FinanceTabs active="month" />
 
-      <nav aria-label="Місяць" className="flex items-center justify-between gap-3">
-        <MainLink href={`/finance/month?month=${shift(month, -1)}`} className="whitespace-nowrap">
-          ← Раніше
-        </MainLink>
-        <Text variant="label">{monthTitle(month)}</Text>
-        {isFinished ? (
-          <MainLink href={`/finance/month?month=${shift(month, 1)}`}>Пізніше →</MainLink>
-        ) : (
-          <Text as="span" variant="muted">
-            поточний
-          </Text>
-        )}
-      </nav>
+      <MonthNav path="/finance/month" month={month} currentMonth={data.currentMonth} />
 
       {closedAt ? (
         <Notification variant="success">
@@ -152,24 +77,14 @@ export default function MonthPageContent({ data, actions }: MonthPageContentProp
         <Card className="flex flex-col gap-1">
           <Text variant="label">Разом</Text>
           <Text variant="kpi" className="font-extrabold">
-            {uah(report.total.result)}
+            {formatMoney(report.total.result / 100)}
           </Text>
           <Text variant="muted">
-            Доходи {uah(report.total.income)}, витрати {uah(report.total.costs)}.
+            Доходи {formatMoney(report.total.income / 100)}, витрати{" "}
+            {formatMoney(report.total.costs / 100)}.
           </Text>
-          <Text variant="muted">
-            {report.usdRate === null
-              ? "Курс долара не внесено."
-              : `≈ ${new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 0 }).format(
-                  report.total.result / 100 / report.usdRate,
-                )} $ за курсом ${formatMoney(report.usdRate)}.`}
-          </Text>
+          <MainLink href={`/finance/report?month=${month}`}>Докладний звіт</MainLink>
         </Card>
-        <ul className="flex flex-col gap-3">
-          {columns.map((column) => (
-            <Column key={column.locationId ?? "common"} column={column} />
-          ))}
-        </ul>
       </section>
 
       {closedAt ? (

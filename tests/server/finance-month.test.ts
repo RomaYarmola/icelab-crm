@@ -10,12 +10,12 @@ import {
   saveLedgerEntries,
   setCommissionRate,
   setUsdRate,
-  shiftMonth,
   updateCategory,
 } from "@/server/finance/month";
 import { buildReport, commissionKopecks } from "@/server/finance/month-rules";
 import { ForbiddenError } from "@/server/guards";
 import { transitionOrder } from "@/server/order-status";
+import { shiftMonth } from "@/utils/month";
 import { type OrderTestContext, setupOrderTests } from "./order-helpers";
 
 const MONTH = "2026-11";
