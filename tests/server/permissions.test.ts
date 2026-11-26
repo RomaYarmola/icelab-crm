@@ -56,6 +56,8 @@ const TZ_MATRIX: Record<Resource, readonly [string, string, string, string, stri
   bot_drafts: ["W", "W", "-", "-", "-", "-"],
   // Аналітика
   analytics: ["R", "R", "-", "-", "R", "-"],
+  // Фінансовий результат (B15): лише власник
+  finance: ["RW", "-", "-", "-", "-", "-"],
   // Експорт Excel
   excel_export: ["W", "W", "-", "-", "W", "-"],
   // «Експорт усього» (не з ТЗ, рішення D94): лише власник

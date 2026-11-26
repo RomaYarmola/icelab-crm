@@ -42,6 +42,8 @@ function canSeeSection(role: UserRole, id: NavItemId): boolean {
       return can(role, "bank_payments", "read");
     case "analytics":
       return can(role, "analytics", "read");
+    case "finance":
+      return can(role, "finance", "read");
     case "boxes":
       return can(role, "box_scan", "write") || can(role, "box_debts_stock", "read");
     case "cash":
@@ -109,7 +111,7 @@ export function navItemsFor(role: UserRole, placement: NavPlacement): NavItem[] 
  */
 export function accountNavItemsFor(role: UserRole): NavItem[] {
   if (!canUseWeb(role)) return [];
-  return (["analytics", "prices", "audit", "export", "users", "np", "intake"] as const)
+  return (["analytics", "finance", "prices", "audit", "export", "users", "np", "intake"] as const)
     .filter((id) => canSeeSection(role, id))
     .map((id) => NAV_ITEMS[id]);
 }
@@ -121,9 +123,9 @@ export function accountNavItemsFor(role: UserRole): NavItem[] {
  */
 export function sideExtraNavItemsFor(role: UserRole): NavItem[] {
   if (!canUseWeb(role)) return [];
-  const ids = (["analytics", "prices", "audit", "export", "users", "np", "intake"] as const).filter(
-    (id) => id !== "prices" || role === "owner",
-  );
+  const ids = (
+    ["analytics", "finance", "prices", "audit", "export", "users", "np", "intake"] as const
+  ).filter((id) => id !== "prices" || role === "owner");
   return ids.filter((id) => canSeeSection(role, id)).map((id) => NAV_ITEMS[id]);
 }
 

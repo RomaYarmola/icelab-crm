@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, inArray, lt, or, type SQL, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lt, notInArray, or, type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 import {
   auditLog,
@@ -41,6 +41,7 @@ import {
 import { parseInput, ValidationError } from "./errors";
 import { type AppUser, requirePermission } from "./guards";
 import { loadOrderRow } from "./orders";
+import { can } from "./permissions";
 
 /**
  * Читання журналу змін (B8, D89–D91). Журнал пише база (`audit_log`, тригери), тут його лише
@@ -611,6 +612,10 @@ export async function listAuditEntries(
   const offset = Math.max(page.offset ?? 0, 0);
 
   const conditions: (SQL | undefined)[] = [];
+  // Фінрезультат бачить лише власник, тож і його записів у журналі бухгалтер не отримує (B15).
+  if (!can(actor.role, "finance", "read")) {
+    conditions.push(notInArray(auditLog.tableName, tablesOfSection("finance")));
+  }
   if (filters.section)
     conditions.push(inArray(auditLog.tableName, tablesOfSection(filters.section)));
   if (filters.actorId) conditions.push(eq(auditLog.actorId, filters.actorId));

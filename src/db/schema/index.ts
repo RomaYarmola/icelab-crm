@@ -6,6 +6,7 @@ export * from "./clients";
 export * from "./enums";
 export * from "./errors";
 export * from "./exports";
+export * from "./finance";
 export * from "./intake";
 export * from "./money";
 export * from "./np";

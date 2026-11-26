@@ -12,9 +12,13 @@ import {
   clientPrices,
   clients,
   clientStatuses,
+  co2Adjustments,
+  co2Norms,
+  co2Receipts,
   dataExports,
   defaultPrices,
   iceTypes,
+  iceWriteoffs,
   locations,
   orderItems,
   orderPriceChanges,
@@ -619,6 +623,10 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
     boxUnitRows,
     boxEventRows,
     legacyDebtRows,
+    co2ReceiptRows,
+    co2NormRows,
+    co2AdjustmentRows,
+    iceWriteoffRows,
   ] = await Promise.all([
     loadAll(db.select().from(clients).orderBy(asc(clients.code)), "Клієнти"),
     loadAll(db.select().from(clientContacts).orderBy(asc(clientContacts.createdAt)), "Контакти"),
@@ -652,6 +660,13 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
     loadAll(db.select().from(boxes).orderBy(asc(boxes.code)), "Бокси"),
     loadAll(db.select().from(boxEvents).orderBy(asc(boxEvents.occurredAt)), "Події боксів"),
     loadAll(db.select().from(boxDebtsLegacy).orderBy(asc(boxDebtsLegacy.createdAt)), "Старі борги"),
+    loadAll(db.select().from(co2Receipts).orderBy(asc(co2Receipts.receivedOn)), "Приходи CO2"),
+    loadAll(db.select().from(co2Norms).orderBy(asc(co2Norms.validFrom)), "Норми CO2"),
+    loadAll(
+      db.select().from(co2Adjustments).orderBy(asc(co2Adjustments.adjustedOn)),
+      "Виправлення CO2",
+    ),
+    loadAll(db.select().from(iceWriteoffs).orderBy(asc(iceWriteoffs.writtenOffOn)), "Списаний лід"),
   ]);
 
   const by = <T extends { id: string }>(rows: T[], name: (row: T) => string) =>
@@ -857,6 +872,30 @@ export async function exportEverything(db: AnyPgDatabase, actor: AppUser): Promi
       c.num("Закрито", (r) => r.resolvedCount),
       c.day("З дати", (r) => r.sinceDate),
       c.text("Примітка", (r) => r.sourceRow),
+    ]),
+    sheet("Приходи CO2", co2ReceiptRows, (c) => [
+      c.text("Локація", (r) => name("location", r.locationId)),
+      c.day("Дата", (r) => r.receivedOn),
+      c.num("CO2, кг", (r) => Number(r.kg)),
+      c.money("Ціна за кг, ₴", (r) => r.pricePerKg),
+      c.text("Примітка", (r) => r.note),
+    ]),
+    sheet("Норми CO2", co2NormRows, (c) => [
+      c.text("Локація", (r) => name("location", r.locationId)),
+      c.day("Діє з", (r) => r.validFrom),
+      c.num("CO2 на 1 кг льоду, кг", (r) => Number(r.norm)),
+    ]),
+    sheet("Виправлення CO2", co2AdjustmentRows, (c) => [
+      c.text("Локація", (r) => name("location", r.locationId)),
+      c.day("Дата", (r) => r.adjustedOn),
+      c.num("Різниця, кг", (r) => Number(r.kg)),
+      c.text("Причина", (r) => r.note),
+    ]),
+    sheet("Списаний лід", iceWriteoffRows, (c) => [
+      c.text("Локація", (r) => name("location", r.locationId)),
+      c.day("Дата", (r) => r.writtenOffOn),
+      c.num("Лід, кг", (r) => Number(r.kg)),
+      c.text("Примітка", (r) => r.note),
     ]),
     sheet("Джерела замовлень", sourceRows, (c) => [
       c.text("Код", (r) => r.code),

@@ -225,6 +225,13 @@
       "when": 1795618979397,
       "tag": "0031_return_reminder_kind",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795699032795,
+      "tag": "0032_co2_finance",
+      "breakpoints": true
     }
   ]
 }

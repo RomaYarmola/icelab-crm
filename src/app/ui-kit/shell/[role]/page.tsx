@@ -4,6 +4,7 @@ import ProfileContent from "@/components/profilePage/ProfileContent";
 import AppShell from "@/components/shared/layout/AppShell";
 import NewUserContent from "@/components/usersPage/NewUserContent";
 import DraftsPreview from "@/components/uiKitPage/DraftsPreview";
+import FinancePreview from "@/components/uiKitPage/FinancePreview";
 import AnalyticsPreview from "@/components/uiKitPage/AnalyticsPreview";
 import IntakePreview from "@/components/uiKitPage/IntakePreview";
 import PaymentsPreview, {
@@ -339,6 +340,7 @@ const PREVIEW_SCREENS = [
   ...CASH_PREVIEW_SCREENS,
   ...AUDIT_PREVIEW_SCREENS,
   ...BOX_PREVIEW_SCREENS,
+  "finance",
   "export",
   "np",
   "np-shipment",
@@ -501,6 +503,8 @@ export default async function ShellPreviewPage({
           ownOnly={knownRole === "manager"}
           formAction={previewFormAction}
         />
+      ) : screen === "finance" ? (
+        <FinancePreview formAction={previewFormAction} />
       ) : screen === "intake" ? (
         <IntakePreview formAction={previewFormAction} />
       ) : screen === "np-day" ? (

@@ -39,6 +39,7 @@ export const RESOURCES = [
   "shipments", // ТТН: створення, стікери
   "bot_drafts", // чернетки з бота: підтвердження
   "analytics", // аналітика
+  "finance", // фінансовий результат (B15)
   "excel_export", // експорт в Excel
   "export_all", // «Експорт усього»: уся база одним файлом (не з ТЗ, рішення D94)
   "users", // користувачі й ролі
@@ -99,6 +100,8 @@ const MATRIX: Record<Resource, Partial<Record<UserRole, Access>>> = {
   shipments: { owner: W, manager: W, location_lead: W_OWN },
   bot_drafts: { owner: W, manager: W },
   analytics: { owner: R, manager: R, accountant: R },
+  // Роман (26.11.2026): фінансовий результат бачить лише власник.
+  finance: { owner: RW },
   excel_export: { owner: W, manager: W, accountant: W },
   export_all: { owner: W },
   users: { owner: RW },
